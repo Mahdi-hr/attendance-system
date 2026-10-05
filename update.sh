@@ -507,8 +507,10 @@ sys.exit(subprocess.call([sys.executable, "manage.py", *sys.argv[1:]], env=env))
 PYEOF
     }
 
+    # پرچم را *قبل* از اجرا روشن می‌کنیم: اگر migrate نیمه‌کاره fail شود،
+    # باید دیتابیس از بکاپ بازیابی شود (حتی اگر بعضی مایگریشن‌ها اعمال شده باشند).
+    MIGRATED=1
     if run_manage migrate --noinput; then
-        MIGRATED=1
         ok "دیتابیس به‌روز شد (رکوردهای شما حفظ شدند)."
     else
         rollback "migrate شکست خورد — دیتابیس به نسخهٔ قبل برگشت"
