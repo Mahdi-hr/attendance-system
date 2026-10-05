@@ -1,0 +1,589 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}داشبورد{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       WELCOME HEADER
+       ========================================================= */
+    .dash-header {
+        text-align: center;
+        margin-bottom: 1.75rem;
+    }
+    .dash-header .header-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        box-shadow: 0 16px 40px -12px var(--glow);
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    .dash-header .header-avatar::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 26px;
+        background: inherit;
+        opacity: 0.35;
+        filter: blur(14px);
+        z-index: -1;
+        animation: pulseGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 0.65; }
+    }
+    .dash-header h1 {
+        font-weight: 800;
+        font-size: 1.5rem;
+        margin: 0 0 0.35rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+    }
+    .dash-header h1 strong {
+        background: linear-gradient(90deg, var(--primary), var(--accent), var(--secondary), var(--primary));
+        background-size: 300% 100%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: gradientShift 4s ease infinite;
+    }
+    @keyframes gradientShift {
+        0%,100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    .dash-header p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* =========================================================
+       ADMIN MODE BANNER
+       ========================================================= */
+    .admin-banner {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.12),
+            rgba(var(--accent-rgb), 0.06));
+        border: 1px solid rgba(var(--primary-rgb), 0.35);
+        border-radius: 20px;
+        padding: 1.3rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        position: relative;
+        overflow: hidden;
+    }
+    .admin-banner::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.15), transparent 55%);
+        animation: auroraMove 14s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .admin-banner > * { position: relative; z-index: 1; }
+    .admin-banner .ab-info {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: 1;
+        min-width: 220px;
+    }
+    .admin-banner .ab-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+        box-shadow: 0 10px 24px -8px var(--glow);
+    }
+    .admin-banner h5 {
+        font-weight: 700;
+        font-size: 1rem;
+        margin: 0 0 4px;
+        color: var(--text-primary);
+    }
+    .admin-banner p {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* =========================================================
+       ACTION CARDS (3-up)
+       ========================================================= */
+    .action-card {
+        display: block;
+        text-decoration: none !important;
+        color: inherit !important;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.6rem 1.25rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s, opacity 0.35s;
+        height: 100%;
+        min-height: 180px;
+    }
+    .action-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, var(--ac-glow, rgba(var(--primary-rgb), 0.15)), transparent 55%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+    .action-card:hover:not(.disabled)::before { opacity: 1; }
+    .action-card:hover:not(.disabled) {
+        border-color: var(--ac-border, rgba(var(--primary-rgb), 0.5));
+        box-shadow: 0 20px 44px -16px var(--ac-shadow, rgba(var(--primary-rgb), 0.5));
+        color: inherit !important;
+    }
+
+    .action-card .ac-icon {
+        width: 68px;
+        height: 68px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.7rem;
+        color: #fff;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        background: var(--ac-icon-bg, linear-gradient(135deg, var(--primary), var(--secondary)));
+        box-shadow: 0 12px 28px -8px var(--ac-shadow, rgba(var(--primary-rgb), 0.7));
+    }
+    .action-card:hover:not(.disabled) .ac-icon {
+        transform: scale(1.08) rotate(-6deg);
+    }
+    .action-card h5 {
+        font-weight: 800;
+        font-size: 1.05rem;
+        margin: 0 0 0.5rem;
+        color: var(--text-primary);
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Status badge inside action card */
+    .ac-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
+        white-space: nowrap;
+    }
+    .ac-badge.success {
+        background: rgba(16,185,129,0.15);
+        color: var(--success);
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.3);
+    }
+    .ac-badge.warning {
+        background: rgba(251,191,36,0.15);
+        color: var(--warning);
+        box-shadow: inset 0 0 0 1px rgba(251,191,36,0.3);
+    }
+    .ac-badge.secondary {
+        background: rgba(148,163,184,0.15);
+        color: var(--text-secondary);
+        box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+    }
+    .ac-badge.danger {
+        background: rgba(239,68,68,0.15);
+        color: var(--danger);
+        box-shadow: inset 0 0 0 1px rgba(239,68,68,0.3);
+    }
+    .ac-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Color variants */
+    .action-card.reports {
+        --ac-color: var(--primary);
+        --ac-glow: rgba(var(--primary-rgb), 0.15);
+        --ac-border: rgba(var(--primary-rgb), 0.5);
+        --ac-shadow: rgba(var(--primary-rgb), 0.5);
+        --ac-icon-bg: linear-gradient(135deg, var(--primary), var(--secondary));
+    }
+    .action-card.checkin {
+        --ac-color: var(--success);
+        --ac-glow: rgba(16,185,129,0.15);
+        --ac-border: rgba(16,185,129,0.5);
+        --ac-shadow: rgba(16,185,129,0.5);
+        --ac-icon-bg: linear-gradient(135deg, #34d399, #06b6d4);
+    }
+    .action-card.checkout {
+        --ac-color: var(--danger);
+        --ac-glow: rgba(239,68,68,0.15);
+        --ac-border: rgba(239,68,68,0.5);
+        --ac-shadow: rgba(239,68,68,0.5);
+        --ac-icon-bg: linear-gradient(135deg, #f87171, #dc2626);
+    }
+
+    /* Disabled state — visually clear */
+    .action-card.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+        filter: grayscale(0.6);
+    }
+    .action-card.disabled .ac-icon {
+        filter: grayscale(0.5);
+    }
+
+    /* =========================================================
+       TODAY STATUS CARD
+       ========================================================= */
+    .today-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.6rem 1.4rem;
+        height: 100%;
+        min-height: 180px;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s;
+        display: flex;
+        flex-direction: column;
+    }
+    /* Variant colors */
+    .today-card.present {
+        --tc-color: var(--success);
+        --tc-glow: rgba(16,185,129,0.15);
+        --tc-border: rgba(16,185,129,0.4);
+        --tc-icon-bg: linear-gradient(135deg, #34d399, #06b6d4);
+    }
+    .today-card.break {
+        --tc-color: var(--warning);
+        --tc-glow: rgba(251,191,36,0.15);
+        --tc-border: rgba(251,191,36,0.4);
+        --tc-icon-bg: linear-gradient(135deg, #fbbf24, #f97316);
+    }
+    .today-card.checked-out {
+        --tc-color: var(--accent);
+        --tc-glow: rgba(34,211,238,0.15);
+        --tc-border: rgba(34,211,238,0.4);
+        --tc-icon-bg: linear-gradient(135deg, #22d3ee, #818cf8);
+    }
+    .today-card.not-in {
+        --tc-color: var(--text-secondary);
+        --tc-glow: rgba(148,163,184,0.12);
+        --tc-border: rgba(148,163,184,0.35);
+        --tc-icon-bg: linear-gradient(135deg, #94a3b8, #64748b);
+    }
+    .today-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, var(--tc-glow), transparent 55%);
+        opacity: 1;
+        pointer-events: none;
+    }
+    .today-card:hover {
+        border-color: var(--tc-border);
+        box-shadow: 0 20px 44px -16px rgba(0,0,0,0.25);
+    }
+    .today-card > * { position: relative; z-index: 1; }
+
+    .today-card .tc-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        color: #fff;
+        background: var(--tc-icon-bg);
+        box-shadow: 0 12px 28px -8px rgba(0,0,0,0.4);
+        margin-bottom: 0.85rem;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .today-card:hover .tc-icon {
+        transform: scale(1.08) rotate(-6deg);
+    }
+    .today-card h5 {
+        font-weight: 800;
+        font-size: 1rem;
+        margin: 0 0 0.75rem;
+        color: var(--text-primary);
+    }
+
+    /* Status line */
+    .tc-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-radius: 12px;
+        background: var(--tc-glow);
+        border: 1px solid var(--tc-border);
+        margin-bottom: 0.75rem;
+    }
+    .tc-status .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--tc-color);
+        box-shadow: 0 0 12px var(--tc-color);
+        animation: pulse 2s ease-in-out infinite;
+        flex-shrink: 0;
+    }
+    .tc-status .status-text {
+        font-weight: 700;
+        color: var(--tc-color);
+        font-size: 0.88rem;
+    }
+
+    /* Time rows */
+    .tc-times {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: auto;
+    }
+    .tc-time-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 12px;
+        border-radius: 10px;
+        background: rgba(var(--primary-rgb), 0.05);
+        font-size: 0.82rem;
+    }
+    .tc-time-row .tr-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    .tc-time-row .tr-label i {
+        font-size: 0.75rem;
+        color: var(--primary);
+    }
+    .tc-time-row .tr-value {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+    }
+    .tc-time-row.highlight {
+        background: var(--tc-glow);
+        border: 1px solid var(--tc-border);
+    }
+    .tc-time-row.highlight .tr-value {
+        color: var(--tc-color);
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+        .dash-header .header-avatar { width: 60px; height: 60px; font-size: 1.6rem; border-radius: 16px; }
+        .dash-header h1 { font-size: 1.25rem; }
+        .admin-banner { padding: 1.1rem 1.2rem; }
+        .action-card { padding: 1.3rem 1rem; min-height: 160px; }
+        .action-card .ac-icon { width: 58px; height: 58px; font-size: 1.4rem; }
+        .today-card { padding: 1.3rem 1.15rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     WELCOME HEADER
+     ============================================================ -->
+<div class="dash-header">
+    <div class="header-avatar">{{ user.first_name|first }}{{ user.last_name|first }}</div>
+    <h1>داشبورد <strong>{{ user.first_name }} {{ user.last_name }}</strong></h1>
+    <p>مدیریت حضور و غیاب شما</p>
+</div>
+
+<!-- ============================================================
+     ADMIN MODE BANNER
+     ============================================================ -->
+{% if user_role == 'both' and not can_access_admin %}
+<div class="admin-banner">
+    <div class="ab-info">
+        <span class="ab-icon"><i class="fas fa-user-shield"></i></span>
+        <div>
+            <h5>دسترسی مدیریت</h5>
+            <p>شما علاوه بر کارمندی، نقش مدیر را هم دارید. با ورود به حالت ادمین، همهٔ امکانات مدیریت نمایش داده می‌شود.</p>
+        </div>
+    </div>
+    <a href="{% url 'admin-mode-on' %}" class="btn btn-gradient">
+        <i class="fas fa-user-shield me-2"></i>ورود به حالت ادمین
+    </a>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     3 ACTION CARDS + 1 TODAY STATUS
+     ============================================================ -->
+<div class="row g-4 justify-content-center">
+
+    <!-- Reports -->
+    <div class="col-md-6 col-lg-3">
+        <a href="{% url 'view-my-attendance-employee-login' %}" class="action-card reports">
+            <div class="ac-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h5>گزارشات</h5>
+            <span class="ac-badge success" style="background:rgba(var(--primary-rgb),0.12);color:var(--primary);box-shadow:inset 0 0 0 1px rgba(var(--primary-rgb),0.25);">
+                <i class="fas fa-chart-bar"></i>مشاهده گزارش
+            </span>
+        </a>
+    </div>
+
+    <!-- Check-in -->
+    <div class="col-md-6 col-lg-3">
+        <a href="{% url 'mark-your-attendance' %}"
+           class="action-card checkin {% if is_checked_in %}disabled{% endif %}">
+            <div class="ac-icon">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+            <h5>ورود</h5>
+            {% if is_checked_in %}
+            <span class="ac-badge success">
+                <i class="fas fa-check"></i>قبلاً ثبت شده
+            </span>
+            {% else %}
+            <span class="ac-badge success" style="background:rgba(16,185,129,0.12);color:var(--success);box-shadow:inset 0 0 0 1px rgba(16,185,129,0.25);">
+                <i class="fas fa-fingerprint"></i>ثبت ورود
+            </span>
+            {% endif %}
+        </a>
+    </div>
+
+    <!-- Check-out -->
+    <div class="col-md-6 col-lg-3">
+        <a href="{% url 'mark-your-attendance-out' %}"
+           class="action-card checkout {% if not is_checked_in or is_on_break %}disabled{% endif %}">
+            <div class="ac-icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <h5>خروج</h5>
+            {% if not is_checked_in %}
+            <span class="ac-badge secondary">
+                <i class="fas fa-lock"></i>ابتدا ورود بزنید
+            </span>
+            {% elif is_on_break %}
+            <span class="ac-badge warning">
+                <i class="fas fa-coffee"></i>در استراحت هستید
+            </span>
+            {% else %}
+            <span class="ac-badge danger" style="background:rgba(239,68,68,0.12);color:var(--danger);box-shadow:inset 0 0 0 1px rgba(239,68,68,0.25);">
+                <i class="fas fa-door-open"></i>ثبت خروج
+            </span>
+            {% endif %}
+        </a>
+    </div>
+
+    <!-- Today status -->
+    <div class="col-md-6 col-lg-3">
+        <div class="today-card
+            {% if is_checked_in and not is_on_break %}present
+            {% elif is_on_break %}break
+            {% elif check_out_time %}checked-out
+            {% else %}not-in{% endif %}">
+
+            <div class="tc-icon">
+                {% if is_checked_in and not is_on_break %}<i class="fas fa-user-check"></i>
+                {% elif is_on_break %}<i class="fas fa-coffee"></i>
+                {% elif check_out_time %}<i class="fas fa-sign-out-alt"></i>
+                {% else %}<i class="fas fa-user-clock"></i>{% endif %}
+            </div>
+            <h5>وضعیت امروز</h5>
+
+            <!-- Status line -->
+            <div class="tc-status">
+                <span class="status-dot"></span>
+                <span class="status-text">
+                    {% if is_checked_in and not is_on_break %}حاضر در محل
+                    {% elif is_on_break %}در استراحت
+                    {% elif check_out_time %}خروج ثبت شده
+                    {% else %}هنوز ورود نزده‌اید{% endif %}
+                </span>
+            </div>
+
+            <!-- Time details -->
+            <div class="tc-times">
+                {% if check_in_time %}
+                <div class="tc-time-row">
+                    <span class="tr-label"><i class="fas fa-sign-in-alt"></i>ورود</span>
+                    <span class="tr-value">{{ check_in_time|clock }}</span>
+                </div>
+                {% endif %}
+
+                {% if is_on_break and break_start %}
+                <div class="tc-time-row highlight">
+                    <span class="tr-label"><i class="fas fa-coffee"></i>شروع استراحت</span>
+                    <span class="tr-value">{{ break_start|clock }}</span>
+                </div>
+                {% endif %}
+
+                {% if check_out_time %}
+                <div class="tc-time-row">
+                    <span class="tr-label"><i class="fas fa-sign-out-alt"></i>خروج</span>
+                    <span class="tr-value">{{ check_out_time|clock }}</span>
+                </div>
+                {% endif %}
+
+                {% if check_in_time %}
+                <div class="tc-time-row highlight">
+                    <span class="tr-label"><i class="fas fa-hourglass-half"></i>مجموع کار</span>
+                    <span class="tr-value">{{ work_text }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

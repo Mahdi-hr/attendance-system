@@ -1,0 +1,675 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}مدیریت کاربران{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       SEARCH TOOLBAR
+       ========================================================= */
+    .users-toolbar {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 0.9rem 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+    .users-toolbar .search-box {
+        flex: 1 1 300px;
+        max-width: 500px;
+        min-width: 200px;
+    }
+    .users-toolbar .search-box input {
+        height: 42px;
+        padding-right: 44px !important;
+        padding-left: 44px !important;
+        font-size: 0.9rem;
+    }
+    .users-toolbar .stat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 20px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.82rem;
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+        white-space: nowrap;
+    }
+    .users-toolbar .stat-chip i { font-size: 0.8rem; }
+
+    /* =========================================================
+       USERS TABLE
+       ========================================================= */
+    .users-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+    .users-table {
+        --bs-table-bg: transparent;
+        background: transparent;
+        margin: 0;
+    }
+    .users-table th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-muted) !important;
+        font-weight: 700;
+        padding: 14px 14px;
+        white-space: nowrap;
+        background: rgba(148,163,184,0.04) !important;
+    }
+    .users-table td {
+        padding: 14px 14px !important;
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+    .users-table tbody tr.user-row {
+        transition: background-color 0.2s ease !important;
+    }
+    .users-table tbody tr.user-row:hover {
+        background-color: rgba(var(--primary-rgb), 0.06) !important;
+    }
+
+    /* Row number badge */
+    .row-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 26px;
+        padding: 0 8px;
+        border-radius: 8px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.78rem;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* User cell — avatar + name */
+    .u-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+    .u-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px -4px var(--glow);
+    }
+    .u-cell .u-info { min-width: 0; }
+    .u-cell .u-name {
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .u-cell .u-username {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 1px;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        direction: ltr;
+        text-align: right;
+    }
+
+    /* Role badges */
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.74rem;
+        white-space: nowrap;
+    }
+    .role-badge.admin {
+        background: rgba(139,92,246,0.15);
+        color: var(--secondary);
+        box-shadow: inset 0 0 0 1px rgba(139,92,246,0.3);
+    }
+    .role-badge.both {
+        background: rgba(34,211,238,0.15);
+        color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(34,211,238,0.3);
+    }
+    .role-badge.user {
+        background: rgba(148,163,184,0.15);
+        color: var(--text-secondary);
+        box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+    }
+
+    /* Face status badges */
+    .face-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.74rem;
+        white-space: nowrap;
+    }
+    .face-badge.trained {
+        background: rgba(16,185,129,0.15);
+        color: var(--success);
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.3);
+    }
+    .face-badge.photos {
+        background: rgba(251,191,36,0.15);
+        color: var(--warning);
+        box-shadow: inset 0 0 0 1px rgba(251,191,36,0.3);
+    }
+    .face-badge.none {
+        background: rgba(239,68,68,0.13);
+        color: var(--danger);
+        box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);
+    }
+    .face-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Photo count badge */
+    .photo-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 11px;
+        border-radius: 10px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+    }
+    .photo-count-badge.empty {
+        background: rgba(148,163,184,0.1);
+        color: var(--text-muted);
+        box-shadow: inset 0 0 0 1px var(--glass-border);
+        font-weight: 500;
+    }
+
+    /* Attendance count */
+    .attend-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 11px;
+        border-radius: 10px;
+        background: rgba(16,185,129,0.12);
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
+    }
+
+    /* Last date */
+    .last-date {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        font-weight: 500;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        direction: rtl;
+    }
+    .last-date i { color: var(--accent); font-size: 0.75rem; }
+    .last-date.empty { color: var(--text-muted); }
+
+    /* Action buttons */
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .btn-action {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.25s;
+        text-decoration: none;
+        flex-shrink: 0;
+    }
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+    .btn-action.capture {
+        background: rgba(34,211,238,0.12);
+        color: var(--accent);
+        border-color: rgba(34,211,238,0.3);
+    }
+    .btn-action.capture:hover {
+        background: rgba(34,211,238,0.25);
+        border-color: var(--accent);
+        box-shadow: 0 6px 16px -6px rgba(34,211,238,0.5);
+        color: var(--accent);
+    }
+    .btn-action.edit {
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        border-color: rgba(var(--primary-rgb), 0.3);
+    }
+    .btn-action.edit:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        box-shadow: 0 6px 16px -6px var(--glow);
+        color: var(--primary);
+    }
+    .btn-action.report {
+        background: rgba(16,185,129,0.12);
+        color: var(--success);
+        border-color: rgba(16,185,129,0.3);
+    }
+    .btn-action.report:hover {
+        background: rgba(16,185,129,0.25);
+        border-color: var(--success);
+        box-shadow: 0 6px 16px -6px rgba(16,185,129,0.5);
+        color: var(--success);
+    }
+    .btn-action.delete {
+        background: rgba(239,68,68,0.12);
+        color: var(--danger);
+        border-color: rgba(239,68,68,0.3);
+    }
+    .btn-action.delete:hover {
+        background: var(--danger);
+        color: #fff;
+        border-color: var(--danger);
+        box-shadow: 0 6px 16px -6px rgba(239,68,68,0.6);
+    }
+
+    /* =========================================================
+       EMPTY STATE
+       ========================================================= */
+    .empty-state {
+        padding: 3.5rem 1rem;
+        text-align: center;
+    }
+    .empty-state .icon-wrap {
+        width: 84px;
+        height: 84px;
+        border-radius: 24px;
+        background: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 32px -12px var(--glow);
+    }
+    .empty-state h6 {
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+    .empty-state p {
+        margin: 0 0 1rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    /* =========================================================
+       RESPONSIVE — table → card on mobile
+       ========================================================= */
+    @media (max-width: 768px) {
+        .users-toolbar {
+            padding: 0.75rem 0.9rem;
+        }
+        .users-toolbar .search-box {
+            flex: 1 1 100%;
+            max-width: none;
+        }
+
+        .users-table thead { display: none; }
+        .users-table tbody,
+        .users-table tr,
+        .users-table td { display: block; width: 100%; }
+        .users-table tbody tr.user-row {
+            margin: 0.75rem;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            width: calc(100% - 1.5rem);
+        }
+        .users-table tbody tr.user-row:hover {
+            border-color: rgba(var(--primary-rgb), 0.4);
+        }
+        .users-table td {
+            padding: 0.45rem 0 !important;
+            border: none !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            text-align: left;
+        }
+        .users-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .users-table td[data-label="نام کاربری"],
+        .users-table td[data-label="نام کامل"] {
+            justify-content: flex-start;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.2rem;
+        }
+        .users-table td[data-label="نام کاربری"]::before,
+        .users-table td[data-label="نام کامل"]::before {
+            margin-bottom: 2px;
+        }
+        .users-table td[data-label="عملیات"] {
+            padding-top: 0.75rem !important;
+            justify-content: flex-end;
+        }
+        .users-table td[data-label="عملیات"]::before { display: none; }
+        .users-table .action-buttons {
+            justify-content: flex-end;
+            gap: 8px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .page-title { font-size: 1.3rem; }
+        .users-toolbar .stat-chip { font-size: 0.75rem; padding: 5px 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     PAGE HEADER
+     ============================================================ -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-users me-2" style="color:var(--primary)"></i>
+            مدیریت کاربران
+        </h1>
+        <p class="page-subtitle mb-0">مدیریت کارمندان، عکس‌ها و وضعیت چهره</p>
+    </div>
+    <a href="{% url 'register' %}" class="btn btn-gradient">
+        <i class="fas fa-user-plus me-2"></i>ثبت‌نام کارمند جدید
+    </a>
+</div>
+
+<!-- ============================================================
+     TOOLBAR
+     ============================================================ -->
+<div class="users-toolbar">
+    <div class="search-box">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text"
+               id="userSearch"
+               class="form-control"
+               placeholder="جستجوی نام کاربری یا نام کامل..."
+               autocomplete="off"
+               aria-label="جستجوی کاربر">
+        <button type="button" class="search-clear" id="clearSearch" aria-label="پاک کردن جستجو">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <span class="stat-chip" id="searchCount">
+        <i class="fas fa-users"></i>{{ user_data|length|fa }} کارمند
+    </span>
+</div>
+
+<!-- ============================================================
+     USERS TABLE
+     ============================================================ -->
+<div class="users-card">
+    <div class="table-responsive">
+        <table class="table users-table mb-0 align-middle" id="usersTable">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width:60px;">#</th>
+                    <th>کاربر</th>
+                    <th style="width:100px;">نقش</th>
+                    <th style="width:130px;">وضعیت چهره</th>
+                    <th class="text-center" style="width:90px;">عکس</th>
+                    <th class="text-center" style="width:100px;">حضور</th>
+                    <th style="width:130px;">آخرین حضور</th>
+                    <th class="text-center" style="width:180px;">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in user_data %}
+                <tr class="user-row"
+                    data-status="{{ item.face_status }}"
+                    data-search="{{ item.user.username|lower }} {{ item.user.first_name }} {{ item.user.last_name }} {{ item.user.username }}">
+
+                    <td class="text-center" data-label="#">
+                        <span class="row-num">{{ forloop.counter|fa }}</span>
+                    </td>
+
+                    <td data-label="کاربر">
+                        <div class="u-cell">
+                            <span class="u-avatar">{{ item.user.username|first|upper }}</span>
+                            <div class="u-info">
+                                <div class="u-name">{{ item.user.first_name }} {{ item.user.last_name }}</div>
+                                <span class="u-username">@{{ item.user.username }}</span>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td data-label="نقش">
+                        {% if item.role == 'admin' %}
+                        <span class="role-badge admin">
+                            <i class="fas fa-user-shield"></i>ادمین
+                        </span>
+                        {% elif item.role == 'both' %}
+                        <span class="role-badge both">
+                            <i class="fas fa-exchange-alt"></i>هر دو
+                        </span>
+                        {% else %}
+                        <span class="role-badge user">
+                            <i class="fas fa-user"></i>کاربر
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <td data-label="وضعیت چهره">
+                        {% if item.face_status == 'trained' %}
+                        <span class="face-badge trained">
+                            <i class="fas fa-check-circle"></i>آموزش‌دیده
+                        </span>
+                        {% elif item.face_status == 'photos_only' %}
+                        <span class="face-badge photos">
+                            <i class="fas fa-clock"></i>بدون آموزش
+                        </span>
+                        {% else %}
+                        <span class="face-badge none">
+                            <i class="fas fa-ban"></i>بدون عکس
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-center" data-label="تعداد عکس">
+                        {% if item.photo_count > 0 %}
+                        <span class="photo-count-badge">
+                            <i class="fas fa-images"></i>{{ item.photo_count|fa }}
+                        </span>
+                        {% else %}
+                        <span class="photo-count-badge empty">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-center" data-label="روزهای حضور">
+                        {% if item.attendance_count > 0 %}
+                        <span class="attend-badge">
+                            <i class="fas fa-calendar-check"></i>{{ item.attendance_count|fa }}
+                        </span>
+                        {% else %}
+                        <span style="color:var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td data-label="آخرین حضور">
+                        {% if item.last_date %}
+                        <span class="last-date">
+                            <i class="fas fa-clock"></i>{{ item.last_date|to_jalali }}
+                        </span>
+                        {% else %}
+                        <span class="last-date empty">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-center" data-label="عملیات">
+                        <div class="action-buttons">
+                            <a href="{% url 'register-photo-capture' item.user.id %}"
+                               class="btn-action capture"
+                               title="گرفتن عکس">
+                                <i class="fas fa-camera"></i>
+                            </a>
+                            <a href="{% url 'user-edit' item.user.id %}"
+                               class="btn-action edit"
+                               title="ویرایش">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'view-attendance-employee' %}?username={{ item.user.username }}"
+                               class="btn-action report"
+                               title="گزارش حضور">
+                                <i class="fas fa-chart-bar"></i>
+                            </a>
+                            <button type="button"
+                                    class="btn-action delete"
+                                    title="حذف"
+                                    onclick="confirmDelete({{ item.user.id }}, '{{ item.user.username }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="p-0">
+                        <div class="empty-state">
+                            <div class="icon-wrap"><i class="fas fa-users"></i></div>
+                            <h6>کارمندی ثبت نشده است</h6>
+                            <p>برای شروع، اولین کارمند را از دکمه بالا ثبت‌نام کنید.</p>
+                            <a href="{% url 'register' %}" class="btn btn-gradient">
+                                <i class="fas fa-user-plus me-1"></i>ثبت‌نام کارمند
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Hidden delete form -->
+<form id="deleteForm" method="POST" style="display:none;">
+    {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ============================================================
+    // LIVE SEARCH
+    // ============================================================
+    const searchInput = document.getElementById('userSearch');
+    const clearBtn = document.getElementById('clearSearch');
+    const countEl = document.getElementById('searchCount');
+    const rows = document.querySelectorAll('.user-row');
+    const totalUsers = rows.length;
+
+    function updateSearch() {
+        const q = searchInput.value.trim().toLowerCase();
+        let shown = 0;
+        rows.forEach(row => {
+            const hay = (row.dataset.search || '').toLowerCase();
+            const ok = !q || hay.includes(q);
+            row.style.display = ok ? '' : 'none';
+            if (ok) shown++;
+        });
+        clearBtn.style.display = q ? 'flex' : 'none';
+        if (q) {
+            countEl.innerHTML = '<i class="fas fa-search"></i>' + shown + ' نتیجه از ' + totalUsers;
+        } else {
+            countEl.innerHTML = '<i class="fas fa-users"></i>' + totalUsers + ' کارمند';
+        }
+    }
+
+    searchInput.addEventListener('input', updateSearch);
+    clearBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        updateSearch();
+        searchInput.focus();
+    });
+
+    // ============================================================
+    // DELETE CONFIRMATION
+    // ============================================================
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteBase = "{% url 'user-delete' 0 %}";
+
+    function confirmDelete(userId, username) {
+        const msg = 'آیا از حذف کاربر «' + username + '» مطمئن هستید؟\n\n' +
+                    'این عملیات شامل حذف عکس‌های چهره و سوابق حضور نیز می‌شود و قابل بازگشت نیست.';
+        if (confirm(msg)) {
+            if (deleteForm) {
+                deleteForm.action = deleteBase.replace('/0/', '/' + userId + '/');
+                deleteForm.submit();
+            }
+        }
+    }
+</script>
+{% endblock %}

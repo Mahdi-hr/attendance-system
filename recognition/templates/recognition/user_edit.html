@@ -1,0 +1,845 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}ویرایش {{ target_user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       USER PROFILE CARD
+       ========================================================= */
+    .profile-card {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.06),
+            rgba(var(--accent-rgb), 0.03));
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.75rem 1.5rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .profile-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.12), transparent 55%);
+        animation: auroraMove 16s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .profile-card > * { position: relative; z-index: 1; }
+
+    .profile-avatar-wrap {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+    .profile-avatar-wrap::before {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 28px;
+        background: conic-gradient(from 0deg, var(--primary), var(--accent), var(--secondary), var(--primary));
+        animation: spin 6s linear infinite;
+        z-index: -1;
+        opacity: 0.7;
+        filter: blur(6px);
+    }
+    .profile-avatar {
+        width: 88px;
+        height: 88px;
+        border-radius: 22px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 2rem;
+        box-shadow: 0 12px 32px -8px var(--glow);
+        border: 3px solid var(--bg-card);
+    }
+
+    .profile-name {
+        font-weight: 800;
+        font-size: 1.15rem;
+        color: var(--text-primary);
+        margin-bottom: 0.2rem;
+        letter-spacing: -0.01em;
+    }
+    .profile-username {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        direction: ltr;
+        margin-bottom: 1rem;
+    }
+
+    /* Role badge */
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.78rem;
+        margin-bottom: 1rem;
+    }
+    .role-badge.admin {
+        background: rgba(139,92,246,0.15);
+        color: var(--secondary);
+        box-shadow: inset 0 0 0 1px rgba(139,92,246,0.3);
+    }
+    .role-badge.both {
+        background: rgba(34,211,238,0.15);
+        color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(34,211,238,0.3);
+    }
+    .role-badge.user {
+        background: rgba(148,163,184,0.15);
+        color: var(--text-secondary);
+        box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+    }
+
+    /* Stat chips */
+    .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+    .pstat {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.7rem 0.85rem;
+        border-radius: 14px;
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        text-align: right;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .pstat:hover {
+        border-color: rgba(var(--primary-rgb), 0.35);
+        box-shadow: 0 8px 20px -10px var(--glow);
+    }
+    .pstat .ps-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+    }
+    .pstat .ps-body { min-width: 0; }
+    .pstat .ps-label {
+        font-size: 0.68rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        line-height: 1.2;
+    }
+    .pstat .ps-value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1.2;
+        margin-top: 2px;
+    }
+    .pstat.face-trained .ps-icon { background: linear-gradient(135deg, #34d399, #06b6d4); }
+    .pstat.face-photos .ps-icon { background: linear-gradient(135deg, #fbbf24, #f97316); }
+    .pstat.face-none .ps-icon { background: linear-gradient(135deg, #f87171, #dc2626); }
+    .pstat.photos .ps-icon { background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+    .pstat.attend .ps-icon { background: linear-gradient(135deg, #22d3ee, #818cf8); }
+
+    /* =========================================================
+       CARDS (generic)
+       ========================================================= */
+    .info-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .info-card .ic-head {
+        padding: 1.1rem 1.4rem;
+        border-bottom: 1px solid var(--glass-border);
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--accent-rgb), 0.04));
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .info-card .ic-head .ic-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+        flex-shrink: 0;
+    }
+    .info-card .ic-head h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+    .info-card .ic-body {
+        padding: 1.3rem 1.4rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Photos card body */
+    .photos-desc {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        line-height: 1.7;
+        margin-bottom: 1.1rem;
+    }
+    .photos-desc strong {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+    .photos-desc .badge-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin: 0 3px;
+    }
+
+    /* =========================================================
+       FORM SECTIONS
+       ========================================================= */
+    .form-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+    .form-card .fc-head {
+        padding: 1.1rem 1.4rem;
+        border-bottom: 1px solid var(--glass-border);
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--accent-rgb), 0.04));
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .form-card .fc-head .fc-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+        flex-shrink: 0;
+    }
+    .form-card .fc-head h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+    .form-card .fc-body { padding: 1.4rem; }
+
+    .form-section {
+        padding-bottom: 1.25rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 1px dashed var(--glass-border);
+    }
+    .form-section:last-of-type {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    .form-section .fs-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .form-section .fs-title i { font-size: 0.8rem; }
+
+    .form-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+    }
+    .form-control, .form-select {
+        color: var(--text-primary) !important;
+        background: var(--form-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+        font-size: 0.88rem;
+        transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .form-control:hover, .form-select:hover {
+        border-color: rgba(var(--primary-rgb), 0.4) !important;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18) !important;
+    }
+    .form-text {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        margin-top: 4px;
+    }
+
+    /* =========================================================
+       ACTION BUTTONS ROW
+       ========================================================= */
+    .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 1.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--glass-border);
+    }
+    .btn-danger-outline {
+        background: transparent;
+        border: 1px solid rgba(239,68,68,0.4);
+        color: var(--danger);
+        padding: 12px 22px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.25s;
+    }
+    .btn-danger-outline:hover {
+        background: rgba(239,68,68,0.12);
+        border-color: var(--danger);
+        color: var(--danger);
+        box-shadow: 0 8px 20px -8px rgba(239,68,68,0.5);
+        transform: translateY(-2px);
+    }
+
+    /* =========================================================
+       DELETE CARD
+       ========================================================= */
+    .delete-card {
+        background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(251,191,36,0.04));
+        border: 1px solid rgba(239,68,68,0.25);
+        border-radius: 20px;
+        padding: 1.3rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .delete-card .dc-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 200px;
+    }
+    .delete-card .dc-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #f87171, #dc2626);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+        box-shadow: 0 8px 20px -6px rgba(239,68,68,0.6);
+    }
+    .delete-card h6 {
+        margin: 0 0 3px;
+        font-weight: 800;
+        color: var(--danger);
+        font-size: 1rem;
+    }
+    .delete-card p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+    .btn-delete-user {
+        background: linear-gradient(135deg, var(--danger), #b91c1c);
+        border: none;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.88rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        box-shadow: 0 6px 18px -6px rgba(239,68,68,0.6);
+        white-space: nowrap;
+    }
+    .btn-delete-user:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px -8px rgba(239,68,68,0.8);
+        color: #fff;
+    }
+
+    /* =========================================================
+       DELETE MODAL
+       ========================================================= */
+    .modal-content.delete-modal {
+        background: var(--bg-card);
+        border: 1px solid rgba(239,68,68,0.3);
+        border-radius: 20px;
+        box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6);
+        overflow: hidden;
+    }
+    .delete-modal .modal-top {
+        padding: 1.75rem 1.5rem 1rem;
+        text-align: center;
+        background: linear-gradient(180deg, rgba(239,68,68,0.08), transparent);
+    }
+    .delete-modal .modal-top .warn-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #f87171, #dc2626);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 16px 40px -10px rgba(239,68,68,0.7);
+        animation: pulseWarn 2s ease-in-out infinite;
+    }
+    @keyframes pulseWarn {
+        0%, 100% { transform: scale(1); box-shadow: 0 16px 40px -10px rgba(239,68,68,0.7); }
+        50% { transform: scale(1.05); box-shadow: 0 20px 50px -10px rgba(239,68,68,1); }
+    }
+    .delete-modal .modal-top h5 {
+        color: var(--danger);
+        font-weight: 800;
+        margin-bottom: 0.4rem;
+    }
+    .delete-modal .modal-top p {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin: 0;
+    }
+    .delete-modal .modal-body {
+        padding: 0.5rem 1.5rem 1.5rem;
+        color: var(--text-secondary);
+        text-align: center;
+        font-size: 0.9rem;
+        line-height: 1.7;
+    }
+    .delete-modal .modal-body strong {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+    .delete-modal .modal-actions {
+        display: flex;
+        gap: 0.6rem;
+        padding: 0 1.5rem 1.5rem;
+    }
+    .delete-modal .modal-actions > * {
+        flex: 1;
+    }
+    .delete-modal .btn-cancel {
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        padding: 11px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.25s;
+    }
+    .delete-modal .btn-cancel:hover {
+        background: rgba(var(--primary-rgb), 0.1);
+        border-color: var(--primary);
+        color: var(--text-primary);
+    }
+    .delete-modal .btn-confirm {
+        background: linear-gradient(135deg, var(--danger), #b91c1c);
+        border: none;
+        color: #fff;
+        padding: 11px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+        box-shadow: 0 6px 18px -6px rgba(239,68,68,0.6);
+    }
+    .delete-modal .btn-confirm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px -8px rgba(239,68,68,0.8);
+        color: #fff;
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+        .profile-card { padding: 1.3rem 1rem; }
+        .profile-avatar { width: 72px; height: 72px; font-size: 1.6rem; }
+        .profile-stats { grid-template-columns: 1fr 1fr; }
+        .form-card .fc-body { padding: 1.1rem; }
+        .form-actions { flex-direction: column; }
+        .form-actions > * { width: 100%; justify-content: center; }
+        .delete-card { flex-direction: column; align-items: stretch; text-align: center; }
+        .delete-card .dc-info { flex-direction: column; text-align: center; }
+        .btn-delete-user { width: 100%; justify-content: center; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     PAGE HEADER
+     ============================================================ -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-user-edit me-2" style="color:var(--primary)"></i>
+            ویرایش کاربر
+        </h1>
+        <p class="page-subtitle mb-0">ویرایش اطلاعات و مدیریت {{ target_user.username }}</p>
+    </div>
+    <a href="{% url 'users-list' %}" class="btn btn-outline-glass">
+        <i class="fas fa-arrow-right me-2"></i>بازگشت به لیست
+    </a>
+</div>
+
+<!-- ============================================================
+     TOP ROW — Profile + Photos
+     ============================================================ -->
+<div class="row g-4 mb-4">
+    <!-- Profile card -->
+    <div class="col-md-6">
+        <div class="profile-card">
+            <div class="profile-avatar-wrap">
+                <span class="profile-avatar">{{ target_user.username|first|upper }}</span>
+            </div>
+            <div class="profile-name">
+                {{ target_user.first_name }} {{ target_user.last_name }}
+                {% if not target_user.first_name and not target_user.last_name %}
+                    {{ target_user.username }}
+                {% endif %}
+            </div>
+            <div class="profile-username">@{{ target_user.username }}</div>
+
+            {% if target_user_role == 'admin' %}
+            <span class="role-badge admin">
+                <i class="fas fa-user-shield"></i>ادمین
+            </span>
+            {% elif target_user_role == 'both' %}
+            <span class="role-badge both">
+                <i class="fas fa-exchange-alt"></i>هر دو (کاربر و ادمین)
+            </span>
+            {% else %}
+            <span class="role-badge user">
+                <i class="fas fa-user"></i>کاربر عادی
+            </span>
+            {% endif %}
+
+            <div class="profile-stats">
+                <!-- Face status -->
+                <div class="pstat {% if face_status == 'trained' %}face-trained{% elif face_status == 'photos_only' %}face-photos{% else %}face-none{% endif %}">
+                    <span class="ps-icon">
+                        {% if face_status == 'trained' %}<i class="fas fa-check-circle"></i>
+                        {% elif face_status == 'photos_only' %}<i class="fas fa-clock"></i>
+                        {% else %}<i class="fas fa-ban"></i>{% endif %}
+                    </span>
+                    <div class="ps-body">
+                        <div class="ps-label">وضعیت چهره</div>
+                        <div class="ps-value">
+                            {% if face_status == 'trained' %}آموزش‌دیده
+                            {% elif face_status == 'photos_only' %}بدون آموزش
+                            {% else %}بدون عکس{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Photos count -->
+                <div class="pstat photos">
+                    <span class="ps-icon"><i class="fas fa-images"></i></span>
+                    <div class="ps-body">
+                        <div class="ps-label">عکس چهره</div>
+                        <div class="ps-value">{{ photo_count|fa }}</div>
+                    </div>
+                </div>
+
+                <!-- Attendance -->
+                <div class="pstat attend">
+                    <span class="ps-icon"><i class="fas fa-calendar-check"></i></span>
+                    <div class="ps-body">
+                        <div class="ps-label">روز حضور</div>
+                        <div class="ps-value">{{ attendance_count|fa }}</div>
+                    </div>
+                </div>
+
+                <!-- Last date -->
+                <div class="pstat attend">
+                    <span class="ps-icon" style="background:linear-gradient(135deg,#c084fc,#ec4899);">
+                        <i class="fas fa-clock"></i>
+                    </span>
+                    <div class="ps-body">
+                        <div class="ps-label">آخرین حضور</div>
+                        <div class="ps-value" style="font-size:0.82rem;">
+                            {% if last_date %}{{ last_date|to_jalali }}{% else %}—{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photos card -->
+    <div class="col-md-6">
+        <div class="info-card">
+            <div class="ic-head">
+                <span class="ic-icon" style="background:linear-gradient(135deg,#22d3ee,#818cf8);">
+                    <i class="fas fa-camera"></i>
+                </span>
+                <h5>مدیریت عکس‌های چهره</h5>
+            </div>
+            <div class="ic-body">
+                <div class="photos-desc">
+                    {% if photo_count > 0 %}
+                        این کاربر
+                        <span class="badge-inline" style="background:rgba(var(--primary-rgb),0.15);color:var(--primary);">
+                            <i class="fas fa-images"></i>{{ photo_count }} عکس
+                        </span>
+                        چهره دارد.
+                        {% if face_status == 'trained' %}
+                            مدل با این عکس‌ها آموزش دیده و آماده استفاده است.
+                        {% else %}
+                            عکس‌ها گرفته شده ولی مدل هنوز با آن‌ها آموزش ندیده. برای فعال‌سازی تشخیص چهره، آموزش مدل را اجرا کنید.
+                        {% endif %}
+                    {% else %}
+                        برای این کاربر هنوز عکسی گرفته نشده است. برای کار با سیستم تشخیص چهره باید از چهره او عکس بگیرید.
+                    {% endif %}
+                </div>
+                <div class="d-grid gap-2 mt-auto">
+                    <a href="{% url 'register-photo-capture' target_user.id %}" class="btn btn-gradient">
+                        <i class="fas fa-camera me-2"></i>
+                        {% if photo_count > 0 %}گرفتن مجدد عکس‌ها{% else %}گرفتن عکس چهره{% endif %}
+                    </a>
+                    <a href="{% url 'train' %}" class="btn btn-outline-glass">
+                        <i class="fas fa-brain me-2"></i>آموزش مدل (برای همه کاربران)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     EDIT FORM
+     ============================================================ -->
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8">
+        <div class="form-card">
+            <div class="fc-head">
+                <span class="fc-icon"><i class="fas fa-user-edit"></i></span>
+                <h5>ویرایش اطلاعات کاربر</h5>
+            </div>
+            <div class="fc-body">
+                <form method="POST" id="editForm">
+                    {% csrf_token %}
+
+                    <!-- Section 1: Basic info -->
+                    <div class="form-section">
+                        <div class="fs-title">
+                            <i class="fas fa-id-card"></i>اطلاعات پایه
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                                {{ form.username }}
+                                {% if form.username.errors %}
+                                <div class="text-danger small mt-1">{{ form.username.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }}</label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.first_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }}</label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.last_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="id_role" class="form-label">نقش کاربر</label>
+                                <select name="role" id="id_role" class="form-select" {% if target_user.is_superuser %}disabled{% endif %}>
+                                    <option value="user" {% if target_user_role == 'user' %}selected{% endif %}>کاربر عادی</option>
+                                    <option value="admin" {% if target_user_role == 'admin' %}selected{% endif %}>ادمین</option>
+                                    <option value="both" {% if target_user_role == 'both' %}selected{% endif %}>هر دو (کاربر و ادمین)</option>
+                                </select>
+                                {% if target_user.is_superuser %}
+                                <div class="form-text">
+                                    <i class="fas fa-lock me-1"></i>مدیر اصلی سیستم همیشه ادمین است و قابل تغییر نیست.
+                                </div>
+                                {% else %}
+                                <div class="form-text">
+                                    کاربر عادی: فقط گزارش خودش و ثبت ورود/خروج.<br>
+                                    ادمین: فقط بخش مدیریت.<br>
+                                    هر دو: با دکمه می‌تواند بین حالت کاربر و ادمین جابه‌جا شود.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Password -->
+                    <div class="form-section">
+                        <div class="fs-title">
+                            <i class="fas fa-key"></i>تغییر رمز عبور
+                            <span style="font-size:0.7rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">
+                                (اختیاری)
+                            </span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.new_password.id_for_label }}" class="form-label">{{ form.new_password.label }}</label>
+                                {{ form.new_password }}
+                                {% if form.new_password.help_text %}
+                                <div class="form-text">{{ form.new_password.help_text }}</div>
+                                {% endif %}
+                                {% if form.new_password.errors %}
+                                <div class="text-danger small mt-1">{{ form.new_password.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">{{ form.confirm_password.label }}</label>
+                                {{ form.confirm_password }}
+                                {% if form.confirm_password.errors %}
+                                <div class="text-danger small mt-1">{{ form.confirm_password.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger mt-3">
+                        {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Actions -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save me-2"></i>ذخیره تغییرات
+                        </button>
+                        <button type="submit" name="action" value="retake_photos" class="btn btn-outline-glass">
+                            <i class="fas fa-camera me-2"></i>گرفتن عکس مجدد
+                        </button>
+                        <button type="submit" name="action" value="clear_attendance" class="btn-danger-outline"
+                                onclick="return confirm('آیا مطمئن هستید؟ تمام سوابق حضور و غیاب (ورود، خروج، استراحت، خطاهای خروج) برای این کاربر به صورت دائمی حذف خواهند شد. این عملیات قابل بازگشت نیست.')">
+                            <i class="fas fa-trash-alt"></i>پاک کردن سوابق حضور
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     DELETE USER CARD
+     ============================================================ -->
+{% if not target_user.is_superuser %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-9 col-lg-8">
+        <div class="delete-card">
+            <div class="dc-info">
+                <span class="dc-icon"><i class="fas fa-exclamation-triangle"></i></span>
+                <div>
+                    <h6>حذف کاربر</h6>
+                    <p>حذف این کاربر شامل عکس‌های چهره و تمام سوابق حضور می‌شود.</p>
+                </div>
+            </div>
+            <button type="button" class="btn-delete-user" data-bs-toggle="modal" data-bs-target="#deleteBigModal">
+                <i class="fas fa-trash"></i>حذف کاربر
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     DELETE MODAL
+     ============================================================ -->
+<div class="modal fade" id="deleteBigModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content delete-modal">
+            <div class="modal-top">
+                <div class="warn-icon"><i class="fas fa-trash-alt"></i></div>
+                <h5>حذف کاربر</h5>
+                <p>این عملیات قابل بازگشت نیست</p>
+            </div>
+            <div class="modal-body">
+                آیا مطمئن هستید که می‌خواهید کاربر
+                <strong>{{ target_user.username }}</strong>
+                را به همراه تمام عکس‌ها و سوابق حضور حذف کنید؟
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal">
+                    انصراف
+                </button>
+                <form method="POST" action="{% url 'user-delete' target_user.id %}" style="flex:1;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-confirm" style="width:100%;">
+                        <i class="fas fa-trash me-1"></i>حذف قطعی
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,757 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}داشبورد گزارش‌ها{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}">
+<style>
+    /* =========================================================
+       STAT CARDS — GRADIENT + ICON
+       ========================================================= */
+    .report-stat {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.5rem 1.25rem;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+    .report-stat::before {
+        content: '';
+        position: absolute;
+        top: -40%; right: -40%;
+        width: 180%; height: 180%;
+        background: radial-gradient(circle, var(--stat-glow, rgba(var(--primary-rgb), 0.15)), transparent 55%);
+        opacity: 0.6;
+        pointer-events: none;
+        transition: opacity 0.4s;
+    }
+    .report-stat:hover {
+        border-color: var(--stat-border, rgba(var(--primary-rgb), 0.4));
+        box-shadow: 0 20px 44px -16px var(--stat-shadow, rgba(var(--primary-rgb), 0.4));
+    }
+    .report-stat:hover::before { opacity: 1; }
+
+    .report-stat .stat-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+        z-index: 1;
+    }
+    .report-stat .stat-icon {
+        width: 48px; height: 48px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        color: #fff;
+        background: var(--stat-icon-bg, linear-gradient(135deg, var(--primary), var(--secondary)));
+        box-shadow: 0 8px 20px -6px var(--stat-shadow, rgba(var(--primary-rgb), 0.6));
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .report-stat:hover .stat-icon {
+        transform: scale(1.08) rotate(-5deg);
+    }
+    .report-stat .stat-label {
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        line-height: 1.3;
+    }
+    .report-stat .stat-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        position: relative;
+        z-index: 1;
+        color: var(--stat-color, var(--text-primary));
+        text-shadow: 0 0 24px var(--stat-shadow, rgba(var(--primary-rgb), 0.4));
+        word-break: break-word;
+    }
+    .report-stat .stat-value.small {
+        font-size: 1.55rem;
+        letter-spacing: -0.02em;
+    }
+    .report-stat .stat-foot {
+        position: relative;
+        z-index: 1;
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+    }
+    .report-stat .stat-foot .pulse-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--stat-color, var(--primary));
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px var(--stat-color, var(--primary));
+    }
+
+    /* Color variants */
+    .report-stat.primary  { --stat-color: var(--primary); --stat-icon-bg: linear-gradient(135deg, var(--primary), var(--secondary)); --stat-glow: rgba(var(--primary-rgb), 0.15); --stat-border: rgba(var(--primary-rgb), 0.4); --stat-shadow: rgba(var(--primary-rgb), 0.5); }
+    .report-stat.success  { --stat-color: var(--success); --stat-icon-bg: linear-gradient(135deg, #34d399, #06b6d4); --stat-glow: rgba(16,185,129,0.15); --stat-border: rgba(16,185,129,0.4); --stat-shadow: rgba(16,185,129,0.5); }
+    .report-stat.accent   { --stat-color: var(--accent); --stat-icon-bg: linear-gradient(135deg, #22d3ee, #818cf8); --stat-glow: rgba(34,211,238,0.15); --stat-border: rgba(34,211,238,0.4); --stat-shadow: rgba(34,211,238,0.5); }
+    .report-stat.warning  { --stat-color: var(--warning); --stat-icon-bg: linear-gradient(135deg, #fbbf24, #f97316); --stat-glow: rgba(251,191,36,0.15); --stat-border: rgba(251,191,36,0.4); --stat-shadow: rgba(251,191,36,0.5); }
+
+    /* =========================================================
+       REPORT CARD & TABLE
+       ========================================================= */
+    .report-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+    .report-card .card-head {
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--accent-rgb), 0.05));
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1.1rem 1.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .report-card .card-head h5 {
+        margin: 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+    .report-card .card-head .head-icon {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+    }
+    .report-card .card-head .hint-chip {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(148,163,184,0.08);
+        padding: 5px 11px;
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+    }
+
+    /* Avatar in table */
+    .emp-avatar {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px -4px var(--glow);
+    }
+    .emp-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .emp-cell .emp-name {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Status badge */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+    .status-pill.present {
+        background: rgba(16,185,129,0.15);
+        color: #10b981;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.3);
+    }
+    .status-pill.absent {
+        background: rgba(239,68,68,0.13);
+        color: #ef4444;
+        box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);
+    }
+    .status-pill::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Event pills */
+    .ev-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 11px; border-radius: 20px;
+        font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+        margin: 2px;
+    }
+    .ev-in  { background: rgba(16,185,129,0.15); color: #10b981; box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25); }
+    .ev-out { background: rgba(239,68,68,0.15); color: #ef4444; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25); }
+    .open-session {
+        background: rgba(251,191,36,0.15);
+        color: #f59e0b;
+        box-shadow: inset 0 0 0 1px rgba(251,191,36,0.3);
+        animation: pulseSoft 2.5s ease-in-out infinite;
+    }
+    @keyframes pulseSoft {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.75; }
+    }
+
+    /* Work time badge */
+    .work-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 10px;
+        background: rgba(16,185,129,0.12);
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.82rem;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
+        white-space: nowrap;
+    }
+    .work-badge.empty {
+        background: rgba(148,163,184,0.1);
+        color: var(--text-muted);
+        box-shadow: inset 0 0 0 1px var(--glass-border);
+    }
+
+    /* =========================================================
+       MINI CHART — improved
+       ========================================================= */
+    .chart-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        padding: 0.25rem 0;
+    }
+    .chart-row {
+        display: grid;
+        grid-template-columns: 130px 1fr 80px;
+        align-items: center;
+        gap: 12px;
+    }
+    @media (max-width: 576px) {
+        .chart-row {
+            grid-template-columns: 100px 1fr 70px;
+            gap: 8px;
+        }
+    }
+    .chart-row .chart-user {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    .chart-row .chart-user .mini-avatar {
+        width: 26px; height: 26px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.68rem;
+        flex-shrink: 0;
+    }
+    .chart-row .chart-bar-track {
+        height: 26px;
+        border-radius: 8px;
+        background: rgba(148,163,184,0.1);
+        overflow: hidden;
+        position: relative;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .chart-row .chart-bar-fill {
+        height: 100%;
+        border-radius: 8px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        box-shadow: 0 0 12px -2px var(--glow);
+        transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        min-width: 4px;
+    }
+    .chart-row .chart-bar-fill::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg,
+            transparent 40%,
+            rgba(255,255,255,0.25) 50%,
+            transparent 60%);
+        background-size: 200% 100%;
+        animation: shimmer 2.5s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .chart-row .chart-value {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        text-align: left;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        white-space: nowrap;
+    }
+
+    /* =========================================================
+       NAV CARDS (bottom)
+       ========================================================= */
+    .nav-card {
+        display: block;
+        text-decoration: none !important;
+        color: inherit !important;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.75rem 1.4rem;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s;
+        height: 100%;
+        text-align: center;
+    }
+    .nav-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, var(--nav-glow, rgba(var(--primary-rgb), 0.15)), transparent 55%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+    .nav-card:hover::before { opacity: 1; }
+    .nav-card:hover {
+        border-color: var(--nav-border, rgba(var(--primary-rgb), 0.4));
+        box-shadow: 0 20px 44px -16px var(--nav-shadow, rgba(var(--primary-rgb), 0.4));
+        color: inherit !important;
+    }
+    .nav-card.accent {
+        --nav-glow: rgba(34,211,238,0.15);
+        --nav-border: rgba(34,211,238,0.4);
+        --nav-shadow: rgba(34,211,238,0.5);
+    }
+    .nav-card.primary {
+        --nav-glow: rgba(var(--primary-rgb), 0.15);
+        --nav-border: rgba(var(--primary-rgb), 0.4);
+        --nav-shadow: rgba(var(--primary-rgb), 0.5);
+    }
+    .nav-card .nav-icon {
+        width: 64px; height: 64px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        color: #fff;
+        margin-bottom: 1rem;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        z-index: 1;
+    }
+    .nav-card:hover .nav-icon { transform: scale(1.12) rotate(-6deg); }
+    .nav-card.accent .nav-icon {
+        background: linear-gradient(135deg, #22d3ee, #818cf8);
+        box-shadow: 0 12px 28px -8px rgba(34,211,238,0.6);
+    }
+    .nav-card.primary .nav-icon {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        box-shadow: 0 12px 28px -8px rgba(var(--primary-rgb), 0.6);
+    }
+    .nav-card h5 {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+        position: relative;
+        z-index: 1;
+    }
+    .nav-card p {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+    .nav-card .arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 0.85rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--primary);
+        position: relative;
+        z-index: 1;
+    }
+    .nav-card.accent .arrow { color: var(--accent); }
+    .nav-card .arrow i {
+        transition: transform 0.3s;
+    }
+    .nav-card:hover .arrow i {
+        transform: translateX(-4px);
+    }
+
+    /* =========================================================
+       EMPTY STATE
+       ========================================================= */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    .empty-state .icon-wrap {
+        width: 84px; height: 84px;
+        border-radius: 24px;
+        background: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 32px -12px var(--glow);
+    }
+    .empty-state p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    /* =========================================================
+       RESPONSIVE — table → card stack on mobile
+       ========================================================= */
+    @media (max-width: 768px) {
+        .today-table thead { display: none; }
+        .today-table tbody,
+        .today-table tr,
+        .today-table td { display: block; width: 100%; }
+        .today-table tbody tr {
+            margin: 0.75rem;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            width: calc(100% - 1.5rem);
+        }
+        .today-table td {
+            padding: 0.5rem 0 !important;
+            border: none !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            text-align: left;
+        }
+        .today-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .today-table td[data-label="کارمند"]::before { display: none; }
+
+        .report-stat .stat-value { font-size: 1.9rem; }
+        .report-stat .stat-value.small { font-size: 1.3rem; }
+        .report-stat .stat-icon { width: 42px; height: 42px; font-size: 1.05rem; }
+        .report-stat { padding: 1.25rem 1.05rem; }
+    }
+
+    @media (max-width: 576px) {
+        .report-stat .stat-value { font-size: 1.7rem; }
+        .report-stat .stat-value.small { font-size: 1.15rem; }
+        .nav-card { padding: 1.4rem 1rem; }
+        .nav-card .nav-icon { width: 54px; height: 54px; font-size: 1.35rem; }
+        .chart-row .chart-user { font-size: 0.75rem; }
+        .chart-row .chart-value { font-size: 0.72rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     PAGE HEADER
+     ============================================================ -->
+<div class="text-center mb-5">
+    <h1 class="page-title">داشبورد گزارش‌ها</h1>
+    <p class="page-subtitle">آمار و اطلاعات حضور و غیاب</p>
+</div>
+
+<!-- ============================================================
+     STAT CARDS
+     ============================================================ -->
+<div class="row g-3 g-md-4 justify-content-center mb-5">
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="report-stat primary">
+            <div class="stat-top">
+                <span class="stat-icon"><i class="fas fa-users"></i></span>
+                <span class="stat-label">تعداد کل کارمندان</span>
+            </div>
+            <div class="stat-value">{{ total_num_of_emp|fa }}</div>
+            <div class="stat-foot">
+                <span class="pulse-dot"></span>ثبت‌شده در سامانه
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="report-stat success">
+            <div class="stat-top">
+                <span class="stat-icon"><i class="fas fa-user-check"></i></span>
+                <span class="stat-label">حاضر امروز</span>
+            </div>
+            <div class="stat-value">{{ emp_present_today|fa }}</div>
+            <div class="stat-foot">
+                <span class="pulse-dot"></span>به‌روزرسانی زنده
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="report-stat accent">
+            <div class="stat-top">
+                <span class="stat-icon"><i class="fas fa-calendar-check"></i></span>
+                <span class="stat-label">حضور ۳۰ روز اخیر</span>
+            </div>
+            <div class="stat-value">{{ month_present_days|fa }}</div>
+            <div class="stat-foot">
+                <span class="pulse-dot"></span>روز-کارمند
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="report-stat warning">
+            <div class="stat-top">
+                <span class="stat-icon"><i class="fas fa-clock"></i></span>
+                <span class="stat-label">ساعات کاری (۳۰ روز)</span>
+            </div>
+            <div class="stat-value small">{{ month_total_text }}</div>
+            <div class="stat-foot">
+                <span class="pulse-dot"></span>مجموع در محل کار
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     TODAY'S ATTENDANCE
+     ============================================================ -->
+<div class="row justify-content-center mb-4">
+    <div class="col-lg-11 col-xl-10">
+        <div class="report-card">
+            <div class="card-head">
+                <h5>
+                    <span class="head-icon"><i class="fas fa-user-clock"></i></span>
+                    وضعیت حضور امروز
+                </h5>
+                <span class="hint-chip">
+                    <i class="fas fa-bolt" style="color:var(--accent)"></i>
+                    به‌روزرسانی خودکار
+                </span>
+            </div>
+
+            {% if today_rows %}
+            <div class="table-responsive">
+                <table class="table table-modern mb-0 today-table">
+                    <thead>
+                        <tr>
+                            <th>کارمند</th>
+                            <th style="width:110px;">وضعیت</th>
+                            <th>رویدادهای امروز</th>
+                            <th style="width:110px;">اولین ورود</th>
+                            <th style="width:110px;">آخرین خروج</th>
+                            <th style="width:120px;">مدت حضور</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in today_rows %}
+                        <tr>
+                            <td data-label="کارمند">
+                                <div class="emp-cell">
+                                    <span class="emp-avatar">{{ item.user.first_name|first }}{{ item.user.last_name|first }}</span>
+                                    <span class="emp-name">{{ item.user.first_name }} {{ item.user.last_name }}</span>
+                                </div>
+                            </td>
+                            <td data-label="وضعیت">
+                                {% if item.present %}
+                                <span class="status-pill present">حاضر</span>
+                                {% else %}
+                                <span class="status-pill absent">غایب</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="رویدادها">
+                                {% for ev in item.events %}
+                                    <span class="ev-pill {% if ev.out %}ev-out{% else %}ev-in{% endif %}">
+                                        {% if ev.out %}<i class="fas fa-sign-out-alt"></i>{% else %}<i class="fas fa-sign-in-alt"></i>{% endif %}
+                                        {{ ev.time|clock }}
+                                    </span>
+                                {% empty %}
+                                    <span style="color:var(--text-muted);font-size:0.85rem;">—</span>
+                                {% endfor %}
+                                {% if item.open_time %}
+                                    <span class="ev-pill open-session">
+                                        <i class="fas fa-hourglass-half"></i>
+                                        هنوز در محل ({{ item.open_time|clock }})
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td data-label="اولین ورود">
+                                {% if item.first_in %}
+                                    <span style="font-weight:600;color:var(--success);font-family:'JetBrains Mono',monospace;">
+                                        {{ item.first_in|clock }}
+                                    </span>
+                                {% else %}
+                                    <span style="color:var(--text-muted);">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="آخرین خروج">
+                                {% if item.last_out %}
+                                    <span style="font-weight:600;color:var(--danger);font-family:'JetBrains Mono',monospace;">
+                                        {{ item.last_out|clock }}
+                                    </span>
+                                {% else %}
+                                    <span style="color:var(--text-muted);">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="مدت حضور">
+                                {% if item.work_text and item.work_text != '-' and item.work_seconds %}
+                                    <span class="work-badge">
+                                        <i class="fas fa-hourglass-half"></i>{{ item.work_text }}
+                                    </span>
+                                {% else %}
+                                    <span class="work-badge empty">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon-wrap"><i class="fas fa-inbox"></i></div>
+                <p>هنوز رکوردی برای امروز ثبت نشده است.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     MINI CHART — work duration today
+     ============================================================ -->
+{% if today_rows %}
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-11 col-xl-10">
+        <div class="report-card">
+            <div class="card-head">
+                <h5>
+                    <span class="head-icon" style="background:linear-gradient(135deg,#c084fc,#22d3ee);">
+                        <i class="fas fa-chart-simple"></i>
+                    </span>
+                    مدت حضور امروز
+                </h5>
+                <span class="hint-chip">
+                    <i class="fas fa-stopwatch" style="color:var(--secondary)"></i>
+                    نسبت به روز کاری ۸ ساعته
+                </span>
+            </div>
+            <div class="card-body" style="padding:1.4rem;">
+                <div class="chart-wrap">
+                    {% for item in today_rows %}
+                        {% if item.present %}
+                        <div class="chart-row" title="{{ item.username }} — {{ item.work_text }}">
+                            <div class="chart-user">
+                                <span class="mini-avatar">{{ item.user.first_name|first }}{{ item.user.last_name|first }}</span>
+                                <span style="overflow:hidden;text-overflow:ellipsis;">{{ item.user.first_name }} {{ item.user.last_name }}</span>
+                            </div>
+                            <div class="chart-bar-track">
+                                <div class="chart-bar-fill" style="width:{% widthratio item.work_seconds 28800 100 %}%;"></div>
+                            </div>
+                            <div class="chart-value">{{ item.work_text }}</div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     NAV CARDS — quick links
+     ============================================================ -->
+<div class="row g-4 justify-content-center">
+    <div class="col-12 col-md-6 col-lg-5">
+        <a href="{% url 'view-attendance-date' %}" class="nav-card accent">
+            <div class="nav-icon"><i class="fas fa-calendar-day"></i></div>
+            <h5>گزارش بر اساس تاریخ</h5>
+            <p>ورود و خروج همه کارمندان در بازه دلخواه</p>
+            <div class="arrow">
+                مشاهده گزارش <i class="fas fa-arrow-left"></i>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-lg-5">
+        <a href="{% url 'view-attendance-employee' %}" class="nav-card primary">
+            <div class="nav-icon"><i class="fas fa-user-clock"></i></div>
+            <h5>گزارش بر اساس کارمند</h5>
+            <p>ساعات حضور یک کارمند در بازه دلخواه</p>
+            <div class="arrow">
+                مشاهده گزارش <i class="fas fa-arrow-left"></i>
+            </div>
+        </a>
+    </div>
+</div>
+
+{% endblock %}

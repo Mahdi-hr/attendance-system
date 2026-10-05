@@ -1,0 +1,807 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ثبت عکس‌های دیتاست — {{ username }}</title>
+    <link href="{% static 'recognition/fonts/vazirmatn/vazirmatn.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'recognition/css/bootstrap.rtl.min.css' %}">
+    <link rel="stylesheet" href="{% static 'recognition/css/fontawesome.min.css' %}">
+    <style>
+        /* =========================================================
+           THEME — same as main site
+           ========================================================= */
+        [data-theme="dark"] {
+            --primary: #818cf8;
+            --primary-rgb: 129,140,248;
+            --secondary: #c084fc;
+            --accent: #22d3ee;
+            --accent-rgb: 34,211,238;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --bg-body: #060913;
+            --bg-card: #111a2e;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --glass: rgba(17, 26, 46, 0.55);
+            --glass-strong: rgba(11, 18, 36, 0.75);
+            --glass-border: rgba(148, 163, 184, 0.14);
+            --form-bg: rgba(11, 18, 36, 0.6);
+            --shadow: rgba(0,0,0,0.5);
+            --glow: rgba(129, 140, 248, 0.5);
+            --aurora-1: rgba(129, 140, 248, 0.35);
+            --aurora-2: rgba(192, 132, 252, 0.3);
+            --aurora-3: rgba(34, 211, 238, 0.25);
+        }
+        [data-theme="light"] {
+            --primary: #4f46e5;
+            --primary-rgb: 79,70,229;
+            --secondary: #7c3aed;
+            --accent: #0891b2;
+            --accent-rgb: 8,145,178;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg-body: #eef1f8;
+            --bg-card: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --glass: rgba(255, 255, 255, 0.7);
+            --glass-strong: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(15, 23, 42, 0.08);
+            --form-bg: rgba(255, 255, 255, 0.8);
+            --shadow: rgba(15, 23, 42, 0.1);
+            --glow: rgba(79, 70, 229, 0.35);
+            --aurora-1: rgba(129, 140, 248, 0.35);
+            --aurora-2: rgba(192, 132, 252, 0.3);
+            --aurora-3: rgba(34, 211, 238, 0.25);
+        }
+
+        * { box-sizing: border-box; }
+        *::selection { background: rgba(var(--primary-rgb), 0.35); color: var(--text-primary); }
+
+        html, body { margin: 0; padding: 0; min-height: 100%; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.75;
+            transition: background 0.4s, color 0.3s;
+            position: relative;
+            overflow-x: hidden;
+            text-align: center;
+        }
+
+        /* Aurora background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background:
+                radial-gradient(circle at 15% 20%, var(--aurora-1), transparent 45%),
+                radial-gradient(circle at 85% 15%, var(--aurora-2), transparent 45%),
+                radial-gradient(circle at 50% 85%, var(--aurora-3), transparent 50%);
+            animation: auroraMove 20s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image: radial-gradient(rgba(var(--primary-rgb), 0.06) 1px, transparent 1px);
+            background-size: 28px 28px;
+            mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+            pointer-events: none;
+        }
+        @keyframes auroraMove {
+            0% { transform: scale(1) translate(0,0); }
+            50% { transform: scale(1.15) translate(-3%, 2%); }
+            100% { transform: scale(1.05) translate(2%, -2%); }
+        }
+
+        .page {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 3rem;
+        }
+
+        /* =========================================================
+           TOP BAR
+           ========================================================= */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 1.25rem;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .back-link:hover {
+            background: rgba(var(--primary-rgb), 0.12);
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+        .theme-toggle {
+            background: rgba(var(--primary-rgb), 0.1);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 42px;
+            height: 42px;
+            position: relative;
+            overflow: hidden;
+        }
+        .theme-toggle:hover {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.15);
+            transform: rotate(180deg) scale(1.08);
+            box-shadow: 0 0 22px var(--glow);
+        }
+        .theme-toggle .icon-sun { display: none; }
+        .theme-toggle .icon-moon { display: inline; }
+        [data-theme="light"] .theme-toggle .icon-sun { display: inline; }
+        [data-theme="light"] .theme-toggle .icon-moon { display: none; }
+
+        /* =========================================================
+           PAGE HEADER
+           ========================================================= */
+        .page-header {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+        .page-header .user-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 16px 40px -12px var(--glow);
+            margin-bottom: 1rem;
+            position: relative;
+        }
+        .page-header .user-avatar::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 26px;
+            background: inherit;
+            opacity: 0.35;
+            filter: blur(14px);
+            z-index: -1;
+            animation: pulseGlow 2.5s ease-in-out infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.35; }
+            50% { opacity: 0.65; }
+        }
+        .page-header h2 {
+            font-weight: 800;
+            font-size: 1.5rem;
+            margin: 0 0 0.4rem;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+        .page-header h2 strong {
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--secondary), var(--primary));
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+        }
+        @keyframes gradientShift {
+            0%,100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        /* =========================================================
+           STEP INDICATOR
+           ========================================================= */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+            margin: 1.5rem auto 2rem;
+            max-width: 520px;
+            position: relative;
+        }
+        .step-indicator .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+        .step-indicator .step .step-num {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--glass);
+            border: 2px solid var(--glass-border);
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            backdrop-filter: blur(10px);
+        }
+        .step-indicator .step .step-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: color 0.3s;
+            white-space: nowrap;
+        }
+        .step-indicator .step.active .step-num {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-color: transparent;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px -6px var(--glow);
+        }
+        .step-indicator .step.active .step-label {
+            color: var(--text-primary);
+        }
+        .step-indicator .step.done .step-num {
+            background: linear-gradient(135deg, var(--success), var(--accent));
+            border-color: transparent;
+            color: #fff;
+        }
+        .step-indicator .step.done .step-label {
+            color: var(--success);
+        }
+        .step-indicator .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: var(--glass-border);
+            z-index: -1;
+            transition: background 0.4s;
+        }
+        .step-indicator .step.active:not(:last-child)::after,
+        .step-indicator .step.done:not(:last-child)::after {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+        @media (max-width: 480px) {
+            .step-indicator .step .step-label { display: none; }
+        }
+
+        /* =========================================================
+           MAIN CARD
+           ========================================================= */
+        .main-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px -30px var(--shadow);
+        }
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: -50%; right: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(var(--primary-rgb), 0.08), transparent 55%);
+            pointer-events: none;
+        }
+        .main-card > * { position: relative; z-index: 1; }
+
+        /* Video wrap */
+        .video-wrap {
+            position: relative;
+            margin: 0 auto 1.25rem;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 2px solid var(--glass-border);
+            background: #000;
+            box-shadow:
+                0 0 0 4px rgba(var(--primary-rgb), 0.08),
+                0 20px 50px -20px var(--shadow);
+            transition: border-color 0.3s, box-shadow 0.3s;
+            max-width: 560px;
+        }
+        .video-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            padding: 2px;
+            background: linear-gradient(135deg, transparent 30%, rgba(var(--primary-rgb), 0.6), transparent 70%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.8;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .video-wrap img#cameraStream {
+            width: 100%;
+            height: auto;
+            display: block;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            background: #000;
+        }
+        /* Live badge */
+        .video-wrap .live-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 3;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: rgba(239,68,68,0.9);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 14px rgba(239,68,68,0.5);
+            animation: livePulse 2s ease-in-out infinite;
+        }
+        .video-wrap .live-badge::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 8px #fff;
+            animation: liveDot 1.5s ease-in-out infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { box-shadow: 0 4px 14px rgba(239,68,68,0.5); }
+            50% { box-shadow: 0 4px 20px rgba(239,68,68,0.9); }
+        }
+        @keyframes liveDot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        /* Scan overlay */
+        .video-wrap .scan-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .video-wrap .scan-overlay::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(34,211,238,0.8) 50%,
+                transparent 100%);
+            box-shadow: 0 0 20px rgba(34,211,238,0.8);
+            animation: scanLine 2.5s ease-in-out infinite;
+        }
+        @keyframes scanLine {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* =========================================================
+           PROGRESS BAR
+           ========================================================= */
+        .progress-wrap {
+            max-width: 520px;
+            margin: 1.25rem auto 0;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .progress-label .pct {
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        .progress-bar-custom {
+            background: rgba(var(--primary-rgb), 0.12);
+            height: 10px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--primary), var(--secondary));
+            background-size: 200% 100%;
+            border-radius: 8px;
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            animation: gradientShift 3s ease infinite;
+        }
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg,
+                transparent 30%,
+                rgba(255,255,255,0.4) 50%,
+                transparent 70%);
+            background-size: 200% 100%;
+            animation: shimmer 2s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* =========================================================
+           STATUS
+           ========================================================= */
+        .status-area {
+            margin-top: 1.5rem;
+            text-align: center;
+            min-height: 44px;
+        }
+        .status-text {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 22px;
+            border-radius: 14px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            font-size: 0.92rem;
+            font-weight: 500;
+            max-width: 100%;
+        }
+        .status-text .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(var(--primary-rgb), 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* =========================================================
+           SUCCESS BOX
+           ========================================================= */
+        .success-box {
+            display: none;
+            text-align: center;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            padding: 2rem 1.5rem;
+            margin-top: 1.5rem;
+            animation: boxIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes boxIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .success-box .box-icon {
+            width: 88px;
+            height: 88px;
+            border-radius: 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.3rem;
+            color: #fff;
+            margin-bottom: 1.1rem;
+            position: relative;
+            background: linear-gradient(135deg, var(--success), var(--accent));
+            box-shadow: 0 16px 40px -12px rgba(16,185,129,0.7);
+        }
+        .success-box .box-icon::after {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 32px;
+            background: inherit;
+            opacity: 0.35;
+            filter: blur(16px);
+            z-index: -1;
+            animation: pulseGlow 2.5s ease-in-out infinite;
+        }
+        .success-box h3 {
+            font-weight: 800;
+            margin: 0 0 0.5rem;
+            font-size: 1.15rem;
+            letter-spacing: -0.01em;
+            color: var(--success);
+        }
+        .success-box p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+        @media (max-width: 576px) {
+            .page { padding: 1rem 0.75rem 2rem; }
+            .main-card { padding: 1.1rem; border-radius: 18px; }
+            .page-header h2 { font-size: 1.25rem; }
+            .page-header .user-avatar { width: 60px; height: 60px; font-size: 1.6rem; border-radius: 16px; }
+            .success-box .box-icon { width: 72px; height: 72px; font-size: 1.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+
+        <!-- ===== TOP BAR ===== -->
+        <div class="top-bar">
+            <a href="{% url 'dashboard' %}" class="back-link">
+                <i class="fas fa-arrow-right"></i>بازگشت به داشبورد
+            </a>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="تغییر تم">
+                <i class="fas fa-moon icon-moon"></i>
+                <i class="fas fa-sun icon-sun"></i>
+            </button>
+        </div>
+
+        <!-- ===== PAGE HEADER ===== -->
+        <div class="page-header">
+            <div class="user-avatar">{{ username|first|upper }}</div>
+            <h2>ثبت عکس‌های <strong>{{ username }}</strong></h2>
+            <p>دوربین فعال است. لطفاً در کادر مقابل دوربین قرار بگیرید تا عکس‌ها ثبت شوند</p>
+        </div>
+
+        <!-- ===== STEP INDICATOR ===== -->
+        <div class="step-indicator">
+            <div class="step active" id="step-connect">
+                <div class="step-num"><i class="fas fa-plug"></i></div>
+                <div class="step-label">اتصال دوربین</div>
+            </div>
+            <div class="step" id="step-capture">
+                <div class="step-num"><i class="fas fa-camera"></i></div>
+                <div class="step-label">ثبت عکس‌ها</div>
+            </div>
+            <div class="step" id="step-save">
+                <div class="step-num"><i class="fas fa-save"></i></div>
+                <div class="step-label">ذخیره</div>
+            </div>
+            <div class="step" id="step-done">
+                <div class="step-num"><i class="fas fa-check"></i></div>
+                <div class="step-label">تمام</div>
+            </div>
+        </div>
+
+        <!-- ===== MAIN CARD ===== -->
+        <div class="main-card">
+            <div class="video-wrap" id="videoWrap">
+                <span class="live-badge">زنده</span>
+                <div class="scan-overlay"></div>
+                <img id="cameraStream" src="{% url 'video-feed' mode='dataset' %}" alt="دوربین دیتاست">
+            </div>
+
+            <div class="progress-wrap" id="progressWrap" style="display:none;">
+                <div class="progress-label">
+                    <span><i class="fas fa-camera"></i> پیشرفت ثبت عکس</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+                <div class="progress-bar-custom">
+                    <div class="progress-fill" id="progressBar" style="width:0%"></div>
+                </div>
+            </div>
+
+            <div class="status-area" id="statusArea">
+                <div class="status-text" id="status">
+                    <span class="spinner"></span>
+                    <span>در حال اتصال به دوربین...</span>
+                </div>
+            </div>
+
+            <div class="success-box" id="successBox">
+                <div class="box-icon"><i class="fas fa-check-circle"></i></div>
+                <h3 id="successMsg">عکس‌ها با موفقیت ثبت شدند</h3>
+                <p>در حال انتقال به داشبورد...</p>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+// ===== Theme =====
+function toggleTheme() {
+    const h = document.documentElement;
+    const c = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', c);
+    localStorage.setItem('theme', c);
+}
+document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+
+// ===== Elements =====
+const statusEl = document.getElementById('status');
+const progressBar = document.getElementById('progressBar');
+const progressPct = document.getElementById('progressPct');
+const progressWrap = document.getElementById('progressWrap');
+const successBox = document.getElementById('successBox');
+const successMsg = document.getElementById('successMsg');
+const videoWrap = document.getElementById('videoWrap');
+
+// ===== Step helper =====
+function setStep(stepName) {
+    const steps = {
+        connect: document.getElementById('step-connect'),
+        capture: document.getElementById('step-capture'),
+        save: document.getElementById('step-save'),
+        done: document.getElementById('step-done')
+    };
+    const order = ['connect', 'capture', 'save', 'done'];
+    const idx = order.indexOf(stepName);
+
+    order.forEach((key, i) => {
+        const el = steps[key];
+        if (!el) return;
+        el.classList.remove('active', 'done');
+        if (i < idx) el.classList.add('done');
+        else if (i === idx) el.classList.add('active');
+    });
+}
+
+// ===== Polling =====
+function poll() {
+    fetch("{% url 'dataset-status' %}")
+        .then(r => r.json())
+        .then(d => {
+            // اگر نشستِ این تب در صف است → صفحهٔ صف
+            if (d.queue && d.queue.state === 'queued') {
+                window.location.href = "{% url 'camera-queue' %}";
+                return;
+            }
+            // اگر این تب صاحب نشست نیست → داشبورد (باز کردن تبِ دوم)
+            if (d.queue && !d.queue.is_owner && !d.queue.is_finishing && !d.done) {
+                window.location.href = "{% url 'dashboard' %}";
+                return;
+            }
+
+            // Update status text
+            if (statusEl) {
+                statusEl.innerHTML = '<span class="spinner"></span><span>' + (d.status || '...') + '</span>';
+            }
+
+            // Progress
+            if (d.target > 0) {
+                const p = Math.round((d.count / d.target) * 100);
+                progressBar.style.width = p + '%';
+                progressPct.innerText = p + '%';
+                progressWrap.style.display = 'block';
+
+                if (d.count > 0) setStep('capture');
+                if (p >= 100) setStep('save');
+            }
+
+            // Done
+            if (d.done) {
+                document.getElementById('statusArea').style.display = 'none';
+                if (videoWrap) videoWrap.style.display = 'none';
+                progressWrap.style.display = 'none';
+                successBox.style.display = 'block';
+                successMsg.innerText = d.status;
+                setStep('done');
+
+                setTimeout(function () {
+                    window.location.href = "{% url 'dashboard' %}";
+                }, 2000);
+                return;
+            }
+
+            setTimeout(poll, 800);
+        })
+        .catch(err => {
+            console.error('Poll error:', err);
+            setTimeout(poll, 1500);
+        });
+}
+
+// ===== Cleanup on unload — آزاد کردن دوربین به هر دلیلی که کاربر برود =====
+// نکته: `beforeunload` روی «دکمهٔ بازگشت مرورگر» و رفت‌وبرگشت بین صفحه‌ها
+// (bfcache) اجرا *نمی‌شود*؛ رویداد درست `pagehide` است.
+let sessionSettled = false;
+
+function getCSRFToken() {
+    let token = '';
+    document.cookie.split(';').forEach(function (c) {
+        c = c.trim();
+        if (c.indexOf('csrftoken=') === 0) { token = decodeURIComponent(c.substring(10)); }
+    });
+    return token;
+}
+
+function releaseDatasetCamera() {
+    if (sessionSettled) { return; }
+    sessionSettled = true;
+    const body = new URLSearchParams({ csrfmiddlewaretoken: getCSRFToken() });
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon("{% url 'dataset-camera-cancel' %}", body);
+    } else {
+        fetch("{% url 'dataset-camera-cancel' %}", {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        }).catch(function () {});
+    }
+}
+
+window.addEventListener('pagehide', releaseDatasetCamera);
+window.addEventListener('beforeunload', releaseDatasetCamera);
+
+// با «جلو» برگشتیم → صفحه را تازه می‌کنیم
+window.addEventListener('pageshow', function (e) {
+    if (e.persisted) { window.location.reload(); }
+});
+
+poll();
+</script>
+</body>
+</html>

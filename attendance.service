@@ -1,0 +1,30 @@
+[Unit]
+Description=Attendance System Face Recognition Server
+# سامانهٔ حضور و غیاب با تشخیص چهره (Gunicorn + Django)
+After=network.target
+
+[Service]
+Type=simple
+User=kian
+Group=kian
+# دسترسی به دوربین USB (گروه video) — وقتی وبکم به VM پاس داده شود
+SupplementaryGroups=video
+WorkingDirectory=/home/kian/Attendance
+# اگر فایل .env نیست، خط اول "-" باعث می‌شود systemd روی همهٔ چیزش ندهد.
+EnvironmentFile=-/home/kian/Attendance/.env
+# پورت ۸۰ یک پورت «ممتاز» (privileged) است و کاربر عادی بدون capability نمی‌تواند آن را
+# bind کند؛ در غیر این صورت Gunicorn با خطای [Errno 13] Permission denied از کار می‌افتد.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+ExecStart=/home/kian/Attendance/run_server.sh
+Restart=always
+RestartSec=5
+
+# جلوگیری از حلقهٔ سریع ری‌استارت موقع خطای دائمی
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+SyslogIdentifier=attendance
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,178 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}عدم دسترسی{% endblock %}
+
+{% block extra_css %}
+<style>
+    .denied-wrap {
+        max-width: 520px;
+        margin: 2rem auto;
+    }
+    .denied-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(239,68,68,0.25);
+        border-radius: 24px;
+        padding: 3rem 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 60px -30px rgba(239,68,68,0.4);
+    }
+    .denied-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(239,68,68,0.12), transparent 55%);
+        animation: auroraMove 14s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .denied-card > * { position: relative; z-index: 1; }
+
+    /* Icon */
+    .denied-icon {
+        width: 100px;
+        height: 100px;
+        border-radius: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.6rem;
+        color: #fff;
+        background: linear-gradient(135deg, var(--danger), #b91c1c);
+        box-shadow: 0 20px 50px -14px rgba(239,68,68,0.7);
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    .denied-icon::before {
+        content: '';
+        position: absolute;
+        inset: -8px;
+        border-radius: 38px;
+        background: conic-gradient(from 0deg,
+            var(--danger), #b91c1c, #f97316, var(--danger));
+        opacity: 0.55;
+        filter: blur(18px);
+        z-index: -1;
+        animation: spin 8s linear infinite;
+    }
+    .denied-icon::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border-radius: 34px;
+        background: inherit;
+        opacity: 0.35;
+        filter: blur(14px);
+        z-index: -1;
+        animation: pulseGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulseGlow {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 0.7; }
+    }
+
+    /* Text */
+    .denied-card h3 {
+        font-weight: 800;
+        font-size: 1.6rem;
+        margin: 0 0 0.75rem;
+        color: var(--danger);
+        letter-spacing: -0.02em;
+    }
+    .denied-card .denied-desc {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.8;
+        margin: 0 auto 1.75rem;
+        max-width: 380px;
+    }
+    .denied-card .denied-desc strong {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+
+    /* Buttons */
+    .denied-actions {
+        display: flex;
+        gap: 0.6rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .denied-actions .btn {
+        padding: 12px 24px;
+        font-weight: 600;
+        font-size: 0.92rem;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    /* Hint chip */
+    .denied-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        background: rgba(var(--primary-rgb), 0.08);
+        border: 1px dashed rgba(var(--primary-rgb), 0.3);
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 500;
+        margin-top: 1.5rem;
+    }
+    .denied-hint i {
+        color: var(--primary);
+        font-size: 0.75rem;
+    }
+
+    @media (max-width: 576px) {
+        .denied-card { padding: 2rem 1.25rem; }
+        .denied-icon { width: 84px; height: 84px; font-size: 2.2rem; border-radius: 26px; }
+        .denied-card h3 { font-size: 1.35rem; }
+        .denied-actions .btn { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="denied-wrap">
+            <div class="denied-card">
+
+                <div class="denied-icon">
+                    <i class="fas fa-ban"></i>
+                </div>
+
+                <h3>عدم دسترسی</h3>
+
+                <p class="denied-desc">
+                    شما اجازه <strong>مشاهده این صفحه</strong> را ندارید.
+                    برای دسترسی، با مدیر سیستم تماس بگیرید یا به داشبورد خود بازگردید.
+                </p>
+
+                <div class="denied-actions">
+                    <a href="{% url 'dashboard' %}" class="btn btn-gradient">
+                        <i class="fas fa-arrow-right"></i>بازگشت به داشبورد
+                    </a>
+                </div>
+
+                <div class="denied-hint">
+                    <i class="fas fa-info-circle"></i>
+                    اگر فکر می‌کنید این خطاست، با مدیر سیستم تماس بگیرید.
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,234 @@
+/* Persian Datepicker popup + attendance report styles (theme aware) */
+
+/* ---------- Popup ---------- */
+.pdp-container {
+    position: fixed;
+    width: 288px;
+    padding: 14px;
+    background: var(--bg-card-solid, #1e293b);
+    border: 1px solid var(--glass-border, rgba(148,163,184,0.25));
+    border-radius: 14px;
+    box-shadow: 0 18px 45px var(--shadow, rgba(0,0,0,0.35));
+    color: var(--text-primary, #f1f5f9);
+    direction: rtl;
+    text-align: center;
+    font-family: 'Vazirmatn', sans-serif;
+    user-select: none;
+}
+
+[data-theme="light"] .pdp-container { background: #ffffff; }
+
+.pdp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.pdp-nav button, .pdp-footer button {
+    background: rgba(99,102,241,0.12);
+    border: 1px solid var(--glass-border, rgba(148,163,184,0.2));
+    color: var(--text-primary, #f1f5f9);
+    border-radius: 8px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all .2s;
+}
+
+.pdp-nav button:hover, .pdp-footer button:hover {
+    background: rgba(99,102,241,0.28);
+    border-color: var(--primary, #6366f1);
+}
+
+.pdp-title {
+    flex: 1;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 4px 0;
+    border-radius: 8px;
+}
+.pdp-title:hover { background: rgba(99,102,241,0.12); }
+
+.pdp-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+}
+.pdp-weekdays span {
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.75rem;
+    padding: 4px 0;
+}
+
+.pdp-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.pdp-day {
+    padding: 7px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all .15s;
+}
+.pdp-day:hover { background: rgba(99,102,241,0.2); }
+.pdp-day.pdp-disabled { visibility: hidden; pointer-events: none; }
+.pdp-day.pdp-friday { color: var(--danger, #ef4444); }
+.pdp-day.pdp-today { outline: 2px solid var(--accent, #06b6d4); outline-offset: -2px; }
+.pdp-day.pdp-selected { background: var(--primary, #6366f1); color: #fff; font-weight: 700; }
+
+.pdp-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+}
+.pdp-footer button { flex: 1; }
+
+.pdp-time {
+    display: grid;
+    grid-template-columns: auto 1fr auto 1fr auto;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--glass-border, rgba(148, 163, 184, 0.15));
+}
+.pdp-time .pdp-time-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary, #94a3b8);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.pdp-time .pdp-dot {
+    color: var(--text-secondary, #94a3b8);
+    font-weight: 700;
+}
+.pdp-time select {
+    width: 100%;
+    background: var(--form-bg, rgba(30, 41, 59, 0.6));
+    border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.2));
+    border-radius: 8px;
+    color: var(--text-primary, #f1f5f9);
+    padding: 5px 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+}
+.pdp-time select:hover { border-color: var(--primary, #6366f1); }
+.pdp-time select:focus {
+    outline: none;
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+.pdp-time option {
+    background: var(--bg-card-solid, #1e293b);
+    color: var(--text-primary, #f1f5f9);
+}
+
+.pdp-months-grid, .pdp-years-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.pdp-month-item, .pdp-year-item {
+    padding: 10px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all .15s;
+    background: rgba(99,102,241,0.06);
+}
+.pdp-month-item:hover, .pdp-year-item:hover { background: rgba(99,102,241,0.2); }
+.pdp-month-item.pdp-current, .pdp-year-item.pdp-current {
+    background: var(--primary, #6366f1);
+    color: #fff;
+    font-weight: 700;
+}
+
+/* ---------- attendance event pills ---------- */
+.ev-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 2px 2px;
+    white-space: nowrap;
+}
+.ev-in { background: rgba(16,185,129,0.15); color: #059669; }
+.ev-out { background: rgba(239,68,68,0.15); color: #dc2626; }
+[data-theme="light"] .ev-in { color: #047857; }
+[data-theme="light"] .ev-out { color: #b91c1c; }
+.open-session { color: var(--warning, #f59e0b); font-weight: 600; }
+.break-pill { background: rgba(245,158,11,0.12); color: var(--warning, #f59e0b); }
+
+.report-empty { text-align: center; padding: 3rem 1rem; color: var(--text-secondary, #94a3b8); }
+
+.mini-chart {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 8px;
+    height: 160px;
+    padding: 6px 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.mini-chart-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    flex: 1 1 0;
+    min-width: 42px;
+    max-width: 62px;
+    gap: 4px;
+}
+.mini-chart-col .bar {
+    width: 100%;
+    background: linear-gradient(180deg, var(--primary, #6366f1), var(--accent, #06b6d4));
+    border-radius: 6px 6px 0 0;
+    min-height: 8px;
+    max-height: 82%;
+    transition: height .3s ease, filter .2s ease;
+}
+.mini-chart-col .bar:hover {
+    filter: brightness(1.15);
+}
+.mini-chart-col .bar-label {
+    font-size: 0.68rem;
+    color: var(--text-secondary, #94a3b8);
+    white-space: nowrap;
+}
+
+/* date input with calendar icon */
+.input-group-icon { position: relative; }
+.input-group-icon .input-icon {
+    position: absolute;
+    top: 50%;
+    right: 13px;
+    transform: translateY(-50%);
+    color: var(--text-secondary, #94a3b8);
+    pointer-events: none;
+    z-index: 5;
+}
+.input-group-icon input { padding-right: 40px !important; }
+
+/* responsive tweaks */
+@media (max-width: 640px) {
+    .pdp-container { width: min(288px, calc(100vw - 24px)); }
+    .stat-card .stat-number { font-size: 1.5rem !important; }
+    .table-modern th, .table-modern td { padding: 10px 8px; }
+}

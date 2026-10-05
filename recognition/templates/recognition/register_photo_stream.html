@@ -1,0 +1,1125 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>گرفتن عکس چهره — {{ username }}</title>
+    <link href="{% static 'recognition/fonts/vazirmatn/vazirmatn.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'recognition/css/bootstrap.rtl.min.css' %}">
+    <link rel="stylesheet" href="{% static 'recognition/css/fontawesome.min.css' %}">
+    <style>
+        /* =========================================================
+           THEME — same as main site
+           ========================================================= */
+        [data-theme="dark"] {
+            --primary: #818cf8;
+            --primary-rgb: 129,140,248;
+            --secondary: #c084fc;
+            --accent: #22d3ee;
+            --accent-rgb: 34,211,238;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --bg-body: #060913;
+            --bg-card: #111a2e;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --glass: rgba(17, 26, 46, 0.55);
+            --glass-strong: rgba(11, 18, 36, 0.75);
+            --glass-border: rgba(148, 163, 184, 0.14);
+            --form-bg: rgba(11, 18, 36, 0.6);
+            --shadow: rgba(0,0,0,0.5);
+            --glow: rgba(129, 140, 248, 0.5);
+            --aurora-1: rgba(129, 140, 248, 0.35);
+            --aurora-2: rgba(192, 132, 252, 0.3);
+            --aurora-3: rgba(34, 211, 238, 0.25);
+            --btn-text: #ffffff;
+        }
+        [data-theme="light"] {
+            --primary: #4f46e5;
+            --primary-rgb: 79,70,229;
+            --secondary: #7c3aed;
+            --accent: #0891b2;
+            --accent-rgb: 8,145,178;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg-body: #eef1f8;
+            --bg-card: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --glass: rgba(255, 255, 255, 0.7);
+            --glass-strong: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(15, 23, 42, 0.08);
+            --form-bg: rgba(255, 255, 255, 0.8);
+            --shadow: rgba(15, 23, 42, 0.1);
+            --glow: rgba(79, 70, 229, 0.35);
+            --aurora-1: rgba(129, 140, 248, 0.35);
+            --aurora-2: rgba(192, 132, 252, 0.3);
+            --aurora-3: rgba(34, 211, 238, 0.25);
+            --btn-text: #ffffff;
+        }
+
+        * { box-sizing: border-box; }
+        *::selection { background: rgba(var(--primary-rgb), 0.35); color: var(--text-primary); }
+
+        html, body { margin: 0; padding: 0; min-height: 100%; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.75;
+            transition: background 0.4s, color 0.3s;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Aurora background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background:
+                radial-gradient(circle at 15% 20%, var(--aurora-1), transparent 45%),
+                radial-gradient(circle at 85% 15%, var(--aurora-2), transparent 45%),
+                radial-gradient(circle at 50% 85%, var(--aurora-3), transparent 50%);
+            animation: auroraMove 20s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image: radial-gradient(rgba(var(--primary-rgb), 0.06) 1px, transparent 1px);
+            background-size: 28px 28px;
+            mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+            pointer-events: none;
+        }
+        @keyframes auroraMove {
+            0% { transform: scale(1) translate(0,0); }
+            50% { transform: scale(1.15) translate(-3%, 2%); }
+            100% { transform: scale(1.05) translate(2%, -2%); }
+        }
+
+        .page {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 3rem;
+        }
+
+        /* =========================================================
+           TOP BAR
+           ========================================================= */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 1.25rem;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .back-link:hover {
+            background: rgba(var(--primary-rgb), 0.12);
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+        .theme-toggle {
+            background: rgba(var(--primary-rgb), 0.1);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 42px;
+            height: 42px;
+            position: relative;
+            overflow: hidden;
+        }
+        .theme-toggle:hover {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.15);
+            transform: rotate(180deg) scale(1.08);
+            box-shadow: 0 0 22px var(--glow);
+        }
+        .theme-toggle .icon-sun { display: none; }
+        .theme-toggle .icon-moon { display: inline; }
+        [data-theme="light"] .theme-toggle .icon-sun { display: inline; }
+        [data-theme="light"] .theme-toggle .icon-moon { display: none; }
+
+        /* =========================================================
+           PAGE HEADER
+           ========================================================= */
+        .page-header {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+        .page-header .header-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.9rem;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 16px 40px -12px var(--glow);
+            margin-bottom: 1rem;
+            position: relative;
+        }
+        .page-header .header-icon::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 26px;
+            background: inherit;
+            opacity: 0.4;
+            filter: blur(14px);
+            z-index: -1;
+            animation: pulseGlow 2.5s ease-in-out infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+        .page-header h2 {
+            font-weight: 800;
+            font-size: 1.5rem;
+            margin: 0 0 0.4rem;
+            letter-spacing: -0.02em;
+        }
+        .page-header h2 strong {
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--secondary), var(--primary));
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+        }
+        @keyframes gradientShift {
+            0%,100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        /* =========================================================
+           STEP INDICATOR
+           ========================================================= */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+            margin: 1.5rem auto 2rem;
+            max-width: 560px;
+            position: relative;
+        }
+        .step-indicator .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+        .step-indicator .step .step-num {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--glass);
+            border: 2px solid var(--glass-border);
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            backdrop-filter: blur(10px);
+        }
+        .step-indicator .step .step-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: color 0.3s;
+            white-space: nowrap;
+        }
+        .step-indicator .step.active .step-num {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-color: transparent;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px -6px var(--glow);
+        }
+        .step-indicator .step.active .step-label {
+            color: var(--text-primary);
+        }
+        /* Connecting line */
+        .step-indicator .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: var(--glass-border);
+            z-index: -1;
+            transition: background 0.4s;
+        }
+        .step-indicator .step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+        @media (max-width: 480px) {
+            .step-indicator .step .step-label { display: none; }
+        }
+
+        /* =========================================================
+           PANELS (camera, video)
+           ========================================================= */
+        .panel {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            padding: 1.75rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px -30px var(--shadow);
+            margin-bottom: 1.25rem;
+        }
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: -50%; right: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(var(--primary-rgb), 0.08), transparent 55%);
+            pointer-events: none;
+        }
+        .panel > * { position: relative; z-index: 1; }
+
+        /* Camera panel icon */
+        .panel-icon-wrap {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .panel-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 0 12px 32px -8px var(--glow);
+        }
+        .panel h5 {
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin: 0 0 0.4rem;
+            color: var(--text-primary);
+        }
+        .panel .panel-sub {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+
+        /* =========================================================
+           FORM SELECT
+           ========================================================= */
+        .form-select {
+            background: var(--form-bg) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border) !important;
+            color: var(--text-primary) !important;
+            border-radius: 12px !important;
+            padding: 12px 16px !important;
+            font-size: 0.9rem;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: left 12px center;
+            background-size: 14px;
+            padding-left: 40px !important;
+        }
+        .form-select:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.18) !important;
+        }
+        .form-select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        /* Device info */
+        .device-info {
+            margin-top: 0.85rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background: rgba(var(--primary-rgb), 0.06);
+            border: 1px dashed var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            direction: ltr;
+            text-align: center;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            word-break: break-all;
+        }
+        .device-info.warning {
+            background: rgba(251,191,36,0.08);
+            border-color: rgba(251,191,36,0.3);
+            color: var(--warning);
+        }
+
+        /* =========================================================
+           BUTTONS
+           ========================================================= */
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
+            background-size: 200% 200%;
+            border: none;
+            color: #fff;
+            padding: 13px 28px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 6px 20px -6px var(--glow);
+            animation: gradientShift 6s ease infinite;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-gradient::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        .btn-gradient:hover::before { width: 300px; height: 300px; }
+        .btn-gradient:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 36px -8px var(--glow);
+            color: #fff;
+        }
+        .btn-gradient:active { transform: translateY(-1px); }
+        .btn-gradient:disabled,
+        .btn-gradient[disabled] {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-outline-glass {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-outline-glass:hover {
+            background: rgba(var(--primary-rgb), 0.12);
+            border-color: var(--primary);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -6px rgba(var(--primary-rgb), 0.4);
+        }
+
+        .btn-block {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+            display: flex;
+        }
+
+        /* =========================================================
+           VIDEO PANEL
+           ========================================================= */
+        .video-wrap {
+            position: relative;
+            margin: 0 auto 1.25rem;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 2px solid var(--glass-border);
+            background: #000;
+            box-shadow:
+                0 0 0 4px rgba(var(--primary-rgb), 0.08),
+                0 20px 50px -20px var(--shadow);
+            transition: border-color 0.3s, box-shadow 0.3s;
+            max-width: 520px;
+        }
+        .video-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            padding: 2px;
+            background: linear-gradient(135deg, transparent 30%, rgba(var(--primary-rgb), 0.6), transparent 70%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .video-wrap.active::before { opacity: 1; }
+        .video-wrap img#cameraStream {
+            width: 100%;
+            height: auto;
+            display: block;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            background: #000;
+        }
+
+        /* Live indicator */
+        .video-wrap .live-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 3;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: rgba(239,68,68,0.9);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 14px rgba(239,68,68,0.5);
+            animation: livePulse 2s ease-in-out infinite;
+        }
+        .video-wrap .live-badge::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 8px #fff;
+            animation: liveDot 1.5s ease-in-out infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { box-shadow: 0 4px 14px rgba(239,68,68,0.5); }
+            50% { box-shadow: 0 4px 20px rgba(239,68,68,0.9); }
+        }
+        @keyframes liveDot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* =========================================================
+           PROGRESS BAR
+           ========================================================= */
+        .progress-wrap {
+            max-width: 520px;
+            margin: 1.25rem auto 0;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .progress-label .pct {
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        .progress-bar-custom {
+            background: rgba(var(--primary-rgb), 0.12);
+            height: 10px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--primary), var(--secondary));
+            background-size: 200% 100%;
+            border-radius: 8px;
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            animation: gradientShift 3s ease infinite;
+        }
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg,
+                transparent 30%,
+                rgba(255,255,255,0.4) 50%,
+                transparent 70%);
+            background-size: 200% 100%;
+            animation: shimmer 2s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* =========================================================
+           STATUS AREA
+           ========================================================= */
+        .status-area {
+            margin-top: 1.5rem;
+            text-align: center;
+            min-height: 44px;
+        }
+        .status-text {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 14px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            max-width: 100%;
+        }
+        .status-text .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(var(--primary-rgb), 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* =========================================================
+           STATUS BOXES (success / warning / error)
+           ========================================================= */
+        .status-box {
+            display: none;
+            text-align: center;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            padding: 2rem 1.5rem;
+            margin-top: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            animation: boxIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes boxIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .status-box .box-icon {
+            width: 88px;
+            height: 88px;
+            border-radius: 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.3rem;
+            color: #fff;
+            margin-bottom: 1.1rem;
+            position: relative;
+        }
+        .status-box .box-icon::after {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 32px;
+            background: inherit;
+            opacity: 0.35;
+            filter: blur(16px);
+            z-index: -1;
+            animation: pulseGlow 2.5s ease-in-out infinite;
+        }
+        .status-box h3 {
+            font-weight: 800;
+            margin: 0 0 0.5rem;
+            font-size: 1.15rem;
+            letter-spacing: -0.01em;
+        }
+        .status-box p {
+            margin: 0 0 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .status-box.success .box-icon {
+            background: linear-gradient(135deg, var(--success), var(--accent));
+            box-shadow: 0 16px 40px -12px rgba(16,185,129,0.7);
+        }
+        .status-box.success h3 { color: var(--success); }
+        .status-box.warning .box-icon {
+            background: linear-gradient(135deg, var(--warning), #f97316);
+            box-shadow: 0 16px 40px -12px rgba(251,191,36,0.7);
+        }
+        .status-box.warning h3 { color: var(--warning); }
+        .status-box.error .box-icon {
+            background: linear-gradient(135deg, var(--danger), #b91c1c);
+            box-shadow: 0 16px 40px -12px rgba(239,68,68,0.7);
+        }
+        .status-box.error h3 { color: var(--danger); }
+
+        /* =========================================================
+           HINT
+           ========================================================= */
+        .hint {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            margin-top: 0.9rem;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .hint i { color: var(--primary); }
+
+        /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+        @media (max-width: 576px) {
+            .page { padding: 1rem 0.75rem 2rem; }
+            .panel { padding: 1.35rem 1.1rem; border-radius: 18px; }
+            .page-header h2 { font-size: 1.25rem; }
+            .page-header .header-icon { width: 60px; height: 60px; font-size: 1.6rem; }
+            .btn-gradient { padding: 12px 22px; font-size: 0.9rem; }
+            .btn-outline-glass { padding: 10px 20px; font-size: 0.85rem; }
+            .status-box .box-icon { width: 72px; height: 72px; font-size: 1.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+
+        <!-- ===== TOP BAR ===== -->
+        <div class="top-bar">
+            <a href="{% url 'users-list' %}" class="back-link">
+                <i class="fas fa-arrow-right"></i>بازگشت
+            </a>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="تغییر تم">
+                <i class="fas fa-moon icon-moon"></i>
+                <i class="fas fa-sun icon-sun"></i>
+            </button>
+        </div>
+
+        <!-- ===== PAGE HEADER ===== -->
+        <div class="page-header">
+            <div class="header-icon">
+                <i class="fas fa-camera-retro"></i>
+            </div>
+            <h2>ثبت عکس چهره <strong>{{ username }}</strong></h2>
+            <p>برای فعال‌سازی تشخیص چهره، از چهره کاربر چند عکس با کیفیت بگیرید</p>
+        </div>
+
+        <!-- ===== CSRF ===== -->
+        {% csrf_token %}
+        <input type="hidden" id="csrfToken" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+        <!-- ===== STEP INDICATOR ===== -->
+        <div class="step-indicator">
+            <div class="step active" id="step1">
+                <div class="step-num"><i class="fas fa-video"></i></div>
+                <div class="step-label">انتخاب دوربین</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-num"><i class="fas fa-camera"></i></div>
+                <div class="step-label">گرفتن عکس</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-num"><i class="fas fa-brain"></i></div>
+                <div class="step-label">آموزش مدل</div>
+            </div>
+            <div class="step" id="step4">
+                <div class="step-num"><i class="fas fa-check"></i></div>
+                <div class="step-label">تمام</div>
+            </div>
+        </div>
+
+        <!-- ===== CAMERA PANEL ===== -->
+        <div class="panel" id="cameraPanel">
+            <div class="panel-icon-wrap">
+                <div class="panel-icon"><i class="fas fa-video"></i></div>
+            </div>
+            <h5>دوربین مورد نظر را انتخاب کنید</h5>
+            <p class="panel-sub">پس از اتصال، پیش‌نمایش زنده نمایش داده می‌شود</p>
+
+            <select class="form-select" id="cameraSelect" aria-label="انتخاب دوربین">
+                {% for cam in cameras %}
+                <option value="{{ cam.index }}" {% if cam.path == camera_source %}selected{% endif %}>{{ cam.name }}</option>
+                {% endfor %}
+            </select>
+
+            <div class="device-info {% if not camera_devices %}warning{% endif %}" id="deviceInfo">
+                {% if camera_devices %}
+                    <i class="fas fa-microchip"></i> دستگاه‌های ویدئویی سرور: {{ camera_devices|join:'، ' }}
+                {% else %}
+                    <i class="fas fa-exclamation-triangle"></i> هیچ دستگاه ویدئویی (/dev/video*) روی سرور پیدا نشد — وب‌کم هنوز به این ماشین وصل نیست.
+                {% endif %}
+            </div>
+
+            <button class="btn-gradient btn-block mt-3" id="connectBtn" onclick="startCamera()">
+                <i class="fas fa-plug"></i>اتصال به دوربین
+            </button>
+
+            <p class="hint">
+                <i class="fas fa-info-circle"></i>
+                پس از اتصال، با دکمه «شروع گرفتن عکس» ثبت تصاویر آغاز می‌شود.
+            </p>
+        </div>
+
+        <!-- ===== VIDEO PANEL ===== -->
+        <div class="panel" id="videoPanel" style="display:none;">
+            <div class="video-wrap" id="videoWrap">
+                <span class="live-badge">زنده</span>
+                <img src="" id="cameraStream" alt="پیش‌نمایش دوربین">
+            </div>
+
+            <button class="btn-gradient btn-block" id="startBtn" onclick="confirmCapture()" style="display:none;">
+                <i class="fas fa-camera"></i>شروع گرفتن عکس
+            </button>
+
+            <button class="btn-outline-glass btn-block mt-2" id="cancelBtn" onclick="cancelCapture()" style="display:none;">
+                <i class="fas fa-times"></i>لغو و بازگشت
+            </button>
+
+            <div class="progress-wrap" id="progressWrap" style="display:none;">
+                <div class="progress-label">
+                    <span><i class="fas fa-camera"></i> پیشرفت ثبت عکس</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+                <div class="progress-bar-custom">
+                    <div class="progress-fill" id="progressBar" style="width:0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== STATUS AREA ===== -->
+        <div class="status-area" id="statusArea">
+            <div class="status-text" id="status">
+                <span class="spinner"></span>
+                <span>منتظر انتخاب دوربین...</span>
+            </div>
+        </div>
+
+        <!-- ===== SUCCESS BOX ===== -->
+        <div class="status-box success" id="successBox">
+            <div class="box-icon"><i class="fas fa-check-circle"></i></div>
+            <h3 id="successMsg"></h3>
+            <p>در حال انتقال به مدیریت کاربران...</p>
+        </div>
+
+        <!-- ===== WARNING BOX ===== -->
+        <div class="status-box warning" id="warningBox">
+            <div class="box-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <h3 id="warningMsg"></h3>
+            <p>در حال انتقال به مدیریت کاربران...</p>
+        </div>
+
+        <!-- ===== ERROR BOX ===== -->
+        <div class="status-box error" id="errorBox">
+            <div class="box-icon"><i class="fas fa-times-circle"></i></div>
+            <h3 id="errorMsg"></h3>
+            <a href="{% url 'users-list' %}" class="btn-gradient">
+                <i class="fas fa-arrow-right"></i>بازگشت به مدیریت کاربران
+            </a>
+        </div>
+
+    </div>
+
+<script>
+// ===== Theme toggle =====
+function toggleTheme() {
+    const h = document.documentElement;
+    const c = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', c);
+    localStorage.setItem('theme', c);
+}
+document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+
+// ===== Elements =====
+const progressBar = document.getElementById('progressBar');
+const progressPct = document.getElementById('progressPct');
+const progressWrap = document.getElementById('progressWrap');
+let polling = false;
+let streamStarted = false;
+
+// ===== Helpers =====
+function getCSRF() {
+    const el = document.getElementById('csrfToken');
+    if (el && el.value) return el.value;
+    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function posting(url, body) {
+    return fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRF(),
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams(body)
+    }).then(r => r.json());
+}
+
+function stepActive(n) {
+    document.querySelectorAll('.step').forEach((s, i) => {
+        s.classList.toggle('active', i <= n - 1);
+    });
+}
+
+function setStatus(text, withSpinner) {
+    const el = document.getElementById('status');
+    if (withSpinner) {
+        el.innerHTML = '<span class="spinner"></span><span>' + text + '</span>';
+    } else {
+        el.innerHTML = '<span>' + text + '</span>';
+    }
+}
+
+// ===== Start camera =====
+function startCamera() {
+    const cameraIndex = parseInt(document.getElementById('cameraSelect').value || '0', 10);
+    const btn = document.getElementById('connectBtn');
+    btn.disabled = true;
+    setStatus('در حال اتصال به دوربین...', true);
+
+    posting("{% url 'dataset-camera-start' %}", {
+        camera_index: cameraIndex,
+        username: '{{ username }}'
+    }).then(d => {
+        if (!d.ok) {
+            showError(d.error || 'اتصال ناموفق بود');
+            return;
+        }
+        setStatus('در حال آماده‌سازی تصویر...', true);
+        if (!polling) { polling = true; poll(); }
+    }).catch(() => showError('ارتباط با سرور برقرار نشد.'));
+}
+
+// ===== Confirm capture =====
+function confirmCapture() {
+    const btn = document.getElementById('startBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>در حال شروع...';
+
+    posting("{% url 'dataset-camera-confirm' %}", {}).then(d => {
+        if (d.ok) {
+            stepActive(2);
+            setStatus('در حال گرفتن عکس...', true);
+            progressWrap.style.display = 'block';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-camera"></i>شروع گرفتن عکس';
+        }
+    }).catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-camera"></i>شروع گرفتن عکس';
+    });
+}
+
+// ===== Cancel =====
+function cancelCapture() {
+    posting("{% url 'dataset-camera-cancel' %}", {}).then(() => {
+        window.location.href = "{% url 'users-list' %}";
+    });
+}
+
+// ===== Show error/warning =====
+function showError(msg) {
+    document.getElementById('statusArea').style.display = 'none';
+    document.getElementById('videoPanel').style.display = 'none';
+    document.getElementById('cameraPanel').style.display = 'none';
+    document.getElementById('errorBox').style.display = 'block';
+    document.getElementById('errorMsg').innerText = msg;
+}
+
+function showWarning(msg) {
+    document.getElementById('statusArea').style.display = 'none';
+    document.getElementById('videoPanel').style.display = 'none';
+    document.getElementById('cameraPanel').style.display = 'none';
+    document.getElementById('warningBox').style.display = 'block';
+    document.getElementById('warningMsg').innerText = msg;
+    setTimeout(function () {
+        window.location.href = "{% url 'users-list' %}";
+    }, 3000);
+}
+
+// ===== Poll =====
+function poll() {
+    fetch("{% url 'dataset-status' %}").then(r => r.json()).then(d => {
+        if (d.camera_error) { showError(d.camera_error); return; }
+
+        // اگر نشستِ این تب در صف است (کاربر با تب/مرورگر دیگری صف شده) → صفحهٔ صف
+        if (d.queue && d.queue.state === 'queued') {
+            window.location.href = "{% url 'camera-queue' %}";
+            return;
+        }
+        // اگر این تب اصلاً صاحب نشست نیست → داشبورد (باز کردن تبِ دوم)
+        if (d.queue && !d.queue.is_owner && !d.queue.is_finishing && !d.done) {
+            window.location.href = "{% url 'dashboard' %}";
+            return;
+        }
+
+        if (d.phase === 'preview') {
+            document.getElementById('cameraPanel').style.display = 'none';
+            document.getElementById('videoPanel').style.display = 'block';
+            document.getElementById('videoWrap').classList.add('active');
+
+            const img = document.getElementById('cameraStream');
+            if (!streamStarted) {
+                streamStarted = true;
+                img.src = "{% url 'video-feed' mode='dataset' %}?t=" + new Date().getTime();
+            }
+
+            setStatus(d.status, false);
+
+            const startBtn = document.getElementById('startBtn');
+            startBtn.style.display = 'flex';
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="fas fa-camera"></i>شروع گرفتن عکس';
+
+            document.getElementById('cancelBtn').style.display = 'flex';
+            stepActive(1);
+
+        } else if (d.phase === 'capturing' || d.auto_train || d.train_status) {
+            document.getElementById('cameraPanel').style.display = 'none';
+            document.getElementById('videoPanel').style.display = 'block';
+
+            if (d.phase === 'capturing') {
+                stepActive(2);
+                const pct = Math.round((d.count / d.target) * 100);
+                progressBar.style.width = pct + '%';
+                progressPct.innerText = pct + '%';
+                progressWrap.style.display = 'block';
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'none';
+                setStatus(d.status, true);
+            } else if (d.train_status && !d.train_done) {
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'none';
+                stepActive(3);
+                setStatus(d.train_status, true);
+                if (d.train_status.startsWith('خطا')) {
+                    showWarning(d.train_status);
+                    return;
+                }
+            } else if (d.train_done) {
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('videoPanel').style.display = 'none';
+                document.getElementById('statusArea').style.display = 'none';
+                stepActive(4);
+                document.getElementById('successBox').style.display = 'block';
+                document.getElementById('successMsg').innerText = d.train_status;
+                setTimeout(function () {
+                    window.location.href = "{% url 'users-list' %}";
+                }, 2000);
+                return;
+            }
+
+        } else if (d.done) {
+            showError(d.status || 'عملیات کامل نشد.');
+            return;
+        } else {
+            setStatus(d.status, true);
+        }
+
+        setTimeout(poll, 800);
+    }).catch(() => setTimeout(poll, 1500));
+}
+
+// ===== Cleanup on unload — آزاد کردن دوربین به هر دلیلی که کاربر برود =====
+// نکته: `beforeunload` روی «دکمهٔ بازگشت مرورگر» و رفت‌وبرگشت بین صفحه‌ها
+// (bfcache) اجرا *نمی‌شود*؛ رویداد درست `pagehide` است.
+let sessionSettled = false;
+
+function releaseDatasetCamera() {
+    if (sessionSettled) { return; }
+    sessionSettled = true;
+    const body = new URLSearchParams({ csrfmiddlewaretoken: getCSRF() });
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon("{% url 'dataset-camera-cancel' %}", body);
+    } else {
+        fetch("{% url 'dataset-camera-cancel' %}", {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        }).catch(function () {});
+    }
+}
+
+window.addEventListener('pagehide', releaseDatasetCamera);
+window.addEventListener('beforeunload', releaseDatasetCamera);
+
+// با «جلو» برگشتیم → صفحه را تازه می‌کنیم
+window.addEventListener('pageshow', function (e) {
+    if (e.persisted) { window.location.reload(); }
+});
+</script>
+</body>
+</html>

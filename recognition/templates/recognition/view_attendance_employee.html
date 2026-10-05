@@ -1,0 +1,1228 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}{% if show_report %}گزارش {{ username }}{% else %}گزارش کارمندان{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}">
+<style>
+    /* =========================================================
+       EMPLOYEE CARDS (grid)
+       ========================================================= */
+    .emp-card {
+        position: relative;
+        border: 1px solid var(--glass-border);
+        border-radius: 18px;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        padding: 1.25rem 1rem;
+        text-align: center;
+        text-decoration: none;
+        color: inherit;
+        transition: border-color 0.35s, box-shadow 0.35s, background 0.35s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.65rem;
+        min-height: 150px;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .emp-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.15), transparent 55%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+    .emp-card:hover::before { opacity: 1; }
+    .emp-card:hover {
+        border-color: rgba(var(--primary-rgb), 0.5);
+        box-shadow: 0 20px 40px -14px rgba(var(--primary-rgb), 0.5);
+        color: inherit;
+        text-decoration: none;
+    }
+    .emp-card:hover .emp-avatar {
+        transform: scale(1.08) rotate(-5deg);
+    }
+    .emp-card.active {
+        border-color: var(--primary);
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.12),
+            rgba(var(--accent-rgb), 0.06));
+        box-shadow: 0 12px 32px -10px var(--glow);
+    }
+    .emp-card.active::after {
+        content: '\f00c';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        box-shadow: 0 4px 12px -2px var(--glow);
+    }
+
+    .emp-card .emp-avatar {
+        width: 56px; height: 56px;
+        border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; font-weight: 800; color: #fff;
+        position: relative;
+        z-index: 1;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 10px 24px -8px rgba(var(--primary-rgb), 0.6);
+    }
+    .emp-card .emp-name {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text-primary);
+        position: relative;
+        z-index: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    .emp-card .emp-count {
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: rgba(var(--primary-rgb), 0.1);
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.2);
+        position: relative;
+        z-index: 1;
+        white-space: nowrap;
+    }
+    .emp-card .emp-count i { font-size: 0.65rem; color: var(--primary); }
+    .emp-card.active .emp-count {
+        background: rgba(var(--primary-rgb), 0.18);
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    /* =========================================================
+       STAT CARDS (mini, 4-up)
+       ========================================================= */
+    .rep-stat {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1rem;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .rep-stat::before {
+        content: '';
+        position: absolute;
+        top: -40%; right: -40%;
+        width: 180%; height: 180%;
+        background: radial-gradient(circle, var(--rs-glow, rgba(var(--primary-rgb), 0.15)), transparent 55%);
+        opacity: 0.6;
+        pointer-events: none;
+        transition: opacity 0.4s;
+    }
+    .rep-stat:hover {
+        border-color: var(--rs-border, rgba(var(--primary-rgb), 0.4));
+        box-shadow: 0 16px 36px -14px var(--rs-shadow, rgba(var(--primary-rgb), 0.4));
+    }
+    .rep-stat:hover::before { opacity: 1; }
+    .rep-stat .rs-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+        flex-shrink: 0;
+        color: #fff;
+        background: var(--rs-icon-bg, linear-gradient(135deg, var(--primary), var(--secondary)));
+        box-shadow: 0 8px 20px -6px var(--rs-shadow, rgba(var(--primary-rgb), 0.6));
+        position: relative;
+        z-index: 1;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .rep-stat:hover .rs-icon { transform: scale(1.08) rotate(-5deg); }
+    .rep-stat .rs-body {
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+        flex: 1;
+    }
+    .rep-stat .rs-label {
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        line-height: 1.2;
+        margin-bottom: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .rep-stat .rs-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: var(--rs-color, var(--text-primary));
+        text-shadow: 0 0 18px var(--rs-shadow, rgba(var(--primary-rgb), 0.35));
+        word-break: break-word;
+    }
+    .rep-stat .rs-value.small { font-size: 1.05rem; letter-spacing: -0.01em; }
+
+    .rep-stat.primary  { --rs-color: var(--primary); --rs-icon-bg: linear-gradient(135deg, var(--primary), var(--secondary)); --rs-glow: rgba(var(--primary-rgb), 0.15); --rs-border: rgba(var(--primary-rgb), 0.4); --rs-shadow: rgba(var(--primary-rgb), 0.5); }
+    .rep-stat.success  { --rs-color: var(--success); --rs-icon-bg: linear-gradient(135deg, #34d399, #06b6d4); --rs-glow: rgba(16,185,129,0.15); --rs-border: rgba(16,185,129,0.4); --rs-shadow: rgba(16,185,129,0.5); }
+    .rep-stat.accent   { --rs-color: var(--accent); --rs-icon-bg: linear-gradient(135deg, #22d3ee, #818cf8); --rs-glow: rgba(34,211,238,0.15); --rs-border: rgba(34,211,238,0.4); --rs-shadow: rgba(34,211,238,0.5); }
+    .rep-stat.warning  { --rs-color: var(--warning); --rs-icon-bg: linear-gradient(135deg, #fbbf24, #f97316); --rs-glow: rgba(251,191,36,0.15); --rs-border: rgba(251,191,36,0.4); --rs-shadow: rgba(251,191,36,0.5); }
+    .rep-stat.danger   { --rs-color: var(--danger); --rs-icon-bg: linear-gradient(135deg, #f87171, #dc2626); --rs-glow: rgba(239,68,68,0.15); --rs-border: rgba(239,68,68,0.4); --rs-shadow: rgba(239,68,68,0.5); }
+
+    /* =========================================================
+       FILTER CARD
+       ========================================================= */
+    .filter-card {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.06),
+            rgba(var(--accent-rgb), 0.04));
+        border: 1px solid var(--glass-border);
+        border-radius: 18px;
+        padding: 1.25rem 1.4rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .filter-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.1), transparent 55%);
+        animation: auroraMove 14s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .filter-card .filter-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+    .filter-card .filter-head .fh-icon {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+        flex-shrink: 0;
+    }
+    .filter-card .filter-head h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text-primary);
+    }
+    .filter-card .filter-head small {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        font-weight: 400;
+        margin-top: 1px;
+    }
+    .filter-card .form-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .filter-card .form-label i {
+        font-size: 0.7rem;
+        color: var(--primary);
+        opacity: 0.85;
+    }
+    .filter-card .form-control,
+    .filter-card input[type="text"] {
+        background: var(--form-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 10px !important;
+        padding: 9px 14px !important;
+        font-size: 0.87rem;
+        height: 40px;
+        transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .filter-card .form-control:focus,
+    .filter-card input[type="text"]:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18) !important;
+    }
+    .filter-card .btn-apply {
+        height: 40px;
+        padding: 0;
+    }
+
+    .preset-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        position: relative;
+        z-index: 1;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px dashed var(--glass-border);
+    }
+    .preset-chips .chip-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-left: 4px;
+    }
+    .chip-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.25s;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+    .chip-btn:hover {
+        background: rgba(var(--primary-rgb), 0.12);
+        border-color: var(--primary);
+        color: var(--text-primary);
+        box-shadow: 0 6px 16px -8px var(--glow);
+    }
+    .chip-btn i { font-size: 0.72rem; }
+
+    /* =========================================================
+       TOOLBAR
+       ========================================================= */
+    .toolbar-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        padding: 0.85rem 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .toolbar-card .tb-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.87rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        flex-wrap: wrap;
+    }
+    .toolbar-card .tb-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        font-size: 0.76rem;
+        font-weight: 700;
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+    }
+    .toolbar-card .tb-badge.success {
+        background: rgba(16,185,129,0.12);
+        color: var(--success);
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
+    }
+    .toolbar-card .tb-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* =========================================================
+       SUMMARY CARDS (weekly / monthly)
+       ========================================================= */
+    .summary-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 18px;
+        overflow: hidden;
+    }
+    .summary-card .summary-head {
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--accent-rgb), 0.05));
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1rem 1.4rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .summary-card .summary-head .sh-icon {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+    }
+    .summary-card .summary-head h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+    .summary-card.weekly .sh-icon { background: linear-gradient(135deg, #22d3ee, #818cf8); }
+    .summary-card.monthly .sh-icon { background: linear-gradient(135deg, #c084fc, #ec4899); }
+
+    .summary-list {
+        display: flex;
+        flex-direction: column;
+    }
+    .summary-row {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 1.4rem;
+        border-bottom: 1px solid var(--glass-border);
+        transition: background-color 0.2s;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row:hover { background: rgba(var(--primary-rgb), 0.04); }
+
+    .summary-row .sr-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .summary-row .sr-label .sr-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        box-shadow: 0 0 10px var(--glow);
+        flex-shrink: 0;
+    }
+
+    .summary-row .sr-days {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        background: rgba(16,185,129,0.12);
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
+        justify-self: center;
+        white-space: nowrap;
+    }
+    .summary-row .sr-hours {
+        font-weight: 700;
+        color: var(--success);
+        font-size: 0.92rem;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        text-align: left;
+        white-space: nowrap;
+    }
+    .summary-row .sr-hours.empty { color: var(--text-muted); font-weight: 400; }
+
+    /* =========================================================
+       REPORT TABLE
+       ========================================================= */
+    .rep-table {
+        --bs-table-bg: transparent;
+        background: transparent;
+        margin: 0;
+    }
+    .rep-table th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-muted) !important;
+        font-weight: 700;
+        padding: 14px 14px;
+        white-space: nowrap;
+        background: rgba(148,163,184,0.04) !important;
+    }
+    .rep-table td {
+        padding: 14px 14px !important;
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+    .rep-table tbody tr {
+        transition: background-color 0.2s ease !important;
+    }
+    .rep-table tbody tr:hover {
+        background-color: rgba(var(--primary-rgb), 0.06) !important;
+    }
+
+    .row-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 26px;
+        padding: 0 8px;
+        border-radius: 8px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.78rem;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .date-cell {
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        font-size: 0.85rem;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+    .status-pill.present {
+        background: rgba(16,185,129,0.15);
+        color: #10b981;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.3);
+    }
+    .status-pill.absent {
+        background: rgba(239,68,68,0.13);
+        color: #ef4444;
+        box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);
+    }
+    .status-pill::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    .ev-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 10px; border-radius: 18px;
+        font-size: 0.74rem; font-weight: 600; white-space: nowrap;
+    }
+    .ev-in  { background: rgba(16,185,129,0.15); color: #10b981; box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25); }
+    .ev-out { background: rgba(239,68,68,0.15); color: #ef4444; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25); }
+    .open-session { background: rgba(251,191,36,0.15); color: #f59e0b; box-shadow: inset 0 0 0 1px rgba(251,191,36,0.3); }
+    .break-pill { background: rgba(139,92,246,0.15); color: #a78bfa; box-shadow: inset 0 0 0 1px rgba(139,92,246,0.25); }
+
+    .time-in {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-weight: 700;
+        color: var(--success);
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .time-out {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-weight: 700;
+        color: var(--danger);
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .time-empty { color: var(--text-muted); font-weight: 400; }
+
+    .work-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 10px;
+        background: rgba(16,185,129,0.12);
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
+        white-space: nowrap;
+    }
+    .work-badge.empty {
+        background: rgba(148,163,184,0.1);
+        color: var(--text-muted);
+        box-shadow: inset 0 0 0 1px var(--glass-border);
+        font-weight: 500;
+    }
+
+    .reason-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background: rgba(148,163,184,0.1);
+        color: var(--text-secondary);
+        box-shadow: inset 0 0 0 1px var(--glass-border);
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* =========================================================
+       PAGINATION
+       ========================================================= */
+    .rep-pagination {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex-wrap: wrap;
+    }
+    .rep-pagination .page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        height: 38px;
+        padding: 0 12px;
+        border-radius: 10px;
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-decoration: none;
+        transition: all 0.25s;
+    }
+    .rep-pagination .page-link:hover {
+        background: rgba(var(--primary-rgb), 0.12);
+        border-color: var(--primary);
+        color: var(--text-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px -8px var(--glow);
+    }
+    .rep-pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 8px 20px -6px var(--glow);
+    }
+    .rep-pagination .page-item.disabled .page-link {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    /* =========================================================
+       EMPTY & NOT-FOUND STATES
+       ========================================================= */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    .empty-state .icon-wrap {
+        width: 84px; height: 84px;
+        border-radius: 24px;
+        background: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 32px -12px var(--glow);
+    }
+    .empty-state p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    .not-found {
+        background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(251,191,36,0.05));
+        border: 1px solid rgba(239,68,68,0.25);
+        border-radius: 18px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .not-found .nf-icon {
+        width: 52px; height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #f87171, #fbbf24);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+        box-shadow: 0 8px 20px -6px rgba(239,68,68,0.5);
+    }
+    .not-found h6 {
+        margin: 0 0 4px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .not-found p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.87rem;
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+        .filter-card { padding: 1rem; }
+        .rep-stat { padding: 0.85rem; gap: 10px; }
+        .rep-stat .rs-icon { width: 38px; height: 38px; font-size: 0.95rem; }
+        .rep-stat .rs-value { font-size: 1.25rem; }
+        .rep-stat .rs-value.small { font-size: 0.92rem; }
+        .rep-stat .rs-label { font-size: 0.68rem; }
+
+        .emp-card { min-height: 130px; padding: 1rem 0.75rem; }
+        .emp-card .emp-avatar { width: 48px; height: 48px; font-size: 1.1rem; border-radius: 14px; }
+
+        .rep-table thead { display: none; }
+        .rep-table tbody,
+        .rep-table tr,
+        .rep-table td { display: block; width: 100%; }
+        .rep-table tbody tr {
+            margin: 0.75rem;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            width: calc(100% - 1.5rem);
+        }
+        .rep-table td {
+            padding: 0.5rem 0 !important;
+            border: none !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            text-align: left;
+        }
+        .rep-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .rep-table td[data-label="ورود و خروج"] {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .rep-table td[data-label="ورود و خروج"]::before { margin-bottom: 6px; }
+
+        .summary-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            padding: 1rem 1.2rem;
+        }
+        .summary-row .sr-days { justify-self: start; }
+        .summary-row .sr-hours { text-align: right; }
+    }
+
+    @media (max-width: 576px) {
+        .rep-pagination .page-link { min-width: 34px; height: 34px; padding: 0 9px; font-size: 0.8rem; }
+        .toolbar-card { padding: 0.75rem 1rem; }
+        .chip-btn { font-size: 0.72rem; padding: 5px 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     PAGE HEADER
+     ============================================================ -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-user-chart ms-2" style="color:var(--primary)"></i>
+            {% if show_report %}گزارش {{ user.first_name }} {{ user.last_name }}{% else %}گزارش کارمندان{% endif %}
+        </h1>
+        <p class="page-subtitle mb-0">
+            {% if show_report %}ورود و خروج، خلاصه هفتگی و ماهانه{% else %}یک کارمند را انتخاب کنید{% endif %}
+        </p>
+    </div>
+    {% if show_report %}
+    <a href="{% url 'view-attendance-employee' %}" class="btn btn-outline-glass">
+        <i class="fas fa-th-large me-1"></i>انتخاب کارمند دیگر
+    </a>
+    {% endif %}
+</div>
+
+{% if show_report %}
+
+<!-- ============================================================
+     NOT FOUND
+     ============================================================ -->
+{% if employee_not_found %}
+<div class="row justify-content-center mb-4">
+    <div class="col-12 col-lg-10">
+        <div class="not-found">
+            <div class="nf-icon"><i class="fas fa-user-slash"></i></div>
+            <div>
+                <h6>کارمندی با نام «{{ username }}» وجود ندارد</h6>
+                <p>از بین لیست پایین صفحه انتخاب کنید.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     FILTER
+     ============================================================ -->
+<div class="row justify-content-center mb-4">
+    <div class="col-12 col-lg-10">
+        <div class="filter-card">
+            <div class="filter-head">
+                <span class="fh-icon"><i class="fas fa-sliders-h"></i></span>
+                <div>
+                    <h5>فیلتر بازه زمانی</h5>
+                    <small>بازه مورد نظر را انتخاب کنید یا از میانبرهای آماده استفاده کنید</small>
+                </div>
+            </div>
+            <form method="GET" autocomplete="off" class="position-relative" style="z-index:1;">
+                <input type="hidden" name="username" value="{{ username }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-arrow-right"></i>از تاریخ
+                        </label>
+                        <div class="input-group-icon">
+                            <i class="fas fa-calendar-alt input-icon"></i>
+                            {{ form.date_from }}
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-arrow-left"></i>تا تاریخ
+                        </label>
+                        <div class="input-group-icon">
+                            <i class="fas fa-calendar-alt input-icon"></i>
+                            {{ form.date_to }}
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <button type="submit" class="btn btn-gradient w-100 btn-apply">
+                            <i class="fas fa-filter me-1"></i>اعمال فیلتر
+                        </button>
+                    </div>
+                </div>
+                <div class="preset-chips">
+                    <span class="chip-label"><i class="fas fa-bolt"></i>میانبر:</span>
+                    <button type="button" class="chip-btn" data-jalali-preset="today">
+                        <i class="fas fa-bullseye"></i>امروز
+                    </button>
+                    <button type="button" class="chip-btn" data-jalali-preset="week">
+                        <i class="fas fa-calendar-week"></i>هفته جاری
+                    </button>
+                    <button type="button" class="chip-btn" data-jalali-preset="currentMonth">
+                        <i class="fas fa-calendar"></i>ماه جاری
+                    </button>
+                    <button type="button" class="chip-btn" data-jalali-preset="month">
+                        <i class="fas fa-calendar-alt"></i>۳۰ روز اخیر
+                    </button>
+                    <a href="{% url 'view-attendance-employee' %}?username={{ username }}" class="chip-btn">
+                        <i class="fas fa-eraser"></i>نمایش همه
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     STAT CARDS
+     ============================================================ -->
+{% if total_text != '-' %}
+<div class="row g-3 g-md-4 justify-content-center mb-4">
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="rep-stat success">
+            <span class="rs-icon"><i class="fas fa-calendar-check"></i></span>
+            <div class="rs-body">
+                <div class="rs-label">روزهای حضور</div>
+                <div class="rs-value">{{ days_present|fa }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="rep-stat accent">
+            <span class="rs-icon"><i class="fas fa-clock"></i></span>
+            <div class="rs-body">
+                <div class="rs-label">مجموع ساعات</div>
+                <div class="rs-value small">{{ total_text }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="rep-stat warning">
+            <span class="rs-icon"><i class="fas fa-chart-line"></i></span>
+            <div class="rs-body">
+                <div class="rs-label">میانگین روزانه</div>
+                <div class="rs-value small">{{ avg_text }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="rep-stat danger">
+            <span class="rs-icon"><i class="fas fa-fire"></i></span>
+            <div class="rs-body">
+                <div class="rs-label">بیشترین ساعاتِ یک روز</div>
+                <div class="rs-value small">{{ max_day_text }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     TOOLBAR
+     ============================================================ -->
+{% if total_rows %}
+<div class="row justify-content-center mb-3">
+    <div class="col-12 col-lg-10">
+        <div class="toolbar-card">
+            <div class="tb-info">
+                <span class="tb-badge">
+                    <i class="fas fa-list"></i>{{ total_rows|fa }} رکورد
+                </span>
+                <span class="tb-badge success">
+                    <i class="fas fa-calendar-check"></i>{{ days_present|fa }} روز حضور
+                </span>
+            </div>
+            <div class="tb-actions">
+                <a href="{% url 'view-attendance-employee-export' %}?{{ filter_qs }}" class="btn btn-sm btn-gradient">
+                    <i class="fas fa-file-excel me-1"></i>خروجی اکسل
+                </a>
+                <a href="{% url 'view-attendance-employee-print' %}?{{ filter_qs }}" target="_blank" class="btn btn-sm btn-outline-glass">
+                    <i class="fas fa-print me-1"></i>خروجی چاپی
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     WEEKLY SUMMARY
+     ============================================================ -->
+{% if weekly %}
+<div class="row justify-content-center mb-4">
+    <div class="col-12 col-lg-10">
+        <div class="summary-card weekly">
+            <div class="summary-head">
+                <span class="sh-icon"><i class="fas fa-calendar-week"></i></span>
+                <h5>خلاصه هفتگی</h5>
+            </div>
+            <div class="summary-list">
+                {% for w in weekly %}
+                <div class="summary-row">
+                    <div class="sr-label">
+                        <span class="sr-dot"></span>{{ w.label }}
+                    </div>
+                    <div class="sr-days">
+                        <i class="fas fa-calendar-check"></i>{{ w.days|fa }} روز
+                    </div>
+                    <div class="sr-hours">{{ w.hours_text }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     MONTHLY SUMMARY
+     ============================================================ -->
+{% if monthly %}
+<div class="row justify-content-center mb-4">
+    <div class="col-12 col-lg-10">
+        <div class="summary-card monthly">
+            <div class="summary-head">
+                <span class="sh-icon"><i class="fas fa-calendar"></i></span>
+                <h5>خلاصه ماهانه</h5>
+            </div>
+            <div class="summary-list">
+                {% for m in monthly %}
+                <div class="summary-row">
+                    <div class="sr-label">
+                        <span class="sr-dot" style="background:linear-gradient(135deg,#c084fc,#ec4899);box-shadow:0 0 10px rgba(192,132,252,0.6);"></span>{{ m.label }}
+                    </div>
+                    <div class="sr-days">
+                        <i class="fas fa-calendar-check"></i>{{ m.days|fa }} روز
+                    </div>
+                    <div class="sr-hours">{{ m.hours_text }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================================
+     DAILY DETAILS TABLE
+     ============================================================ -->
+<div class="row justify-content-center mb-4">
+    <div class="col-12 col-lg-10">
+        <div class="summary-card">
+            <div class="summary-head">
+                <span class="sh-icon" style="background:linear-gradient(135deg,var(--primary),var(--secondary));">
+                    <i class="fas fa-list-ul"></i>
+                </span>
+                <h5>جزئیات روزانه</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-modern rep-table mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:60px;">ردیف</th>
+                            <th>تاریخ</th>
+                            <th style="width:100px;">وضعیت</th>
+                            <th>رویدادها</th>
+                            <th style="width:100px;">ورود</th>
+                            <th style="width:100px;">خروج</th>
+                            <th style="width:120px;">مدت حضور</th>
+                            <th>دلیل خروج</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in page_obj %}
+                        <tr>
+                            <td class="text-center" data-label="ردیف">
+                                <span class="row-num">{{ page_obj.start_index|add:forloop.counter0|fa }}</span>
+                            </td>
+                            <td data-label="تاریخ">
+                                <span class="date-cell">{{ item.date|to_jalali_full }}</span>
+                            </td>
+                            <td data-label="وضعیت">
+                                {% if item.present %}
+                                <span class="status-pill present">حاضر</span>
+                                {% else %}
+                                <span class="status-pill absent">غایب</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="رویدادها">
+                                <div class="d-flex flex-wrap align-items-center gap-1" style="min-width:200px;">
+                                    {% for ev in item.events %}
+                                    <span class="ev-pill {% if ev.out %}ev-out{% else %}ev-in{% endif %}">
+                                        {% if ev.out %}<i class="fas fa-sign-out-alt"></i>{% else %}<i class="fas fa-sign-in-alt"></i>{% endif %}
+                                        {{ ev.time|clock }}
+                                    </span>
+                                    {% endfor %}
+                                    {% if item.open_time %}
+                                    <span class="ev-pill open-session">
+                                        <i class="fas fa-hourglass-half"></i>
+                                        هنوز در محل ({{ item.open_time|clock }})
+                                    </span>
+                                    {% endif %}
+                                    {% if item.breaks %}
+                                    <span class="ev-pill break-pill">
+                                        <i class="fas fa-coffee"></i>استراحت {{ item.break_text }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td data-label="ورود">
+                                {% if item.first_in %}
+                                <span class="time-in">{{ item.first_in|clock }}</span>
+                                {% else %}
+                                <span class="time-empty">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="خروج">
+                                {% if item.last_out %}
+                                <span class="time-out">{{ item.last_out|clock }}</span>
+                                {% else %}
+                                <span class="time-empty">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="مدت حضور">
+                                {% if item.work_text and item.work_text != '-' %}
+                                <span class="work-badge">
+                                    <i class="fas fa-hourglass-half"></i>{{ item.work_text }}
+                                </span>
+                                {% else %}
+                                <span class="work-badge empty">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="دلیل خروج">
+                                {% if item.exit_reason %}
+                                    <span class="reason-chip" title="{{ item.exit_reason.title }}">
+                                        <i class="fas fa-door-open"></i>{{ item.exit_reason.title }}
+                                    </span>
+                                {% elif item.exit_reason_text %}
+                                    <span class="reason-chip" title="{{ item.exit_reason_text }}">
+                                        <i class="fas fa-pen"></i>{{ item.exit_reason_text }}
+                                    </span>
+                                {% else %}
+                                    <span class="time-empty">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="p-0">
+                                <div class="empty-state">
+                                    <div class="icon-wrap"><i class="fas fa-inbox"></i></div>
+                                    <p>رکوردی برای {{ username }} در این بازه وجود ندارد.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     PAGINATION
+     ============================================================ -->
+{% if page_obj.has_other_pages %}
+<div class="row justify-content-center mb-4">
+    <div class="col-12 col-lg-10">
+        <nav aria-label="صفحه‌بندی">
+            <ul class="rep-pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if filter_qs %}{{ filter_qs }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == page_obj.number %}
+                    <li class="page-item active"><span class="page-link">{{ num|fa }}</span></li>
+                    {% elif num > page_obj.number|add:-4 and num < page_obj.number|add:4 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if filter_qs %}{{ filter_qs }}&{% endif %}page={{ num }}">{{ num|fa }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if filter_qs %}{{ filter_qs }}&{% endif %}page={{ page_obj.next_page_number }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+<!-- ============================================================
+     EMPLOYEE SELECTOR
+     ============================================================ -->
+<div class="row justify-content-center mt-2">
+    <div class="col-12 col-lg-10">
+        <div class="summary-card">
+            <div class="summary-head">
+                <span class="sh-icon" style="background:linear-gradient(135deg,#22d3ee,#818cf8);">
+                    <i class="fas fa-users"></i>
+                </span>
+                <h5>انتخاب کارمند</h5>
+            </div>
+            <div class="card-body" style="padding:1.25rem;">
+                <div class="row g-3">
+                    {% for emp in employee_list %}
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <a href="?username={{ emp.username }}" class="emp-card {% if emp.username == username %}active{% endif %}">
+                            <div class="emp-avatar" style="background:linear-gradient(135deg, var(--primary), var(--secondary));">
+                                {{ emp.username|first }}
+                            </div>
+                            <div class="emp-name" title="{{ emp.user.username }}">{{ emp.user.first_name }} {{ emp.user.last_name }}</div>
+                            <div class="emp-count">
+                                <i class="fas fa-calendar-check"></i>{{ emp.attendance_count|fa }} روز
+                            </div>
+                        </a>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-4" style="color:var(--text-secondary)">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <p>کارمندی ثبت نشده است.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
+<script src="{% static 'recognition/js/report-presets.js' %}"></script>
+{% endblock %}

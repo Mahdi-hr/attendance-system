@@ -1,0 +1,379 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}داشبورد مدیریت{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       WELCOME HEADER
+       ========================================================= */
+    .welcome-card {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.1),
+            rgba(var(--accent-rgb), 0.05));
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.5rem 1.75rem;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+    }
+    .welcome-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.12), transparent 55%);
+        animation: auroraMove 14s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .welcome-card > * { position: relative; z-index: 1; }
+
+    .welcome-card .wc-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: 1;
+        min-width: 200px;
+    }
+    .welcome-card .wc-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        box-shadow: 0 12px 28px -8px var(--glow);
+    }
+    .welcome-card h1 {
+        margin: 0 0 4px;
+        font-weight: 800;
+        font-size: 1.5rem;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+    }
+    .welcome-card .wc-subtitle {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .welcome-card .wc-subtitle strong {
+        color: var(--primary);
+        font-weight: 700;
+    }
+
+    /* =========================================================
+       DASHBOARD CARDS
+       ========================================================= */
+    .dash-card {
+        display: block;
+        text-decoration: none !important;
+        color: inherit !important;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 1.6rem 1.4rem;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s, background 0.35s;
+        height: 100%;
+        min-height: 200px;
+    }
+    .dash-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, var(--dc-glow, rgba(var(--primary-rgb), 0.15)), transparent 55%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+    .dash-card:hover::before { opacity: 1; }
+    .dash-card:hover {
+        border-color: var(--dc-border, rgba(var(--primary-rgb), 0.5));
+        box-shadow: 0 20px 44px -16px var(--dc-shadow, rgba(var(--primary-rgb), 0.5));
+        color: inherit !important;
+    }
+
+    /* Top color bar */
+    .dash-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 4px;
+        background: var(--dc-bar, linear-gradient(90deg, var(--primary), var(--accent)));
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+    .dash-card:hover::after { opacity: 1; }
+
+    .dash-card .dc-icon-wrap {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.65rem;
+        color: #fff;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        background: var(--dc-icon-bg, linear-gradient(135deg, var(--primary), var(--secondary)));
+        box-shadow: 0 12px 28px -8px var(--dc-shadow, rgba(var(--primary-rgb), 0.7));
+    }
+    .dash-card:hover .dc-icon-wrap {
+        transform: scale(1.08) rotate(-6deg);
+    }
+
+    .dash-card h5 {
+        font-weight: 800;
+        font-size: 1.05rem;
+        margin: 0 0 0.5rem;
+        color: var(--text-primary);
+        position: relative;
+        z-index: 1;
+        letter-spacing: -0.01em;
+    }
+    .dash-card p {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin: 0 0 1rem;
+        position: relative;
+        z-index: 1;
+        line-height: 1.65;
+    }
+    .dash-card .dc-arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--dc-color, var(--primary));
+        position: relative;
+        z-index: 1;
+        transition: gap 0.3s;
+    }
+    .dash-card:hover .dc-arrow { gap: 10px; }
+    .dash-card .dc-arrow i {
+        transition: transform 0.3s;
+    }
+    .dash-card:hover .dc-arrow i {
+        transform: translateX(-4px);
+    }
+
+    /* Color variants */
+    .dash-card.users {
+        --dc-color: var(--primary);
+        --dc-glow: rgba(var(--primary-rgb), 0.15);
+        --dc-border: rgba(var(--primary-rgb), 0.5);
+        --dc-shadow: rgba(var(--primary-rgb), 0.5);
+        --dc-icon-bg: linear-gradient(135deg, var(--primary), var(--secondary));
+        --dc-bar: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    .dash-card.reports {
+        --dc-color: var(--warning);
+        --dc-glow: rgba(251,191,36,0.15);
+        --dc-border: rgba(251,191,36,0.5);
+        --dc-shadow: rgba(251,191,36,0.5);
+        --dc-icon-bg: linear-gradient(135deg, #fbbf24, #f97316);
+        --dc-bar: linear-gradient(90deg, #fbbf24, #f97316);
+    }
+    .dash-card.reasons {
+        --dc-color: var(--accent);
+        --dc-glow: rgba(34,211,238,0.15);
+        --dc-border: rgba(34,211,238,0.5);
+        --dc-shadow: rgba(34,211,238,0.5);
+        --dc-icon-bg: linear-gradient(135deg, #22d3ee, #818cf8);
+        --dc-bar: linear-gradient(90deg, #22d3ee, #818cf8);
+    }
+    .dash-card.errors {
+        --dc-color: var(--danger);
+        --dc-glow: rgba(239,68,68,0.15);
+        --dc-border: rgba(239,68,68,0.5);
+        --dc-shadow: rgba(239,68,68,0.5);
+        --dc-icon-bg: linear-gradient(135deg, #f87171, #dc2626);
+        --dc-bar: linear-gradient(90deg, #f87171, #dc2626);
+    }
+    .dash-card.snapshots {
+        --dc-color: var(--accent);
+        --dc-glow: rgba(34,211,238,0.15);
+        --dc-border: rgba(34,211,238,0.5);
+        --dc-shadow: rgba(34,211,238,0.5);
+        --dc-icon-bg: linear-gradient(135deg, #22d3ee, #14b8a6);
+        --dc-bar: linear-gradient(90deg, #22d3ee, #14b8a6);
+    }
+
+    /* =========================================================
+       ERROR BADGE (pending errors)
+       ========================================================= */
+    .err-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, var(--danger), #b91c1c);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        box-shadow: 0 8px 20px -6px rgba(239,68,68,0.8);
+        animation: pulseWarn 2s ease-in-out infinite;
+        white-space: nowrap;
+    }
+    .err-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 8px #fff;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulseWarn {
+        0%, 100% { box-shadow: 0 8px 20px -6px rgba(239,68,68,0.8); }
+        50% { box-shadow: 0 8px 28px -6px rgba(239,68,68,1); }
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+        .welcome-card { padding: 1.25rem 1.1rem; }
+        .welcome-card .wc-avatar { width: 46px; height: 46px; font-size: 1.2rem; }
+        .welcome-card h1 { font-size: 1.2rem; }
+        .dash-card { padding: 1.25rem 1.15rem; min-height: 175px; }
+        .dash-card .dc-icon-wrap { width: 54px; height: 54px; font-size: 1.35rem; border-radius: 15px; }
+        .dash-card h5 { font-size: 1rem; }
+        .dash-card p { font-size: 0.8rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     WELCOME HEADER
+     ============================================================ -->
+<div class="welcome-card">
+    <div class="wc-left">
+        <div class="wc-avatar">
+            <i class="fas fa-user-shield"></i>
+        </div>
+        <div>
+            <h1>داشبورد مدیریت</h1>
+            <p class="wc-subtitle">
+                خوش آمدید <strong>{{ user.first_name }} {{ user.last_name }}</strong> — به سامانه مدیریت خوش آمدید
+            </p>
+        </div>
+    </div>
+
+    {% if user_role == 'both' and can_access_admin %}
+    <a href="{% url 'admin-mode-off' %}" class="btn btn-outline-glass">
+        <i class="fas fa-user me-2"></i>بازگشت به حالت کاربر
+    </a>
+    {% endif %}
+</div>
+
+<!-- ============================================================
+     DASHBOARD CARDS
+     ============================================================ -->
+<div class="row g-4 justify-content-center">
+
+    <!-- Users -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'users-list' %}" class="dash-card users">
+            <div class="dc-icon-wrap">
+                <i class="fas fa-users"></i>
+            </div>
+            <h5>مدیریت کاربران</h5>
+            <p>لیست کاربران، ویرایش اطلاعات، ثبت‌نام جدید و مدیریت وضعیت چهره</p>
+            <span class="dc-arrow">
+                ورود به بخش <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+    <!-- Reports -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'view-attendance-home' %}" class="dash-card reports">
+            <div class="dc-icon-wrap">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <h5>گزارش‌ها</h5>
+            <p>مشاهده گزارش حضور و غیاب بر اساس تاریخ، کارمند و بازه دلخواه</p>
+            <span class="dc-arrow">
+                مشاهده گزارش‌ها <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+    <!-- Exit reasons -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'view-exit-reasons' %}" class="dash-card reasons">
+            <div class="dc-icon-wrap">
+                <i class="fas fa-door-open"></i>
+            </div>
+            <h5>دلایل خروج</h5>
+            <p>افزودن، ویرایش، فعال/غیرفعال و مدیریت اولویت دلایل خروج کارمندان</p>
+            <span class="dc-arrow">
+                مدیریت دلایل <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+    <!-- Checkout errors -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'view-checkout-errors' %}" class="dash-card errors position-relative">
+            {% if pending_errors %}
+            <span class="err-badge">
+                <i class="fas fa-exclamation-triangle"></i>{{ pending_errors }} در انتظار
+            </span>
+            {% endif %}
+            <div class="dc-icon-wrap">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h5>خطاهای خروج</h5>
+            <p>خروج‌های ثبت‌شده خودکار در ساعت ۲۴ که نیاز به اصلاح دستی دارند</p>
+            <span class="dc-arrow">
+                بررسی خطاها <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+    <!-- Snapshots -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'snapshot-review' %}" class="dash-card snapshots">
+            <div class="dc-icon-wrap">
+                <i class="fas fa-camera-retro"></i>
+            </div>
+            <h5>بازبینی عکس‌ها</h5>
+            <p>عکس‌های لحظه ورود و خروج تأییدشده به همراه امکان حذف و بررسی</p>
+            <span class="dc-arrow">
+                بازبینی عکس‌ها <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

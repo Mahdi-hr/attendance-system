@@ -1,0 +1,509 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}صف انتظار دوربین{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============================================================
+   صف انتظار دوربین — موبایل‌فرست
+   ============================================================ */
+.q-wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 16px 14px 32px;
+}
+
+.q-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 22px 18px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px var(--shadow);
+    text-align: center;
+}
+
+/* ---------- حلقهٔ نوبت ---------- */
+.q-ring {
+    position: relative;
+    width: 168px;
+    height: 168px;
+    margin: 6px auto 18px;
+}
+.q-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.q-ring .track { fill: none; stroke: var(--glass-border); stroke-width: 12; }
+.q-ring .bar {
+    fill: none;
+    stroke: url(#qGrad);
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dashoffset .6s cubic-bezier(.4,0,.2,1);
+}
+.q-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+.q-ring-num {
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+.q-ring-lbl {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+/* ---------- وضعیت‌ها ---------- */
+.q-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+.q-badge.waiting { background: rgba(var(--primary-rgb),.14); color: var(--primary); }
+.q-badge.ready   { background: rgba(52,211,153,.16); color: var(--success); }
+.q-badge.busy    { background: rgba(251,191,36,.14); color: var(--warning); }
+
+.q-title { font-size: 19px; font-weight: 700; color: var(--text-primary); margin: 0 0 8px; }
+.q-text  { font-size: 14.5px; color: var(--text-secondary); margin: 0 0 6px; line-height: 1.85; }
+.q-text strong { color: var(--text-primary); }
+
+/* ---------- نوار «الان نوبت کیه» ---------- */
+.q-holder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--form-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin: 16px 0 6px;
+    text-align: right;
+}
+.q-holder i { color: var(--warning); font-size: 15px; flex: 0 0 auto; }
+.q-holder-body { min-width: 0; flex: 1 1 auto; }
+.q-holder-name {
+    font-size: 14.5px; font-weight: 700; color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.q-holder-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- فهرست جلوی صف ---------- */
+.q-ahead-label {
+    font-size: 12.5px; color: var(--text-muted);
+    margin: 18px 0 8px; text-align: right; font-weight: 600;
+}
+.q-list { list-style: none; margin: 0; padding: 0; text-align: right; }
+.q-list li {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--form-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px 13px;
+    margin-bottom: 7px;
+    font-size: 14px;
+}
+.q-list li.is-me {
+    border-color: var(--glass-border-hover);
+    background: rgba(var(--primary-rgb),.12);
+}
+.q-num {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(var(--primary-rgb),.18); color: var(--primary);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.q-list li.is-me .q-num { background: var(--primary); color: #fff; }
+.q-name { flex: 1 1 auto; min-width: 0; color: var(--text-primary);
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-me-tag { font-size: 11px; color: var(--primary); font-weight: 700; flex: 0 0 auto; }
+
+/* ---------- دکمه ---------- */
+.q-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%;
+    padding: 13px 18px;
+    margin-top: 18px;
+    border-radius: 14px;
+    border: 1px solid var(--glass-border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit; font-size: 14.5px; font-weight: 600;
+    cursor: pointer;
+    transition: background .18s, color .18s, border-color .18s;
+    -webkit-tap-highlight-color: transparent;
+}
+.q-btn:active { transform: translateY(1px); }
+.q-btn:hover { background: var(--form-bg); color: var(--text-primary); }
+.q-btn.danger { color: var(--danger); border-color: rgba(248,113,113,.32); }
+.q-btn.danger:hover { background: rgba(248,113,113,.1); }
+.q-btn[disabled] { opacity: .5; cursor: default; }
+
+/* ---------- نوار پیشرفت انتظار ---------- */
+.q-bar {
+    height: 6px; border-radius: 99px; overflow: hidden;
+    background: var(--glass-border); margin-top: 18px;
+}
+.q-bar > i {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transition: width .8s ease;
+}
+
+/* ---------- اسپینر ---------- */
+.q-spin {
+    width: 46px; height: 46px; margin: 8px auto 16px;
+    border: 3px solid var(--glass-border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: qspin .8s linear infinite;
+}
+@keyframes qspin { to { transform: rotate(360deg); } }
+
+/* ---------- موبایل کوچک ---------- */
+@media (max-width: 380px) {
+    .q-wrap { padding: 12px 10px 24px; }
+    .q-card { padding: 18px 14px; border-radius: 18px; }
+    .q-ring { width: 138px; height: 138px; }
+    .q-ring-num { font-size: 34px; }
+    .q-ring-lbl { font-size: 11px; }
+    .q-title { font-size: 17px; }
+    .q-text { font-size: 13.5px; }
+    .q-list li { padding: 9px 11px; font-size: 13.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .q-ring .bar, .q-bar > i { transition: none; }
+    .q-spin { animation-duration: 2s; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="q-wrap">
+    <div class="q-card">
+
+        <!-- ===== حالت: در صف ===== -->
+        <div id="panelQueue" hidden>
+            <div class="q-badge waiting">
+                <i class="fas fa-hourglass-half"></i><span>در انتظار نوبت</span>
+            </div>
+
+            <div class="q-ring">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="qGrad" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%"   stop-color="var(--primary)"></stop>
+                            <stop offset="100%" stop-color="var(--accent)"></stop>
+                        </linearGradient>
+                    </defs>
+                    <circle class="track" cx="60" cy="60" r="52"></circle>
+                    <circle id="ringBar" class="bar" cx="60" cy="60" r="52"
+                            stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
+                </svg>
+                <div class="q-ring-center">
+                    <div class="q-ring-num" id="posNum">—</div>
+                    <div class="q-ring-lbl" id="posLabel">نوبت شما</div>
+                </div>
+            </div>
+
+            <p class="q-title" id="qTitle">لطفاً کمی صبر کنید</p>
+            <p class="q-text" id="qText">
+                دوربین در اختیار <strong id="busyName">کاربر دیگری</strong> است.
+                به‌محض آزاد شدن، خودکار وارد صفحه می‌شوید؛ نیازی به کلیک نیست.
+            </p>
+
+            <div class="q-bar"><i id="waitBar"></i></div>
+
+            <div class="q-holder">
+                <i class="fas fa-camera"></i>
+                <div class="q-holder-body">
+                    <div class="q-holder-name" id="holderName">—</div>
+                    <div class="q-holder-meta" id="holderMeta">در حال استفاده از دوربین</div>
+                </div>
+            </div>
+
+            <div class="q-ahead-label" id="aheadLabel">افراد جلوی صف</div>
+            <ul class="q-list" id="aheadList"></ul>
+
+            <button class="q-btn danger" id="btnLeave">
+                <i class="fas fa-door-open"></i> خروج از صف
+            </button>
+        </div>
+
+        <!-- ===== حالت: نوبت شد / در حال اتصال ===== -->
+        <div id="panelReady" hidden>
+            <div class="q-spin"></div>
+            <div class="q-badge ready">
+                <i class="fas fa-circle-check"></i><span id="readyLabel">نوبت شما شد</span>
+            </div>
+            <p class="q-title">در حال انتقال…</p>
+            <p class="q-text">لطفاً این صفحه را نبندید.</p>
+        </div>
+
+        <!-- ===== حالت: صف خالی/آمادهٔ شروع ===== -->
+        <div id="panelIdle" hidden>
+            <div class="q-badge busy"><i class="fas fa-circle-info"></i><span>بدون نوبت</span></div>
+            <p class="q-title">اتصال شما به صف قطع شد</p>
+            <p class="q-text" id="idleText">در حال بازگشت…</p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    var STATUS_URL  = "{% url 'camera-queue-status' %}";
+    var LEAVE_URL   = "{% url 'camera-queue-leave' %}";
+    var DASH_URL    = "{% url 'dashboard' %}";
+    var FALLBACK    = "{{ target_url|default:'' }}";
+
+    var POLL_MS     = 2000;   // فاصلهٔ پول‌زدن
+    var RING_LEN    = 326.7;  // محیط دایره (2πr، r=52)
+
+    // اگر کاربر «عمداً» در حال رفتن به صفحهٔ بعدی است، نباید beacon آزادسازی بفرستیم.
+    var leavingOnPurpose = false;
+    var redirecting = false;
+    var settled = false;   // وضعیت نهایی شد → دیگر پول نزن
+    var pollTimer = null;
+    var firstRun = true;
+
+    var $ = function (id) { return document.getElementById(id); };
+    var panelQueue = $('panelQueue');
+    var panelReady = $('panelReady');
+    var panelIdle  = $('panelIdle');
+    var posNum     = $('posNum');
+    var posLabel   = $('posLabel');
+    var ringBar    = $('ringBar');
+    var busyName   = $('busyName');
+    var holderName = $('holderName');
+    var holderMeta = $('holderMeta');
+    var aheadList  = $('aheadList');
+    var aheadLabel = $('aheadLabel');
+    var waitBar    = $('waitBar');
+    var idleText   = $('idleText');
+    var btnLeave   = $('btnLeave');
+
+    function fa(name) { return '<i class="fas fa-' + name + '"></i>'; }
+
+    function csrf() {
+        var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function show(panel) {
+        [panelQueue, panelReady, panelIdle].forEach(function (p) {
+            if (p) { p.hidden = (p !== panel); }
+        });
+    }
+
+    function humanSince(sec) {
+        if (!sec || sec < 0) { return ''; }
+        if (sec < 60) { return 'از ' + Math.floor(sec) + ' ثانیه پیش'; }
+        var m = Math.floor(sec / 60);
+        if (m < 60) { return 'از ' + m + ' دقیقه پیش'; }
+        return 'از ' + Math.floor(m / 60) + ' ساعت پیش';
+    }
+
+    // ---------- رندر حلقهٔ نوبت ----------
+    function renderRing(position, queueLength) {
+        var len = Math.max(queueLength || 0, 1);
+        var pos = Math.max(position || 1, 1);
+
+        posNum.textContent = String(pos);
+
+        if (pos <= 1) {
+            posLabel.textContent = 'نوبت شماست';
+            ringBar.style.strokeDashoffset = '0';
+            return;
+        }
+        posLabel.textContent = 'از ' + len + ' نفر';
+        // هرچه به نوبت نزدیک‌تر، حلقه پرتر
+        var pct = Math.min(Math.max((len - pos + 1) / len, 0.04), 1);
+        ringBar.style.strokeDashoffset = String(RING_LEN * (1 - pct));
+    }
+
+    // ---------- رندر فهرست جلوی صف ----------
+    function renderList(waiting, myPosition) {
+        if (!waiting || !waiting.length) {
+            aheadLabel.textContent = 'افراد جلوی صف';
+            aheadList.innerHTML = '';
+            return;
+        }
+        aheadLabel.textContent = 'افراد جلوی صف (' + waiting.length + ')';
+        var html = '';
+        waiting.forEach(function (w, i) {
+            var isMe = (myPosition != null && i + 1 === myPosition);
+            html += '<li class="' + (isMe ? 'is-me' : '') + '">'
+                 +   '<span class="q-num">' + (i + 1) + '</span>'
+                 +   '<span class="q-name">' + esc(w.username) + '</span>'
+                 +   (isMe ? '<span class="q-me-tag">شما</span>' : '')
+                 + '</li>';
+        });
+        aheadList.innerHTML = html;
+    }
+
+    // ---------- پول‌زدن وضعیت ----------
+    function poll() {
+        if (settled) { return; }
+
+        fetch(STATUS_URL, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            cache: 'no-store'
+        })
+        .then(function (r) {
+            if (!r.ok) { throw new Error('HTTP ' + r.status); }
+            return r.json();
+        })
+        .then(apply)
+        .catch(function () {
+            // شبکه قطع شد — چند بار پشت‌سرهم تلاش می‌کنیم؛ سرور خودش
+            // بعد از ۲۵ ثانیه تیکتِ بی‌پول را از صف می‌اندازد.
+            waitBar.style.width = Math.min(
+                (parseFloat(waitBar.dataset.pct || '0') + 8), 100) + '%';
+        })
+        .then(function () {
+            if (!settled) { pollTimer = setTimeout(poll, POLL_MS); }
+        });
+    }
+
+    // ---------- اعمال وضعیت ----------
+    function apply(d) {
+        if (firstRun) { firstRun = false; }
+
+        // نوبت شد / کار تمام شد → هدایت
+        if (d.redirect_to) {
+            settled = true;
+            leavingOnPurpose = true;
+            show(panelReady);
+            $('readyLabel').textContent = d.state === 'finishing'
+                ? 'کار شما ثبت شد' : 'نوبت شما شد';
+            window.location.replace(d.redirect_to || DASH_URL);
+            return;
+        }
+
+        if (d.in_queue) {
+            show(panelQueue);
+            renderRing(d.position, d.queue_length);
+            renderList(d.waiting, d.position);
+
+            var holder = d.busy_user || '';
+            busyName.textContent = holder ? holder : 'کاربر دیگری';
+            holderName.textContent = d.busy_user || 'در حال آزادسازی…';
+            holderMeta.textContent = (d.busy_kind_label ? d.busy_kind_label + ' • ' : '')
+                + humanSince(d.busy_since);
+
+            // نوار انتظار: برعکسِ جایگاه در صف پر می‌شود
+            var len = Math.max(d.queue_length || 0, 1);
+            var pct = Math.min(Math.max(((len - (d.position || 1) + 1) / len) * 100, 4), 100);
+            waitBar.style.width = pct + '%';
+            waitBar.dataset.pct = String(pct);
+            return;
+        }
+
+        // از صف افتادیم (صفحه بسته شده، مهلت گذشته، یا نشستی نداریم)
+        show(panelIdle);
+        idleText.textContent = 'نوبت شما از صف پاک شده است. در حال بازگشت…';
+        settled = true;
+        leavingOnPurpose = true;
+        setTimeout(function () {
+            window.location.replace(FALLBACK || DASH_URL);
+        }, 1200);
+    }
+
+    // ---------- خروج از صف ----------
+    function leaveQueue() {
+        if (btnLeave) { btnLeave.disabled = true; }
+        leavingOnPurpose = true;
+        settled = true;
+        var body = new URLSearchParams();
+        body.append('csrfmiddlewaretoken', csrf());
+        fetch(LEAVE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
+            body: body.toString()
+        }).catch(function () {}).then(function () {
+            window.location.replace(DASH_URL);
+        });
+    }
+
+    if (btnLeave) { btnLeave.addEventListener('click', leaveQueue); }
+
+    /* ============================================================
+       آزادسازی دوربین/تیکت وقتی کاربر به هر دلیلی صفحه را ترک می‌کند
+       ------------------------------------------------------------
+       نکتهٔ کلیدی: رویداد `beforeunload` روی «دکمهٔ بازگشت مرورگر» و
+       رفت‌وبرگشت بین صفحه‌ها (bfcache) اجرا *نمی‌شود*. رویداد درست
+       `pagehide` است که در همهٔ حالت‌ها — از جمله بازگشت — اجرا می‌شود.
+       به همین دلیل قبلاً با زدن دکمهٔ بازگشت، نشست بسته نمی‌شد و دوربین
+       قفل می‌ماند.
+       ============================================================ */
+    function releaseNow() {
+        if (leavingOnPurpose || settled) { return; }
+        if (navigator.sendBeacon) {
+            try {
+                navigator.sendBeacon(LEAVE_URL, new URLSearchParams({
+                    csrfmiddlewaretoken: csrf()
+                }));
+                return;
+            } catch (e) { /* به fetch برگرد */ }
+        }
+        try {
+            fetch(LEAVE_URL, {
+                method: 'POST',
+                credentials: 'same-origin',
+                keepalive: true,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body: new URLSearchParams({ csrfmiddlewaretoken: csrf() }).toString()
+            }).catch(function () {});
+        } catch (e) { /* بی‌خیال */ }
+    }
+
+    window.addEventListener('pagehide', releaseNow);
+
+    // اگر صفحه از bfcache برگشت (کاربر «جلو» زد)، وضعیت ممکن است عوض شده
+    // باشد؛ چون در بازگشت هیچ درخواستی تا آن لحظه نرفته، صفحه را تازه می‌کنیم.
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) { window.location.reload(); }
+    });
+
+    // اگر به هر دلیلی تایمرِ پول‌زدن متوقف شد (مثلاً تب در پس‌زمینه و مرورگر
+    // تایمرها را کند کرد)، وضعیت را دوباره بررسی می‌کنیم تا صفحه هیچ‌وقت در
+    // حالت مرده نماند. عمداً این تایمر تیکت را آزاد *نمی‌کند* — آزادسازی
+    // وظیفهٔ pagehide و در نهایت heartbeat سرور است.
+    setInterval(function () {
+        if (!settled) { poll(); }
+    }, 15000);
+
+    poll();
+})();
+</script>
+{% endblock %}

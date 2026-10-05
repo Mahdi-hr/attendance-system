@@ -1,0 +1,454 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}خطاهای خروج{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}">
+<style>
+    /* ===== Event pill ===== */
+    .ev-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 12px; border-radius: 20px;
+        font-size: 0.82rem; font-weight: 600; white-space: nowrap;
+    }
+    .ev-out { background: rgba(239,68,68,0.15); color: #dc2626; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25); }
+    [data-theme="light"] .ev-out { color: #b91c1c; }
+
+    /* ===== Error card ===== */
+    .error-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 18px;
+        padding: 1.5rem;
+        transition: border-color 0.35s, box-shadow 0.35s;
+        position: relative;
+        overflow: hidden;
+    }
+    .error-card::before {
+        content: '';
+        position: absolute;
+        top: 0; right: 0; bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--danger), var(--warning));
+        border-radius: 4px 0 0 4px;
+    }
+    .error-card:hover {
+        border-color: rgba(239,68,68,0.4);
+        box-shadow: 0 16px 40px -14px rgba(239,68,68,0.4);
+    }
+
+    .error-card .error-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px dashed var(--glass-border);
+    }
+    .error-card .error-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+    .error-card .error-user .avatar {
+        width: 42px; height: 42px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(245,158,11,0.2));
+        color: var(--danger);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        border: 1px solid rgba(239,68,68,0.3);
+        flex-shrink: 0;
+    }
+    .error-card .error-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .error-card .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 10px;
+        background: rgba(148,163,184,0.08);
+        border: 1px solid var(--glass-border);
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+    .error-card .meta-chip i { color: var(--primary); }
+
+    /* Form section */
+    .error-card .form-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
+        margin-top: 0.5rem;
+    }
+    .error-card .form-section .form-full { grid-column: 1 / -1; }
+    @media (max-width: 767px) {
+        .error-card .form-section { grid-template-columns: 1fr; }
+    }
+    .error-card .form-label {
+        font-size: 0.8rem;
+        margin-bottom: 6px;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    .error-card .form-control,
+    .error-card .form-select {
+        padding: 10px 14px !important;
+        font-size: 0.9rem;
+        border-radius: 10px !important;
+    }
+
+    /* Datepicker input wrapper */
+    .date-input-wrap {
+        position: relative;
+    }
+    .date-input-wrap .date-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--primary);
+        font-size: 0.85rem;
+        pointer-events: none;
+        z-index: 2;
+    }
+    .date-input-wrap input {
+        padding-right: 38px !important;
+        direction: ltr;
+        text-align: right;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    /* Submit button */
+    .error-card .submit-row {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 0.6rem;
+        justify-content: flex-end;
+        margin-top: 0.4rem;
+    }
+    .error-card .submit-row .btn {
+        padding: 10px 22px;
+        font-size: 0.88rem;
+        border-radius: 10px;
+    }
+    @media (max-width: 480px) {
+        .error-card .submit-row { flex-direction: column-reverse; }
+        .error-card .submit-row .btn { width: 100%; }
+    }
+
+    /* ===== Resolved table ===== */
+    .resolved-table {
+        --bs-table-bg: transparent;
+        background: transparent;
+    }
+    .resolved-table th {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-muted) !important;
+        font-weight: 600;
+        padding: 14px 16px;
+    }
+    .resolved-table td {
+        font-size: 0.9rem;
+        padding: 14px 16px;
+        vertical-align: middle;
+    }
+
+    /* Empty state */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    .empty-state .empty-icon {
+        width: 84px; height: 84px;
+        border-radius: 24px;
+        background: rgba(16,185,129,0.12);
+        border: 1px solid rgba(16,185,129,0.25);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: var(--success);
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 32px -12px rgba(16,185,129,0.5);
+    }
+
+    /* Count badge in header */
+    .count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 26px;
+        padding: 0 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-right: 8px;
+        background: rgba(255,255,255,0.12);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-11 col-xl-10">
+
+        <!-- Page header -->
+        <div class="text-center mb-4">
+            <h1 class="page-title">
+                <i class="fas fa-exclamation-triangle me-2" style="color:var(--danger)"></i>خطاهای خروج
+            </h1>
+            <p class="page-subtitle">
+                وقتی کارمندی تا ساعت ۲۴ خروج ثبت نکند، سیستم خودش خروج را در ۲۳:۵۹:۵۹ ثبت می‌کند و این رکورد را
+                جزو خطاها می‌آورد تا شما زمان و دلیل خروج را دستی اصلاح کنید.
+            </p>
+        </div>
+
+        <!-- ============================================
+             PENDING ERRORS — Card list
+             ============================================ -->
+        {% if pending_errors %}
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <h5 class="mb-0 d-flex align-items-center" style="font-weight:700;">
+                <i class="fas fa-hourglass-half me-2" style="color:var(--danger)"></i>
+                در انتظار بررسی
+                <span class="count-badge" style="background:rgba(239,68,68,0.18);color:var(--danger);">
+                    {{ pending_errors|length|fa }}
+                </span>
+            </h5>
+        </div>
+
+        <div class="d-flex flex-column gap-3 mb-4">
+            {% for error in pending_errors %}
+            <div class="error-card">
+                <!-- Card head: user + meta chips -->
+                <div class="error-head">
+                    <div class="error-user">
+                        <span class="avatar"><i class="fas fa-user"></i></span>
+                        <div>
+                            <div>{{ error.user.first_name }} {{ error.user.last_name }}</div>
+                            <div style="font-size:0.78rem;font-weight:400;color:var(--text-secondary);">
+                                خطای خروج خودکار
+                            </div>
+                        </div>
+                    </div>
+                    <div class="error-meta">
+                        <span class="meta-chip">
+                            <i class="fas fa-calendar-day"></i>
+                            {{ error.date|to_jalali_full }}
+                        </span>
+                        <span class="meta-chip" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.25);color:var(--danger);">
+                            <i class="fas fa-sign-out-alt"></i>
+                            خروج خودکار: {{ error.auto_out_time|clock }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Fix form -->
+                <form method="POST" action="{% url 'resolve-checkout-error' error.id %}">
+                    {% csrf_token %}
+                    <div class="form-section">
+
+                        <!-- Real exit datetime -->
+                        <div class="form-full">
+                            <label class="form-label">
+                                <i class="fas fa-clock me-1" style="color:var(--primary)"></i>زمان واقعی خروج
+                            </label>
+                            <div class="date-input-wrap">
+                                <i class="fas fa-calendar-alt date-icon"></i>
+                                <input type="text"
+                                       name="out_time_display"
+                                       class="jalali-date form-control"
+                                       data-time="true"
+                                       data-hidden-name="out_time"
+                                       readonly
+                                       placeholder="۱۴۰۵/۰۶/۲۶ ۰۳:۲۹"
+                                       value="{{ error.auto_out_time|ja_datetime }}">
+                                <input type="hidden"
+                                       name="out_time"
+                                       value="{{ error.auto_out_time|date:'Y-m-d\TH:i' }}">
+                            </div>
+                        </div>
+
+                        <!-- Exit reason -->
+                        <div>
+                            <label class="form-label">
+                                <i class="fas fa-door-open me-1" style="color:var(--primary)"></i>دلیل خروج
+                            </label>
+                            <select name="exit_reason" class="form-select">
+                                <option value="">— بدون دلیل —</option>
+                                {% for reason in active_reasons %}
+                                <option value="{{ reason.id }}">{{ reason.title }}</option>
+                                {% endfor %}
+                                <option value="other">سایر موارد (متن دلخواه)</option>
+                            </select>
+                        </div>
+
+                        <!-- Free-text reason -->
+                        <div>
+                            <label class="form-label">
+                                <i class="fas fa-pen me-1" style="color:var(--primary)"></i>توضیح دلیل (اختیاری)
+                            </label>
+                            <input type="text"
+                                   name="exit_reason_text"
+                                   class="form-control"
+                                   placeholder="مثلاً: فراموش کردم خروج بزنم">
+                        </div>
+
+                        <!-- Admin note -->
+                        <div class="form-full">
+                            <label class="form-label">
+                                <i class="fas fa-sticky-note me-1" style="color:var(--primary)"></i>یادداشت اصلاح (اختیاری)
+                            </label>
+                            <input type="text"
+                                   name="note"
+                                   class="form-control"
+                                   placeholder="یادداشت مدیر برای این اصلاح">
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="submit-row">
+                            <button type="submit" class="btn btn-gradient">
+                                <i class="fas fa-check me-1"></i>اصلاح و رفع خطا
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty state -->
+        <div class="card-modern card mb-4">
+            <div class="card-body empty-state">
+                <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
+                <p style="margin:0;font-weight:600;color:var(--success);font-size:1.05rem;">
+                    خطای خروج در انتظار بررسی وجود ندارد.
+                </p>
+                <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                    همه چیز مرتبه ✨
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ============================================
+             RESOLVED ERRORS — Clean table
+             ============================================ -->
+        {% if resolved_errors %}
+        <div class="card-modern card">
+            <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap gap-2"
+                 style="background:rgba(16,185,129,0.1);border-bottom:1px solid var(--glass-border);">
+                <h5 class="mb-0 d-flex align-items-center" style="font-weight:700;">
+                    <i class="fas fa-check-double me-2" style="color:var(--success)"></i>
+                    خطاهای رفع‌شده
+                    <span class="count-badge" style="background:rgba(16,185,129,0.18);color:var(--success);">
+                        {{ resolved_errors|length|fa }}
+                    </span>
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-modern resolved-table mb-0 align-middle table-stack">
+                        <thead>
+                            <tr>
+                                <th style="width:60px;">ردیف</th>
+                                <th>کارمند</th>
+                                <th>تاریخ</th>
+                                <th>خروج ثبت‌شده</th>
+                                <th>دلیل خروج</th>
+                                <th>رفع توسط</th>
+                                <th>یادداشت</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in resolved_errors %}
+                            <tr>
+                                <td class="text-center" style="color:var(--text-secondary);font-weight:600;" data-label="ردیف">
+                                    {{ forloop.counter|fa }}
+                                </td>
+                                <td data-label="کارمند">
+                                    <i class="fas fa-user me-2" style="color:var(--success)"></i>
+                                    <span style="font-weight:600;">{{ error.user.first_name }} {{ error.user.last_name }}</span>
+                                </td>
+                                <td style="white-space:nowrap;font-weight:600;" data-label="تاریخ">
+                                    {{ error.date|to_jalali_full }}
+                                </td>
+                                <td data-label="خروج ثبت‌شده">
+                                    {% if error.time_record %}
+                                    <span class="ev-pill ev-out">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                        {{ error.time_record.time|clock }}
+                                    </span>
+                                    {% else %}
+                                    <span style="color:var(--text-secondary)">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="دلیل خروج">
+                                    {% if error.time_record.exit_reason %}
+                                        <span style="color:var(--text-primary);">{{ error.time_record.exit_reason.title }}</span>
+                                    {% elif error.time_record.exit_reason_text %}
+                                        <span style="color:var(--text-primary);">{{ error.time_record.exit_reason_text }}</span>
+                                    {% else %}
+                                        <span style="color:var(--text-muted);">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="رفع توسط">
+                                    {% if error.resolved_by %}
+                                        <span style="display:inline-flex;align-items:center;gap:6px;">
+                                            <i class="fas fa-user-shield" style="color:var(--primary);font-size:0.8rem;"></i>
+                                            {{ error.resolved_by.first_name }} {{ error.resolved_by.last_name }}
+                                        </span>
+                                    {% else %}
+                                        <span style="color:var(--text-muted);">—</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="یادداشت" style="color:var(--text-secondary);max-width:220px;">
+                                    {{ error.note|default:'—' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
+<script>
+    // Initialize any jalali datepicker inputs on this page
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.jalaliDatepicker) {
+            window.jalaliDatepicker.startWatch();
+        }
+    });
+</script>
+{% endblock %}

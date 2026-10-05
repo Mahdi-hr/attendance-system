@@ -1,0 +1,954 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}مدیریت دلایل خروج{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       ADD REASON FORM — COMPACT
+       ========================================================= */
+    .add-form-card {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.08),
+            rgba(var(--accent-rgb), 0.05));
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1rem 1.15rem;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 1.25rem;
+    }
+    .add-form-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.12), transparent 55%);
+        animation: auroraMove 12s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+
+    .add-form-card .form-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.6rem;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+    }
+
+    .add-form-card .form-row .field {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .add-form-card .form-row .field-title { flex: 3 1 240px; }
+    .add-form-card .form-row .field-order { flex: 0 0 110px; }
+    .add-form-card .form-row .field-btn   { flex: 0 0 auto; }
+
+    .add-form-card .form-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        letter-spacing: 0.02em;
+    }
+    .add-form-card .form-label i {
+        font-size: 0.7rem;
+        color: var(--primary);
+        opacity: 0.8;
+    }
+
+    .add-form-card .form-control {
+        padding: 8px 12px !important;
+        font-size: 0.85rem;
+        border-radius: 10px !important;
+        height: 38px;
+    }
+
+    .add-form-card .btn-add-compact {
+        height: 38px;
+        padding: 0 18px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 10px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* =========================================================
+       REASONS LIST CARD
+       ========================================================= */
+    .reasons-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+    .reasons-card .card-head {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.1),
+            rgba(var(--accent-rgb), 0.05));
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1.2rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .reasons-card .card-head h5 {
+        margin: 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-primary);
+    }
+    .reasons-card .card-head .count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 26px;
+        padding: 0 10px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: rgba(var(--primary-rgb), 0.18);
+        color: var(--primary);
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.3);
+    }
+    .reasons-card .card-head .hint {
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(148,163,184,0.08);
+        padding: 6px 12px;
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+    }
+
+    /* =========================================================
+       MODERN TABLE
+       ========================================================= */
+    .reasons-table {
+        --bs-table-bg: transparent;
+        background: transparent;
+        margin: 0;
+    }
+    .reasons-table th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-muted) !important;
+        font-weight: 700;
+        padding: 14px 16px;
+        white-space: nowrap;
+        background: rgba(148,163,184,0.04) !important;
+    }
+    .reasons-table td {
+        padding: 14px 16px !important;
+        vertical-align: middle;
+        font-size: 0.9rem;
+    }
+    .reasons-table tbody tr {
+        transition: background-color 0.2s ease !important;
+        position: relative;
+    }
+    .reasons-table tbody tr:hover {
+        background-color: rgba(var(--primary-rgb), 0.06) !important;
+    }
+    .reasons-table tbody tr.system-row {
+        background: linear-gradient(90deg,
+            rgba(99,102,241,0.06),
+            transparent 60%) !important;
+    }
+    .reasons-table tbody tr.system-row:hover {
+        background: linear-gradient(90deg,
+            rgba(99,102,241,0.12),
+            rgba(99,102,241,0.03) 60%) !important;
+    }
+
+    /* Row number badge */
+    .row-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px; height: 30px;
+        border-radius: 10px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.85rem;
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+    }
+
+    /* Title cell */
+    .reason-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .reason-title .bullet {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        box-shadow: 0 0 10px var(--glow);
+        flex-shrink: 0;
+    }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+    .status-badge.active {
+        background: rgba(16,185,129,0.15);
+        color: #10b981;
+        box-shadow: inset 0 0 0 1px rgba(16,185,129,0.25);
+    }
+    .status-badge.inactive {
+        background: rgba(239,68,68,0.15);
+        color: #ef4444;
+        box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);
+    }
+    .status-badge::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    /* System badge */
+    .system-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+    .system-badge.yes {
+        background: rgba(99,102,241,0.15);
+        color: var(--primary);
+        box-shadow: inset 0 0 0 1px rgba(99,102,241,0.25);
+    }
+    .system-badge.no {
+        background: rgba(148,163,184,0.1);
+        color: var(--text-secondary);
+    }
+
+    /* Priority input group */
+    .priority-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+    .priority-input-group {
+        display: inline-flex;
+        align-items: stretch;
+        border-radius: 10px;
+        border: 1px solid var(--glass-border);
+        background: var(--form-bg);
+        overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .priority-input-group:focus-within {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+    }
+    .priority-input-group input {
+        width: 52px;
+        border: none !important;
+        background: transparent !important;
+        text-align: center;
+        padding: 6px 4px !important;
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: var(--text-primary) !important;
+        outline: none !important;
+        box-shadow: none !important;
+        -moz-appearance: textfield;
+    }
+    .priority-input-group input::-webkit-outer-spin-button,
+    .priority-input-group input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .priority-input-group .step-btn {
+        background: transparent;
+        border: none;
+        width: 24px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, color 0.2s;
+    }
+    .priority-input-group .step-btn:hover {
+        background: rgba(var(--primary-rgb), 0.15);
+        color: var(--primary);
+    }
+    .priority-input-group .step-btn:first-child { border-right: 1px solid var(--glass-border); }
+    .priority-input-group .step-btn:last-child { border-left: 1px solid var(--glass-border); }
+
+    .priority-hint {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+    .priority-static {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 14px;
+        border-radius: 10px;
+        background: rgba(148,163,184,0.08);
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.85rem;
+        border: 1px dashed var(--glass-border);
+    }
+
+    /* Action buttons */
+    .action-buttons {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .action-btn {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        border: 1px solid var(--glass-border);
+        background: var(--glass);
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s;
+        position: relative;
+    }
+    .action-btn:hover {
+        color: var(--text-primary);
+        border-color: rgba(var(--primary-rgb), 0.4);
+        background: rgba(var(--primary-rgb), 0.12);
+        box-shadow: 0 6px 16px -6px var(--glow);
+    }
+    .action-btn.toggle-btn.is-active { color: #10b981; border-color: rgba(16,185,129,0.35); }
+    .action-btn.toggle-btn.is-active:hover { background: rgba(16,185,129,0.15); border-color: #10b981; }
+    .action-btn.toggle-btn.is-inactive { color: #ef4444; border-color: rgba(239,68,68,0.35); }
+    .action-btn.toggle-btn.is-inactive:hover { background: rgba(239,68,68,0.15); border-color: #ef4444; }
+    .action-btn.save-order-btn { color: var(--primary); border-color: rgba(var(--primary-rgb), 0.3); }
+    .action-btn.save-order-btn:hover { background: rgba(var(--primary-rgb), 0.15); }
+    .action-btn.delete-btn { color: var(--danger); border-color: rgba(239,68,68,0.3); }
+    .action-btn.delete-btn:hover { background: rgba(239,68,68,0.15); border-color: var(--danger); }
+
+    .action-btn.saved {
+        background: rgba(16,185,129,0.2) !important;
+        border-color: #10b981 !important;
+        color: #10b981 !important;
+        animation: savePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes savePop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    .locked-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        font-style: italic;
+    }
+
+    /* Delete animation */
+    .reason-row.removing {
+        animation: rowRemove 0.4s ease forwards;
+        pointer-events: none;
+    }
+    @keyframes rowRemove {
+        to {
+            opacity: 0;
+            transform: translateX(-30px);
+            max-height: 0;
+            padding: 0;
+        }
+    }
+
+    /* Empty state */
+    .empty-reasons {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    .empty-reasons .icon {
+        width: 80px; height: 80px;
+        border-radius: 24px;
+        background: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+    }
+
+    /* Toast notifications */
+    .toast-stack {
+        position: fixed;
+        bottom: 24px;
+        left: 24px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 340px;
+    }
+    .toast-item {
+        background: var(--glass-strong);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 20px 40px -12px var(--shadow);
+        animation: toastIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        border-right: 4px solid var(--primary);
+        min-width: 280px;
+    }
+    .toast-item.success { border-right-color: var(--success); }
+    .toast-item.success .toast-icon { color: var(--success); }
+    .toast-item.error { border-right-color: var(--danger); }
+    .toast-item.error .toast-icon { color: var(--danger); }
+    .toast-item .toast-icon {
+        font-size: 1.15rem;
+        color: var(--primary);
+        flex-shrink: 0;
+    }
+    @keyframes toastIn {
+        from { opacity: 0; transform: translateX(-30px) scale(0.95); }
+        to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes toastOut {
+        to { opacity: 0; transform: translateX(-30px) scale(0.95); }
+    }
+    .toast-item.removing { animation: toastOut 0.3s ease forwards; }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 767px) {
+        .add-form-card .form-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.65rem;
+        }
+        .add-form-card .form-row .field-order,
+        .add-form-card .form-row .field-btn {
+            flex: 1 1 auto;
+        }
+        .add-form-card .btn-add-compact {
+            width: 100%;
+            justify-content: center;
+            height: 40px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .reasons-table thead { display: none; }
+        .reasons-table tbody,
+        .reasons-table tr,
+        .reasons-table td { display: block; width: 100%; }
+        .reasons-table tbody tr {
+            margin: 0.75rem;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            width: calc(100% - 1.5rem);
+        }
+        .reasons-table tbody tr:hover { border-color: rgba(var(--primary-rgb), 0.4); }
+        .reasons-table td {
+            padding: 0.5rem 0 !important;
+            border: none !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            text-align: left;
+        }
+        .reasons-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .reasons-table td[data-label="عملیات"] { padding-top: 0.75rem !important; }
+        .reasons-table td[data-label="عملیات"]::before { display: none; }
+        .reasons-table .action-buttons { justify-content: flex-end; }
+    }
+
+    @media (max-width: 480px) {
+        .reasons-table tbody tr { margin: 0.5rem; width: calc(100% - 1rem); }
+        .toast-stack { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-9">
+
+        <!-- Page header -->
+        <div class="text-center mb-4">
+            <h1 class="page-title">
+                <i class="fas fa-door-open me-2" style="color:var(--danger)"></i>مدیریت دلایل خروج
+            </h1>
+            <p class="page-subtitle">افزودن، ویرایش، فعال/غیرفعال، حذف و تعیین اولویت دلایل خروج</p>
+        </div>
+
+        <!-- ============================================
+             ADD FORM — COMPACT
+             ============================================ -->
+        <div class="add-form-card">
+            <form id="addReasonForm" class="form-row">
+                <div class="field field-title">
+                    <label class="form-label" for="newReasonTitle">
+                        <i class="fas fa-tag"></i>عنوان دلیل جدید
+                    </label>
+                    <input type="text"
+                           id="newReasonTitle"
+                           name="title"
+                           class="form-control"
+                           placeholder="مثال: مراجعه به بانک"
+                           autocomplete="off"
+                           required>
+                </div>
+                <div class="field field-order">
+                    <label class="form-label" for="newReasonOrder">
+                        <i class="fas fa-sort-numeric-down"></i>اولویت
+                    </label>
+                    <input type="number"
+                           id="newReasonOrder"
+                           name="sort_order"
+                           class="form-control"
+                           placeholder="10"
+                           min="0"
+                           step="1"
+                           title="عدد کمتر = اولویت بالاتر">
+                </div>
+                <div class="field field-btn">
+                    <button type="submit" class="btn btn-gradient btn-add-compact">
+                        <i class="fas fa-plus"></i>افزودن
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ============================================
+             REASONS LIST
+             ============================================ -->
+        <div class="reasons-card">
+            <div class="card-head">
+                <h5>
+                    <i class="fas fa-list" style="color:var(--primary)"></i>
+                    لیست دلایل خروج
+                    <span class="count-badge">{{ reasons|length }}</span>
+                </h5>
+                <span class="hint">
+                    <i class="fas fa-info-circle"></i>
+                    اولویت کمتر = نمایش بالاتر
+                </span>
+            </div>
+            <div class="card-body p-0">
+                {% if reasons %}
+                <div class="table-responsive">
+                    <table class="table table-modern reasons-table mb-0 align-middle" id="reasonsTable">
+                        <thead>
+                            <tr>
+                                <th style="width:70px;">ردیف</th>
+                                <th>عنوان</th>
+                                <th style="width:130px;">وضعیت</th>
+                                <th style="width:130px;">اولویت</th>
+                                <th style="width:110px;">سیستمی</th>
+                                <th style="width:170px;">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reasonsTableBody">
+                            {% for reason in reasons %}
+                            <tr data-id="{{ reason.id }}" class="reason-row {% if reason.is_system %}system-row{% endif %}">
+                                <td class="text-center" data-label="ردیف">
+                                    <span class="row-badge row-number">{{ forloop.counter }}</span>
+                                </td>
+                                <td data-label="عنوان">
+                                    <div class="reason-title">
+                                        <span class="bullet"></span>
+                                        {{ reason.title }}
+                                    </div>
+                                </td>
+                                <td class="text-center" data-label="وضعیت">
+                                    <span class="status-badge {% if reason.is_active %}active{% else %}inactive{% endif %}"
+                                          id="status-{{ reason.id }}">
+                                        {% if reason.is_active %}فعال{% else %}غیرفعال{% endif %}
+                                    </span>
+                                </td>
+                                <td class="text-center" data-label="اولویت">
+                                    {% if not reason.is_system %}
+                                    <div class="priority-wrap">
+                                        <div class="priority-input-group">
+                                            <button type="button" class="step-btn step-down" data-id="{{ reason.id }}" tabindex="-1">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number"
+                                                   class="sort-order-field"
+                                                   value="{{ reason.sort_order }}"
+                                                   min="0" step="1"
+                                                   data-id="{{ reason.id }}"
+                                                   aria-label="اولویت">
+                                            <button type="button" class="step-btn step-up" data-id="{{ reason.id }}" tabindex="-1">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <span class="priority-hint">کمتر = بالاتر</span>
+                                    </div>
+                                    {% else %}
+                                    <div class="priority-wrap">
+                                        <span class="priority-static">{{ reason.sort_order }}</span>
+                                        <span class="priority-hint">ثابت</span>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center" data-label="سیستمی">
+                                    {% if reason.is_system %}
+                                    <span class="system-badge yes" title="این دلیل سیستمی است و قابل حذف/غیرفعال‌سازی نیست">
+                                        <i class="fas fa-lock"></i>بله
+                                    </span>
+                                    {% else %}
+                                    <span class="system-badge no">خیر</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="عملیات">
+                                    {% if not reason.is_system %}
+                                    <div class="action-buttons">
+                                        <button class="action-btn toggle-btn {% if reason.is_active %}is-active{% else %}is-inactive{% endif %}"
+                                                data-id="{{ reason.id }}"
+                                                data-active="{{ reason.is_active|yesno:'true,false' }}"
+                                                title="{% if reason.is_active %}غیرفعال کردن{% else %}فعال کردن{% endif %}">
+                                            <i class="fas {% if reason.is_active %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                                        </button>
+                                        <button class="action-btn save-order-btn"
+                                                data-id="{{ reason.id }}"
+                                                title="ذخیره اولویت">
+                                            <i class="fas fa-save"></i>
+                                        </button>
+                                        <button class="action-btn delete-btn"
+                                                data-id="{{ reason.id }}"
+                                                title="حذف دلیل">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center">
+                                        <span class="locked-label">
+                                            <i class="fas fa-lock"></i>قفل شده
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-reasons">
+                    <div class="icon"><i class="fas fa-door-closed"></i></div>
+                    <p style="margin:0;font-weight:600;color:var(--text-primary);font-size:1.05rem;">
+                        هنوز دلیلی ثبت نشده
+                    </p>
+                    <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                        از فرم بالا اولین دلیل خروج را اضافه کنید
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Toast stack -->
+<div class="toast-stack" id="toastStack"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ============================================================
+    // Toast helper
+    // ============================================================
+    function showToast(message, type) {
+        type = type || 'info';
+        const stack = document.getElementById('toastStack');
+        if (!stack) return;
+        const el = document.createElement('div');
+        el.className = 'toast-item ' + type;
+        let icon = 'fa-info-circle';
+        if (type === 'success') icon = 'fa-check-circle';
+        if (type === 'error') icon = 'fa-exclamation-circle';
+        el.innerHTML = '<i class="fas ' + icon + ' toast-icon"></i><span>' + message + '</span>';
+        stack.appendChild(el);
+        setTimeout(() => {
+            el.classList.add('removing');
+            setTimeout(() => el.remove(), 320);
+        }, 3200);
+    }
+
+    // ============================================================
+    // ADD REASON
+    // ============================================================
+    document.getElementById('addReasonForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const titleInput = this.querySelector('input[name="title"]');
+        const orderInput = this.querySelector('input[name="sort_order"]');
+        const submitBtn = this.querySelector('button[type="submit"]');
+
+        const title = titleInput.value.trim();
+        const sort_order = parseInt(orderInput.value) || 0;
+        if (!title) {
+            showToast('عنوان دلیل را وارد کنید', 'error');
+            titleInput.focus();
+            return;
+        }
+
+        const originalHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>در حال افزودن...';
+
+        try {
+            const res = await fetch("{% url 'add-exit-reason' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({ title: title, sort_order: sort_order })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('دلیل خروج با موفقیت افزوده شد', 'success');
+                this.reset();
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast('خطا: ' + (data.error || 'نامشخص'), 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalHtml;
+            }
+        } catch (err) {
+            showToast('خطای اتصال: ' + err, 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHtml;
+        }
+    });
+
+    // ============================================================
+    // TOGGLE active/inactive
+    // ============================================================
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const id = this.dataset.id;
+            this.disabled = true;
+            const origIcon = this.querySelector('i').className;
+            this.querySelector('i').className = 'fas fa-spinner fa-spin';
+
+            try {
+                const res = await fetch(`{% url 'toggle-exit-reason' 0 %}`.replace('0', id), {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const badge = document.getElementById('status-' + id);
+                    badge.textContent = data.is_active ? 'فعال' : 'غیرفعال';
+                    badge.className = 'status-badge ' + (data.is_active ? 'active' : 'inactive');
+
+                    this.dataset.active = data.is_active.toString();
+                    this.querySelector('i').className = 'fas ' + (data.is_active ? 'fa-toggle-on' : 'fa-toggle-off');
+                    this.classList.toggle('is-active', data.is_active);
+                    this.classList.toggle('is-inactive', !data.is_active);
+                    this.title = data.is_active ? 'غیرفعال کردن' : 'فعال کردن';
+
+                    showToast('وضعیت با موفقیت تغییر یافت', 'success');
+                } else {
+                    showToast('خطا: ' + (data.error || 'نامشخص'), 'error');
+                    this.querySelector('i').className = origIcon;
+                }
+            } catch (err) {
+                showToast('خطای اتصال: ' + err, 'error');
+                this.querySelector('i').className = origIcon;
+            } finally {
+                this.disabled = false;
+            }
+        });
+    });
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!confirm('آیا از حذف این دلیل مطمئن هستید؟')) return;
+            const id = this.dataset.id;
+            const row = this.closest('tr');
+            const originalHtml = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+
+            try {
+                const res = await fetch(`{% url 'delete-exit-reason' 0 %}`.replace('0', id), {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    row.classList.add('removing');
+                    setTimeout(() => {
+                        row.remove();
+                        updateRowNumbers();
+                        showToast('دلیل خروج حذف شد', 'success');
+                    }, 400);
+                } else {
+                    showToast('خطا: ' + (data.error || 'نامشخص'), 'error');
+                    this.innerHTML = originalHtml;
+                    this.disabled = false;
+                }
+            } catch (err) {
+                showToast('خطای اتصال: ' + err, 'error');
+                this.innerHTML = originalHtml;
+                this.disabled = false;
+            }
+        });
+    });
+
+    // ============================================================
+    // SAVE sort_order — per row
+    // ============================================================
+    function saveOrder(id, btn) {
+        const input = document.querySelector(`.sort-order-field[data-id="${id}"]`);
+        if (!input) return;
+        const sort_order = parseInt(input.value) || 0;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch("{% url 'update-exit-reason-order' 0 %}".replace('0', id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ sort_order: sort_order })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                input.value = data.sort_order;
+                btn.classList.add('saved');
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                showToast('اولویت ذخیره شد', 'success');
+                setTimeout(() => {
+                    btn.classList.remove('saved');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }, 1200);
+            } else {
+                showToast('خطا: ' + (data.error || 'نامشخص'), 'error');
+                if (data.current_sort_order !== undefined) {
+                    input.value = data.current_sort_order;
+                }
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            showToast('خطای اتصال: ' + err, 'error');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
+    document.querySelectorAll('.save-order-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            saveOrder(this.dataset.id, this);
+        });
+    });
+
+    // Enter in priority input → save
+    document.querySelectorAll('.sort-order-field').forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const btn = document.querySelector(`.save-order-btn[data-id="${this.dataset.id}"]`);
+                if (btn) btn.click();
+            }
+        });
+    });
+
+    // +/- step buttons for priority
+    document.querySelectorAll('.step-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const input = document.querySelector(`.sort-order-field[data-id="${id}"]`);
+            if (!input) return;
+            const delta = this.classList.contains('step-up') ? 1 : -1;
+            const current = parseInt(input.value) || 0;
+            input.value = Math.max(0, current + delta);
+        });
+    });
+
+    // ============================================================
+    // Update row numbers after delete
+    // ============================================================
+    function updateRowNumbers() {
+        const rows = document.querySelectorAll('#reasonsTableBody tr[data-id]');
+        rows.forEach((row, index) => {
+            const rowNum = row.querySelector('.row-number');
+            if (rowNum) rowNum.textContent = index + 1;
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,816 @@
+{% load jalali_filters %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>خروجی چاپی — گزارش {{ username }}</title>
+    <link href="{% static 'recognition/fonts/vazirmatn/vazirmatn.css' %}" rel="stylesheet">
+    <style>
+@page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
+            color: #000;
+            background: #e5e7eb;
+            font-size: 9pt;
+            line-height: 1.4;
+        }
+
+        .no-print {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+        }
+
+        .no-print button {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid #000;
+            border-radius: 6px;
+            padding: 8px 16px;
+            background: #fff;
+            color: #000;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .no-print button:hover {
+            background: #000;
+            color: #fff;
+        }
+
+        .paper {
+            width: 210mm;
+            max-width: calc(100vw - 24px);
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 10mm;
+            background: #fff;
+            box-shadow: 0 4px 24px rgba(0,0,0,.15);
+            border: 1px solid #cbd5e1;
+        }
+
+        .report-header {
+            margin-bottom: 8px;
+            padding-bottom: 7px;
+            border-bottom: 2px solid #000;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .brand-logo {
+            width: 34px;
+            height: 34px;
+            border: 1.5px solid #000;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex: 0 0 34px;
+            background: #f3f4f6;
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 0;
+        }
+
+        .b-company {
+            font-size: 10.5pt;
+            font-weight: 800;
+        }
+
+        .b-tagline {
+            font-size: 7.5pt;
+            color: #444;
+            font-weight: 500;
+        }
+
+        .report-meta {
+            text-align: left;
+            font-size: 7.5pt;
+            color: #333;
+            line-height: 1.6;
+            flex: 0 0 auto;
+        }
+
+        .report-meta strong {
+            color: #000;
+            font-weight: 700;
+        }
+
+        .report-title {
+            text-align: center;
+            font-size: 12.5pt;
+            font-weight: 800;
+            margin: 5px 0 1px;
+            padding-top: 5px;
+            border-top: 1px solid #000;
+        }
+
+        .report-subtitle {
+            text-align: center;
+            font-size: 8pt;
+            color: #333;
+        }
+
+        .summary-strip {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            width: 100%;
+            border: 1px solid #000;
+            margin: 8px 0;
+        }
+
+        .summary-cell {
+            min-width: 0;
+            padding: 5px 3px;
+            text-align: center;
+            border-left: 1px solid #000;
+        }
+
+        .summary-cell:first-child {
+            border-left: none;
+        }
+
+        .summary-cell .k {
+            font-size: 7pt;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .summary-cell .v {
+            font-size: 10.5pt;
+            font-weight: 800;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .section-title {
+            font-size: 9.5pt;
+            font-weight: 800;
+            margin: 9px 0 5px;
+            padding-right: 7px;
+            border-right: 3px solid #000;
+            line-height: 1.35;
+        }
+
+        table.report-table,
+        table.summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            table-layout: fixed;
+            margin-bottom: 8px;
+        }
+
+        table.report-table {
+            font-size: 8pt;
+        }
+
+        table.summary-table {
+            font-size: 8.5pt;
+        }
+
+        table.report-table thead th,
+        table.summary-table thead th {
+            background: #e5e7eb;
+            color: #000;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid #000;
+            padding: 5px 3px;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.3;
+        }
+
+        table.report-table tbody td,
+        table.summary-table tbody td {
+            border: 1px solid #000;
+            padding: 5px 4px;
+            color: #000;
+            vertical-align: middle;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        table.report-table tbody tr:nth-child(even) td,
+        table.summary-table tbody tr:nth-child(even) td {
+            background: #f7f7f7;
+        }
+
+        .row-num {
+            font-weight: 700;
+            text-align: center;
+            background: #f3f4f6;
+        }
+
+        .date-cell {
+            font-weight: 700;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.5;
+        }
+
+        .emp-name {
+            font-weight: 700;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .time-cell {
+            font-weight: 700;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            direction: ltr;
+        }
+
+        .work-cell {
+            font-weight: 700;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.45;
+        }
+
+        .status-cell {
+            text-align: center;
+            font-weight: 700;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        /* مهم: رویدادها دیگر nowrap نیستند و داخل سلول می‌شکنند. */
+        .events-cell {
+            padding: 4px 4px !important;
+            vertical-align: middle;
+        }
+
+        .ev {
+            display: block;
+            max-width: 100%;
+            font-size: 7.7pt;
+            font-weight: 600;
+            margin: 1px 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: normal;
+            line-height: 1.45;
+        }
+
+        .ev-in::before    { content: '▲ '; font-size: 6.5pt; }
+        .ev-out::before   { content: '▼ '; font-size: 6.5pt; }
+        .ev-open::before  { content: '◐ '; font-size: 6.5pt; }
+        .ev-break::before { content: '⏸ '; font-size: 6.5pt; }
+
+        table.summary-table thead th {
+            padding: 5px 4px;
+        }
+
+        table.summary-table tbody td {
+            padding: 5px 6px;
+        }
+
+        table.summary-table td.label {
+            font-weight: 700;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        table.summary-table td.num,
+        table.summary-table td.hours {
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        table.summary-table td.hours {
+            font-weight: 800;
+        }
+
+        .signature-area {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .signature-area .sig-box {
+            border: 1px solid #000;
+            padding: 7px;
+            text-align: center;
+            min-height: 65px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .signature-area .sig-box .sig-label {
+            font-size: 8pt;
+            font-weight: 700;
+        }
+
+        .signature-area .sig-box .sig-space {
+            height: 25px;
+            border-bottom: 1px dotted #555;
+            margin: 3px 8px 0;
+        }
+
+        .signature-area .sig-box .sig-hint {
+            font-size: 6.5pt;
+            color: #444;
+            margin-top: 3px;
+        }
+
+        /* =========================================================
+           EMPLOYEE SUMMARY SECTION
+           ========================================================= */
+        .summary-section {
+            margin-top: 12px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .summary-title {
+            font-size: 9pt;
+            font-weight: 800;
+            text-align: center;
+            margin: 0 0 6px;
+            padding: 4px 0;
+            border-top: 2px solid #000;
+            border-bottom: 1px solid #000;
+            background: #f9fafb;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            font-size: 8pt;
+            table-layout: fixed;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            border: 1px solid #000;
+            padding: 5px 4px;
+            text-align: center;
+            font-size: 8pt;
+        }
+
+        .summary-table th {
+            background: #e5e7eb;
+            font-weight: 700;
+        }
+
+        .summary-table td.text-right {
+            text-align: right;
+            padding-right: 8px;
+        }
+
+        .summary-table td.text-center {
+            text-align: center;
+        }
+
+        .summary-table tbody tr:nth-child(even) td {
+            background: #fafafa;
+        }
+
+        .report-footer {
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 6.8pt;
+            color: #333;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .empty-print {
+            text-align: center;
+            padding: 45px 15px;
+            color: #333;
+            border: 1px solid #000;
+            margin: 12px 0;
+        }
+
+        .empty-print p {
+            margin: 0;
+            font-size: 11pt;
+            font-weight: 700;
+        }
+
+        .empty-print small {
+            display: block;
+            margin-top: 5px;
+            font-size: 8.5pt;
+        }
+
+        @media print {
+            html, body {
+                background: #fff;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .paper {
+                width: auto;
+                max-width: none;
+                min-height: 0;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border: none;
+            }
+
+            table.report-table thead,
+            table.summary-table thead {
+                display: table-header-group;
+            }
+
+            table.report-table tbody tr,
+            table.summary-table tbody tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .report-header,
+            .summary-strip,
+            .section-title,
+            .signature-area {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            table.report-table thead th,
+            table.summary-table thead th {
+                background: #e5e7eb !important;
+                color: #000 !important;
+                border-color: #000 !important;
+            }
+
+            table.report-table tbody td,
+            table.summary-table tbody td {
+                color: #000 !important;
+                border-color: #000 !important;
+            }
+
+            table.report-table tbody tr:nth-child(even) td,
+            table.summary-table tbody tr:nth-child(even) td {
+                background: #f7f7f7 !important;
+            }
+
+            .row-num {
+                background: #f3f4f6 !important;
+            }
+        }
+
+        @media screen and (max-width: 900px) {
+            .paper {
+                width: calc(100vw - 20px);
+                max-width: none;
+                padding: 8mm 5mm;
+            }
+
+            .summary-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .summary-cell {
+                border-left: none;
+                border-top: 1px solid #000;
+            }
+
+            .summary-cell:nth-child(1),
+            .summary-cell:nth-child(2) {
+                border-top: none;
+            }
+
+            .summary-cell:nth-child(odd) {
+                border-left: 1px solid #000;
+            }
+
+            .summary-cell:nth-child(1) {
+                border-left: none;
+            }
+
+            .signature-area {
+                grid-template-columns: 1fr;
+            }
+
+            .header-top {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .report-meta {
+                text-align: right;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+         FLOATING TOOLBAR
+         ============================================================ -->
+    <div class="no-print">
+        <button onclick="window.print()">🖨 چاپ گزارش</button>
+        <button onclick="window.close()">✕ بستن</button>
+    </div>
+
+    <!-- ============================================================
+         PAPER
+         ============================================================ -->
+    <div class="paper">
+
+        <!-- ===== HEADER ===== -->
+        <div class="report-header">
+            <div class="header-top">
+                <div class="brand-block">
+                    <div class="brand-logo">&#128100;</div>
+                    <div class="brand-text">
+                        <span class="b-company">سامانه حضور و غیاب هوشمند</span>
+                        <span class="b-tagline">سیستم تشخیص چهره — کیان پرداز نقش جهان</span>
+                    </div>
+                </div>
+                <div class="report-meta">
+                    <div>
+                        تاریخ تهیه: <strong>{{ generated_at|to_jalali }}</strong>
+                    </div>
+                    {% if date_from or date_to %}
+                    <div>
+                        بازه گزارش:
+                        <strong>{{ date_from|to_jalali|default:'از ابتدا' }}</strong>
+                        تا
+                        <strong>{{ date_to|to_jalali|default:'تاکنون' }}</strong>
+                    </div>
+                    {% else %}
+                    <div>
+                        بازه گزارش: <strong>تمام رکوردها</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="report-title">گزارش حضور و غیاب — {{ user.first_name }} {{ user.last_name }}</div>
+            <div class="report-subtitle">گزارش رسمی — جهت ارائه به واحد منابع انسانی</div>
+        </div>
+
+        <!-- ===== SUMMARY STRIP ===== -->
+        <div class="summary-strip">
+            <div class="summary-cell">
+                <div class="k">تعداد رکورد</div>
+                <div class="v">{{ rows|length|fa }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="k">روزهای حضور</div>
+                <div class="v">{{ days_present|fa }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="k">مجموع ساعات</div>
+                <div class="v">{{ total_text }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="k">میانگین روزانه</div>
+                <div class="v">{{ average_text }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="k">بیشترین ساعاتِ یک روز</div>
+                <div class="v">{{ max_day_text }}</div>
+            </div>
+        </div>
+
+        <!-- ===== WEEKLY SUMMARY ===== -->
+        {% if weekly %}
+        <div class="section-title">خلاصه هفتگی</div>
+        <table class="summary-table">
+            <colgroup>
+                <col style="width:40%;">
+                <col style="width:30%;">
+                <col style="width:30%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>هفته</th>
+                    <th>روزهای حضور</th>
+                    <th>مجموع ساعات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in weekly %}
+                <tr>
+                    <td class="label">{{ w.label }}</td>
+                    <td class="num">{{ w.days|fa }}</td>
+                    <td class="hours">{{ w.hours_text }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- ===== MONTHLY SUMMARY ===== -->
+        {% if monthly %}
+        <div class="section-title">خلاصه ماهانه</div>
+        <table class="summary-table">
+            <colgroup>
+                <col style="width:40%;">
+                <col style="width:30%;">
+                <col style="width:30%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>ماه</th>
+                    <th>روزهای حضور</th>
+                    <th>مجموع ساعات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in monthly %}
+                <tr>
+                    <td class="label">{{ m.label }}</td>
+                    <td class="num">{{ m.days|fa }}</td>
+                    <td class="hours">{{ m.hours_text }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- ===== DAILY DETAILS ===== -->
+        {% if rows %}
+        <div class="section-title">جزئیات روزانه</div>
+        <table class="report-table">
+            <colgroup>
+                <col style="width:5%;">
+                <col style="width:12%;">
+                <col style="width:9%;">
+                <col style="width:25%;">
+                <col style="width:9%;">
+                <col style="width:9%;">
+                <col style="width:15%;">
+                <col style="width:16%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>تاریخ</th>
+                    <th>وضعیت</th>
+                    <th>ورود و خروج</th>
+                    <th>ورود</th>
+                    <th>خروج</th>
+                    <th>مدت حضور</th>
+                    <th>دلیل خروج</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="row-num">{{ forloop.counter|fa }}</td>
+                    <td class="date-cell">{{ r.date|to_jalali_full }}</td>
+                    <td class="status-cell">
+                        {% if r.present %}حاضر{% else %}غایب{% endif %}
+                    </td>
+                    <td class="events-cell">
+                        {% for ev in r.events %}
+                            {% if ev.out %}
+                            <span class="ev ev-out">خروج {{ ev.time|clock }}</span>
+                            {% else %}
+                            <span class="ev ev-in">ورود {{ ev.time|clock }}</span>
+                            {% endif %}
+                        {% endfor %}
+                        {% if r.open_time %}
+                        <span class="ev ev-open">هنوز در محل ({{ r.open_time|clock }})</span>
+                        {% endif %}
+                        {% if r.breaks %}
+                        <span class="ev ev-break">استراحت {{ r.break_text }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="time-cell">{{ r.first_in|clock }}</td>
+                    <td class="time-cell">{{ r.last_out|clock }}</td>
+                    <td class="work-cell">{{ r.work_text }}</td>
+                    <td style="text-align:center; font-size:9pt;">
+                        {% if r.exit_reason %}
+                            {{ r.exit_reason.title }}
+                        {% elif r.exit_reason_text %}
+                            {{ r.exit_reason_text }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-print">
+            <p>رکوردی برای این بازه یافت نشد</p>
+            <small>لطفاً بازه گزارش را تغییر دهید</small>
+        </div>
+        {% endif %}
+
+        <!-- ===== SIGNATURE AREA ===== -->
+        {% if rows %}
+        <div class="signature-area">
+            <div class="sig-box">
+                <span class="sig-label">تهیه‌کننده گزارش</span>
+                <div class="sig-space"></div>
+                <span class="sig-hint">نام، تاریخ و امضا</span>
+            </div>
+            <div class="sig-box">
+                <span class="sig-label">مدیر منابع انسانی</span>
+                <div class="sig-space"></div>
+                <span class="sig-hint">نام، تاریخ و امضا</span>
+            </div>
+            <div class="sig-box">
+                <span class="sig-label">مهر و امضای شرکت</span>
+                <div class="sig-space"></div>
+                <span class="sig-hint">محل مهر رسمی</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ===== EMPLOYEE SUMMARY ===== -->
+        {% if rows %}
+        <div class="summary-section">
+            <h3 class="summary-title">خلاصه ساعات کار در بازه گزارش</h3>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>نام و نام خانوادگی</th>
+                        <th>تعداد روز حضور</th>
+                        <th>مجموع ساعات کار</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-center">۱</td>
+                        <td class="text-right">{{ user.first_name }} {{ user.last_name }}</td>
+                        <td class="text-center">{{ days_present|fa }}</td>
+                        <td class="text-center">{{ total_text }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- ===== FOOTER ===== -->
+        <div class="report-footer">
+            <span>تاریخ تهیه: {{ generated_at|to_jalali }}</span>
+            <span>سامانه حضور و غیاب با تشخیص چهره</span>
+            <span>این گزارش رسمی و محرمانه است</span>
+        </div>
+
+    </div>
+
+</body>
+</html>

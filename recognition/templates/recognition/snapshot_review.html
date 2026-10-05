@@ -1,0 +1,1205 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}بازبینی عکس‌های لحظه{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       PAGE HEADER
+       ========================================================= */
+    .review-header {
+        text-align: center;
+        margin-bottom: 1.75rem;
+    }
+    .review-header .header-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.9rem;
+        color: #fff;
+        background: linear-gradient(135deg, var(--accent), var(--primary));
+        box-shadow: 0 16px 40px -12px var(--glow);
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    .review-header .header-icon::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 26px;
+        background: inherit;
+        opacity: 0.35;
+        filter: blur(14px);
+        z-index: -1;
+        animation: pulseGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 0.65; }
+    }
+    .review-header h1 {
+        font-weight: 800;
+        font-size: 1.5rem;
+        margin: 0 0 0.4rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+    }
+    .review-header p {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        margin: 0 auto;
+        max-width: 540px;
+        line-height: 1.7;
+    }
+
+    /* =========================================================
+       USER SELECTOR
+       ========================================================= */
+    .user-chips {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 18px;
+        padding: 1.1rem 1.3rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .user-chips::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.06), transparent 60%);
+        animation: auroraMove 16s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .user-chips > * { position: relative; z-index: 1; }
+
+    .user-chips .chip-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 0.9rem;
+        flex-wrap: wrap;
+    }
+    .user-chips .chip-head .ch-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .user-chips .chip-head .ch-title i { color: var(--primary); }
+    .user-chips .chip-head .ch-search {
+        position: relative;
+        flex: 1 1 200px;
+        max-width: 320px;
+    }
+    .user-chips .chip-head .ch-search input {
+        width: 100%;
+        padding: 8px 36px 8px 14px !important;
+        border-radius: 10px !important;
+        background: var(--form-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: var(--text-primary) !important;
+        font-size: 0.85rem;
+        height: 38px;
+        transition: all 0.25s;
+    }
+    .user-chips .chip-head .ch-search input:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18) !important;
+    }
+    .user-chips .chip-head .ch-search i {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        pointer-events: none;
+    }
+
+    /* Scrollable chips */
+    .chip-scroll {
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 4px;
+        scrollbar-width: thin;
+    }
+    .chip-scroll::-webkit-scrollbar { width: 6px; }
+    .chip-scroll::-webkit-scrollbar-track { background: transparent; }
+    .chip-scroll::-webkit-scrollbar-thumb {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-radius: 6px;
+    }
+    .chip-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(var(--primary-rgb), 0.45);
+    }
+
+    .user-chips .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .user-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.25s;
+        white-space: nowrap;
+    }
+    .user-chip:hover {
+        background: rgba(var(--primary-rgb), 0.12);
+        border-color: var(--primary);
+        color: var(--text-primary);
+        box-shadow: 0 6px 16px -8px var(--glow);
+    }
+    .user-chip.active {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 8px 20px -6px var(--glow);
+    }
+    .user-chip .u-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 12px;
+        background: rgba(var(--primary-rgb), 0.15);
+        color: var(--primary);
+        font-size: 0.7rem;
+        font-weight: 700;
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+    }
+    .user-chip.active .u-count {
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+        box-shadow: none;
+    }
+    .user-chip .u-check {
+        display: none;
+    }
+    .user-chip.active .u-check {
+        display: inline;
+        font-size: 0.72rem;
+    }
+
+    /* =========================================================
+       SELECTED USER HEADER
+       ========================================================= */
+    .selected-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    .selected-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.07), transparent 60%);
+        animation: auroraMove 18s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    .selected-card > * { position: relative; z-index: 1; }
+
+    .selected-card .sc-head {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.1),
+            rgba(var(--accent-rgb), 0.05));
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1.1rem 1.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .selected-card .sc-head .user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+    .selected-card .sc-head .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 1.1rem;
+        box-shadow: 0 8px 20px -6px var(--glow);
+        flex-shrink: 0;
+    }
+    .selected-card .sc-head .user-name {
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .selected-card .sc-head .user-username {
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        margin-top: 2px;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        direction: ltr;
+    }
+    .selected-card .sc-head .photo-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        background: rgba(34,211,238,0.15);
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 0.82rem;
+        box-shadow: inset 0 0 0 1px rgba(34,211,238,0.3);
+        white-space: nowrap;
+    }
+    .selected-card .sc-head .photo-count::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s ease-in-out infinite;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    .selected-card .sc-body { padding: 1.25rem; }
+
+    /* =========================================================
+       SNAPSHOT CARD
+       ========================================================= */
+    .snap-card {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--bg-card);
+        border: 1px solid var(--glass-border);
+        transition: border-color 0.35s, box-shadow 0.35s, transform 0.35s;
+        page-break-inside: avoid;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .snap-card:hover {
+        border-color: rgba(var(--primary-rgb), 0.5);
+        box-shadow: 0 20px 44px -16px rgba(var(--primary-rgb), 0.5);
+        transform: translateY(-4px);
+    }
+    .snap-card .snap-img-wrap {
+        position: relative;
+        aspect-ratio: 4 / 3;
+        overflow: hidden;
+        background: #0a0e1a;
+        display: block;
+    }
+    .snap-card .snap-img-wrap::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg,
+            rgba(0,0,0,0.15) 0%,
+            transparent 25%,
+            transparent 55%,
+            rgba(0,0,0,0.6) 100%);
+        pointer-events: none;
+    }
+    .snap-card img.snap-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .snap-card:hover img.snap-img {
+        transform: scale(1.08);
+    }
+
+    /* Event badge */
+    .snap-card .snap-event {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 11px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        backdrop-filter: blur(10px);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .snap-card .snap-event.in {
+        background: rgba(16,185,129,0.9);
+        box-shadow: 0 4px 14px rgba(16,185,129,0.6);
+    }
+    .snap-card .snap-event.out {
+        background: rgba(239,68,68,0.9);
+        box-shadow: 0 4px 14px rgba(239,68,68,0.6);
+    }
+    .snap-card .snap-event::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #fff;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* Date badge */
+    .snap-card .snap-date {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        z-index: 2;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(0,0,0,0.6);
+        padding: 4px 10px;
+        border-radius: 8px;
+        backdrop-filter: blur(8px);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Hover overlay — zoom icon */
+    .snap-card .snap-hover-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.6);
+        z-index: 3;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.95);
+        color: var(--primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        opacity: 0;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: none;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+    .snap-card:hover .snap-hover-icon {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* Actions footer */
+    .snap-card .snap-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        gap: 8px;
+        background: var(--glass);
+        border-top: 1px solid var(--glass-border);
+        margin-top: auto;
+    }
+    .snap-card .snap-id {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .snap-card .snap-btn-group {
+        display: inline-flex;
+        gap: 5px;
+        flex-shrink: 0;
+    }
+    .snap-card .snap-action-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        transition: all 0.25s;
+        cursor: pointer;
+        text-decoration: none;
+        border: 1px solid;
+    }
+    .snap-card .btn-download {
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        border-color: rgba(var(--primary-rgb), 0.25);
+    }
+    .snap-card .btn-download:hover {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+        box-shadow: 0 4px 12px -4px var(--glow);
+    }
+    .snap-card .btn-delete {
+        background: rgba(239,68,68,0.12);
+        color: var(--danger);
+        border-color: rgba(239,68,68,0.25);
+    }
+    .snap-card .btn-delete:hover {
+        background: var(--danger);
+        color: #fff;
+        border-color: var(--danger);
+        box-shadow: 0 4px 12px -4px rgba(239,68,68,0.6);
+    }
+
+    /* =========================================================
+       USERS TABLE (list mode)
+       ========================================================= */
+    .users-table-wrap {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+    .users-table-wrap .ut-head {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.1),
+            rgba(var(--accent-rgb), 0.05));
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1.1rem 1.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .users-table-wrap .ut-head h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .users-table-wrap .ut-head .head-icon {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+    }
+    .users-table-wrap .ut-head .head-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.78rem;
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+    }
+
+    .users-table {
+        --bs-table-bg: transparent;
+        background: transparent;
+        margin: 0;
+    }
+    .users-table th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-muted) !important;
+        font-weight: 700;
+        padding: 14px 16px;
+        white-space: nowrap;
+        background: rgba(148,163,184,0.04) !important;
+    }
+    .users-table td {
+        padding: 14px 16px !important;
+        vertical-align: middle;
+        font-size: 0.9rem;
+    }
+    .users-table tbody tr {
+        transition: background-color 0.2s ease !important;
+    }
+    .users-table tbody tr:hover {
+        background-color: rgba(var(--primary-rgb), 0.06) !important;
+    }
+
+    .u-avatar-inline {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px -4px var(--glow);
+    }
+    .u-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .u-cell .u-name {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .u-cell .u-username {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 1px;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        direction: ltr;
+    }
+
+    .count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        background: rgba(var(--primary-rgb), 0.12);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+    }
+
+    .btn-view {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 10px;
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+        border: 1px solid rgba(var(--primary-rgb), 0.3);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.25s;
+        white-space: nowrap;
+    }
+    .btn-view:hover {
+        background: rgba(var(--primary-rgb), 0.2);
+        color: var(--text-primary);
+        border-color: var(--primary);
+        box-shadow: 0 6px 16px -6px var(--glow);
+        transform: translateY(-2px);
+    }
+
+    /* =========================================================
+       EMPTY STATE
+       ========================================================= */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    .empty-state .icon-wrap {
+        width: 84px; height: 84px;
+        border-radius: 24px;
+        background: rgba(var(--primary-rgb), 0.1);
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 32px -12px var(--glow);
+    }
+    .empty-state h6 {
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.4rem;
+        font-size: 1.05rem;
+    }
+    .empty-state p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    /* =========================================================
+       LIGHTBOX MODAL — enhanced
+       ========================================================= */
+    .lightbox-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.9);
+        backdrop-filter: blur(10px);
+        z-index: 3000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        animation: fadeIn 0.25s ease;
+    }
+    .lightbox-overlay.active { display: flex; }
+
+    .lightbox-overlay .lb-content {
+        position: relative;
+        max-width: 90vw;
+        max-height: 85vh;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 40px 80px -20px rgba(0,0,0,0.9);
+        border: 2px solid rgba(255,255,255,0.15);
+    }
+    .lightbox-overlay img#lightboxImg {
+        max-width: 90vw;
+        max-height: 85vh;
+        display: block;
+    }
+
+    /* Info bar at top */
+    .lightbox-overlay .lb-info {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 12px 16px;
+        background: linear-gradient(180deg, rgba(0,0,0,0.75), transparent);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        color: #fff;
+        z-index: 2;
+    }
+    .lightbox-overlay .lb-info .lb-event {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+    .lightbox-overlay .lb-info .lb-event.in {
+        background: rgba(16,185,129,0.9);
+    }
+    .lightbox-overlay .lb-info .lb-event.out {
+        background: rgba(239,68,68,0.9);
+    }
+    .lightbox-overlay .lb-info .lb-date {
+        font-size: 0.8rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        background: rgba(0,0,0,0.5);
+        padding: 5px 12px;
+        border-radius: 8px;
+        backdrop-filter: blur(8px);
+    }
+
+    /* Close button */
+    .lightbox-overlay .lb-close {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 42px; height: 42px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: #fff;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s;
+        z-index: 4;
+        backdrop-filter: blur(8px);
+    }
+    .lightbox-overlay .lb-close:hover {
+        background: rgba(255,255,255,0.25);
+        transform: rotate(90deg);
+    }
+
+    /* Bottom action buttons */
+    .lightbox-overlay .lb-actions {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 14px 16px;
+        background: linear-gradient(0deg, rgba(0,0,0,0.75), transparent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        z-index: 2;
+    }
+    .lightbox-overlay .lb-actions .lb-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid;
+        transition: all 0.25s;
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        border-color: rgba(255,255,255,0.25);
+        backdrop-filter: blur(8px);
+    }
+    .lightbox-overlay .lb-actions .lb-action:hover {
+        background: rgba(255,255,255,0.25);
+        transform: translateY(-2px);
+    }
+    .lightbox-overlay .lb-actions .lb-action.danger {
+        background: rgba(239,68,68,0.25);
+        border-color: rgba(239,68,68,0.5);
+    }
+    .lightbox-overlay .lb-actions .lb-action.danger:hover {
+        background: rgba(239,68,68,0.5);
+    }
+
+    /* Fade in */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+        .review-header h1 { font-size: 1.25rem; }
+        .review-header .header-icon { width: 60px; height: 60px; font-size: 1.6rem; }
+        .user-chips { padding: 0.9rem 1rem; }
+        .user-chips .chip-head .ch-search { max-width: 100%; flex: 1 1 100%; }
+        .selected-card .sc-head { padding: 0.9rem 1.1rem; }
+        .selected-card .sc-body { padding: 1rem; }
+        .snap-card .snap-img-wrap { aspect-ratio: 1 / 1; }
+        .users-table thead { display: none; }
+        .users-table tbody,
+        .users-table tr,
+        .users-table td { display: block; width: 100%; }
+        .users-table tbody tr {
+            margin: 0.75rem;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            width: calc(100% - 1.5rem);
+        }
+        .users-table td {
+            padding: 0.4rem 0 !important;
+            border: none !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .users-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+        .users-table td[data-label="کاربر"] {
+            justify-content: flex-start;
+        }
+        .users-table td[data-label="کاربر"]::before { display: none; }
+        .lightbox-overlay { padding: 1rem; }
+        .lightbox-overlay .lb-info { flex-direction: column; align-items: flex-start; gap: 6px; }
+    }
+
+    @media (max-width: 480px) {
+        .snap-card .snap-img-wrap { aspect-ratio: 1 / 1; }
+        .lightbox-overlay .lb-actions { flex-direction: column; }
+        .lightbox-overlay .lb-actions .lb-action { width: 100%; justify-content: center; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     PAGE HEADER
+     ============================================================ -->
+<div class="review-header">
+    <div class="header-icon">
+        <i class="fas fa-camera-retro"></i>
+    </div>
+    <h1>بازبینی عکس‌های لحظه</h1>
+    <p>
+        عکسی که هنگام تأیید چهره در هر ورود/خروج گرفته می‌شود؛ برای هر کاربر
+        فقط {{ limit|fa }} عکس آخر نگهداری و قدیمی‌ترین آن‌ها خودکار حذف می‌شود.
+    </p>
+</div>
+
+<!-- ============================================================
+     USER SELECTOR
+     ============================================================ -->
+<div class="user-chips">
+    <div class="chip-head">
+        <div class="ch-title">
+            <i class="fas fa-users"></i>انتخاب کاربر
+        </div>
+        {% if users_rows %}
+        <div class="ch-search">
+            <input type="text" id="userFilter" placeholder="جستجوی کاربر..." autocomplete="off">
+            <i class="fas fa-search"></i>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="chip-scroll">
+        <div class="chip-list" id="chipList">
+            <a href="{% url 'snapshot-review' %}"
+               class="user-chip all-chip {% if not selected %}active{% endif %}"
+               data-search="همه کاربران all users">
+                <i class="fas fa-globe"></i>
+                همه کاربران
+                <span class="u-count">{{ users_rows|length|fa }}</span>
+                {% if not selected %}<i class="fas fa-check u-check"></i>{% endif %}
+            </a>
+            {% for u in users_rows %}
+            <a href="{% url 'snapshot-review' %}?username={{ u.username }}"
+               class="user-chip {% if selected and selected.username == u.username %}active{% endif %}"
+               data-search="{{ u.first_name|lower }} {{ u.last_name|lower }} {{ u.username|lower }}">
+                <i class="fas fa-user"></i>
+                {{ u.first_name }} {{ u.last_name }}
+                <span class="u-count">{{ u.photo_count|fa }}</span>
+                {% if selected and selected.username == u.username %}<i class="fas fa-check u-check"></i>{% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if selected %}
+<!-- ============================================================
+     SELECTED USER — SNAPSHOTS GRID
+     ============================================================ -->
+<div class="selected-card">
+    <div class="sc-head">
+        <div class="user-info">
+            <span class="user-avatar">{{ selected.first_name|first|upper }}{{ selected.last_name|first|upper }}</span>
+            <div>
+                <div class="user-name">{{ selected.first_name }} {{ selected.last_name }}</div>
+                <div class="user-username">@{{ selected.username }}</div>
+            </div>
+        </div>
+        <span class="photo-count">
+            <i class="fas fa-images"></i>{{ snapshots|length|fa }} عکس
+        </span>
+    </div>
+    <div class="sc-body">
+        {% if snapshots %}
+        <div class="row g-3">
+            {% for s in snapshots %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="snap-card">
+                    <a href="{% url 'snapshot-image' s.id %}"
+                       class="snap-img-wrap"
+                       data-lightbox
+                       data-img-url="{% url 'snapshot-image' s.id %}"
+                       data-event="{{ s.event }}"
+                       data-date="{{ s.created_at|to_jalali }}"
+                       data-id="{{ s.id }}"
+                       title="مشاهده بزرگ">
+                        <img class="snap-img"
+                             src="{% url 'snapshot-image' s.id %}"
+                             alt="snapshot {{ s.id }}"
+                             loading="lazy">
+
+                        <!-- Event badge -->
+                        {% if s.event == 'in' %}
+                        <span class="snap-event in">
+                            <i class="fas fa-sign-in-alt"></i>ورود
+                        </span>
+                        {% else %}
+                        <span class="snap-event out">
+                            <i class="fas fa-sign-out-alt"></i>خروج
+                        </span>
+                        {% endif %}
+
+                        <!-- Date badge -->
+                        <span class="snap-date">{{ s.created_at|to_jalali }}</span>
+
+                        <!-- Hover zoom icon -->
+                        <span class="snap-hover-icon">
+                            <i class="fas fa-expand"></i>
+                        </span>
+                    </a>
+
+                    <div class="snap-actions">
+                        <span class="snap-id" title="شناسه: {{ s.id }}">#{{ s.id }}</span>
+                        <div class="snap-btn-group">
+                            <a href="{% url 'snapshot-image' s.id %}"
+                               class="snap-action-btn btn-download"
+                               download
+                               title="دانلود عکس">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            <form class="snap-delete-form"
+                                  method="POST"
+                                  action="{% url 'snapshot-delete' s.id %}"
+                                  onsubmit="return confirm('این عکس حذف شود؟')"
+                                  style="display:inline-flex;">
+                                {% csrf_token %}
+                                <button type="submit" class="snap-action-btn btn-delete" title="حذف عکس">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon-wrap"><i class="fas fa-camera"></i></div>
+            <h6>برای این کاربر عکسی ثبت نشده است</h6>
+            <p>پس از اولین ورود/خروج تأییدشده، عکس لحظه اینجا نمایش داده می‌شود.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<!-- ============================================================
+     USERS LIST
+     ============================================================ -->
+{% if users_rows %}
+<div class="users-table-wrap">
+    <div class="ut-head">
+        <h5>
+            <span class="head-icon"><i class="fas fa-user-friends"></i></span>
+            فهرست کاربران دارای عکس
+        </h5>
+        <span class="head-count">
+            <i class="fas fa-users"></i>{{ users_rows|length|fa }} کاربر
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="table users-table mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>کاربر</th>
+                    <th class="text-center" style="width:140px;">تعداد عکس</th>
+                    <th class="text-center" style="width:180px;">مشاهده</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users_rows %}
+                <tr>
+                    <td data-label="کاربر">
+                        <div class="u-cell">
+                            <span class="u-avatar-inline">{{ u.first_name|first|upper }}{{ u.last_name|first|upper }}</span>
+                            <div>
+                                <span class="u-name">{{ u.first_name }} {{ u.last_name }}</span>
+                                <span class="u-username">@{{ u.username }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-center" data-label="تعداد عکس">
+                        <span class="count-badge">
+                            <i class="fas fa-images"></i>{{ u.photo_count|fa }}
+                        </span>
+                    </td>
+                    <td class="text-center" data-label="مشاهده">
+                        <a href="{% url 'snapshot-review' %}?username={{ u.username }}" class="btn-view">
+                            <i class="fas fa-images"></i>مشاهده عکس‌ها
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="users-table-wrap">
+    <div class="empty-state">
+        <div class="icon-wrap"><i class="fas fa-camera"></i></div>
+        <h6>هنوز عکسی ثبت نشده است</h6>
+        <p>پس از اولین ورود/خروج تأییدشده، عکس لحظهٔ آن اینجا نمایش داده می‌شود.</p>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ============================================================
+     LIGHTBOX (hidden by default)
+     ============================================================ -->
+<div class="lightbox-overlay" id="lightbox">
+    <button class="lb-close" id="lightboxClose" type="button" aria-label="بستن">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="lb-content">
+        <!-- Info bar -->
+        <div class="lb-info" id="lbInfo">
+            <span class="lb-event in" id="lbEvent">
+                <i class="fas fa-sign-in-alt"></i>ورود
+            </span>
+            <span class="lb-date" id="lbDate">—</span>
+        </div>
+
+        <!-- Image -->
+        <img id="lightboxImg" src="" alt="snapshot">
+
+        <!-- Actions -->
+        <div class="lb-actions">
+            <a class="lb-action" id="lbDownload" href="#" download>
+                <i class="fas fa-download"></i>دانلود عکس
+            </a>
+            <a class="lb-action" id="lbOpenTab" href="#" target="_blank">
+                <i class="fas fa-external-link-alt"></i>باز در تب جدید
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ============================================================
+    // USER FILTER (chips search)
+    // ============================================================
+    (function() {
+        const filterInput = document.getElementById('userFilter');
+        const chips = document.querySelectorAll('#chipList .user-chip');
+        if (!filterInput) return;
+
+        filterInput.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            chips.forEach(chip => {
+                const hay = (chip.dataset.search || chip.textContent || '').toLowerCase();
+                chip.style.display = (!q || hay.includes(q)) ? '' : 'none';
+            });
+        });
+    })();
+
+    // ============================================================
+    // LIGHTBOX — enhanced with event/date info
+    // ============================================================
+    (function() {
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const closeBtn = document.getElementById('lightboxClose');
+        const lbInfo = document.getElementById('lbInfo');
+        const lbEvent = document.getElementById('lbEvent');
+        const lbDate = document.getElementById('lbDate');
+        const lbDownload = document.getElementById('lbDownload');
+        const lbOpenTab = document.getElementById('lbOpenTab');
+
+        if (!lightbox) return;
+
+        function openLightbox(url, event, date, id) {
+            lightboxImg.src = url;
+
+            // Update event badge
+            if (lbEvent) {
+                if (event === 'in') {
+                    lbEvent.className = 'lb-event in';
+                    lbEvent.innerHTML = '<i class="fas fa-sign-in-alt"></i>ورود';
+                } else {
+                    lbEvent.className = 'lb-event out';
+                    lbEvent.innerHTML = '<i class="fas fa-sign-out-alt"></i>خروج';
+                }
+            }
+
+            // Update date
+            if (lbDate) lbDate.textContent = date || '—';
+
+            // Update links
+            if (lbDownload) lbDownload.href = url;
+            if (lbOpenTab) lbOpenTab.href = url;
+
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('active');
+            lightboxImg.src = '';
+            document.body.style.overflow = '';
+        }
+
+        document.querySelectorAll('[data-lightbox]').forEach(el => {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.dataset.imgUrl || this.getAttribute('href');
+                const event = this.dataset.event || 'in';
+                const date = this.dataset.date || '';
+                const id = this.dataset.id || '';
+                if (url) openLightbox(url, event, date, id);
+            });
+        });
+
+        closeBtn.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', function(e) {
+            if (e.target === lightbox) closeLightbox();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+                closeLightbox();
+            }
+        });
+    })();
+</script>
+{% endblock %}

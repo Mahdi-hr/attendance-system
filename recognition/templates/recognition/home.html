@@ -1,0 +1,396 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}خانه - سامانه حضور و غیاب{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* =========================================================
+       HERO SECTION
+       ========================================================= */
+    .hero-section {
+        text-align: center;
+        padding: 2.5rem 1rem 2rem;
+        position: relative;
+        margin-bottom: 2.5rem;
+    }
+    .hero-section .hero-logo {
+        width: 100px;
+        height: 100px;
+        border-radius: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.8rem;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        box-shadow: 0 20px 50px -14px var(--glow);
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    .hero-section .hero-logo::before {
+        content: '';
+        position: absolute;
+        inset: -8px;
+        border-radius: 36px;
+        background: conic-gradient(from 0deg,
+            var(--primary), var(--accent), var(--secondary), var(--primary));
+        opacity: 0.6;
+        filter: blur(20px);
+        z-index: -1;
+        animation: spin 8s linear infinite;
+    }
+    .hero-section .hero-logo::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border-radius: 32px;
+        background: inherit;
+        opacity: 0.35;
+        filter: blur(16px);
+        z-index: -1;
+        animation: pulseGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulseGlow {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 0.7; }
+    }
+
+    .hero-section h1 {
+        font-weight: 800;
+        font-size: 2.4rem;
+        margin: 0 0 0.6rem;
+        letter-spacing: -0.03em;
+        line-height: 1.2;
+        background: linear-gradient(90deg,
+            var(--primary), var(--accent), var(--secondary), var(--primary));
+        background-size: 300% 100%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: gradientShift 5s ease infinite;
+    }
+    @keyframes gradientShift {
+        0%,100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .hero-section .hero-subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05rem;
+        margin: 0 auto;
+        max-width: 480px;
+        line-height: 1.7;
+    }
+    .hero-section .hero-subtitle strong {
+        color: var(--primary);
+        font-weight: 700;
+    }
+
+    /* Feature pills */
+    .hero-features {
+        display: flex;
+        justify-content: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-top: 1.25rem;
+    }
+    .hero-feature {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        background: var(--glass);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    .hero-feature i {
+        color: var(--primary);
+        font-size: 0.75rem;
+    }
+    .hero-feature:hover {
+        border-color: var(--primary);
+        color: var(--text-primary);
+        transform: translateY(-2px);
+    }
+
+    /* =========================================================
+       ACTION CARDS
+       ========================================================= */
+    .action-card {
+        display: block;
+        text-decoration: none !important;
+        color: inherit !important;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 22px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.35s, box-shadow 0.35s, background 0.35s;
+        height: 100%;
+        min-height: 260px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .action-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, var(--ac-glow, rgba(var(--primary-rgb), 0.15)), transparent 55%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+    .action-card:hover::before { opacity: 1; }
+    .action-card:hover {
+        border-color: var(--ac-border, rgba(var(--primary-rgb), 0.5));
+        box-shadow: 0 24px 50px -18px var(--ac-shadow, rgba(var(--primary-rgb), 0.5));
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+
+    /* Top color bar */
+    .action-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 4px;
+        background: var(--ac-bar, linear-gradient(90deg, var(--primary), var(--accent)));
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+    .action-card:hover::after { opacity: 1; }
+
+    /* Icon */
+    .action-card .ac-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #fff;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        background: var(--ac-icon-bg, linear-gradient(135deg, var(--primary), var(--secondary)));
+        box-shadow: 0 14px 32px -10px var(--ac-shadow, rgba(var(--primary-rgb), 0.7));
+    }
+    .action-card .ac-icon::after {
+        content: '';
+        position: absolute;
+        inset: -5px;
+        border-radius: 28px;
+        background: inherit;
+        opacity: 0;
+        filter: blur(12px);
+        z-index: -1;
+        transition: opacity 0.4s;
+    }
+    .action-card:hover .ac-icon {
+        transform: scale(1.08) rotate(-6deg);
+    }
+    .action-card:hover .ac-icon::after { opacity: 0.6; }
+
+    /* Text */
+    .action-card h5 {
+        font-weight: 800;
+        font-size: 1.2rem;
+        margin: 0;
+        color: var(--text-primary);
+        position: relative;
+        z-index: 1;
+        letter-spacing: -0.01em;
+    }
+    .action-card .ac-desc {
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        margin: 0;
+        position: relative;
+        z-index: 1;
+        line-height: 1.65;
+        max-width: 220px;
+    }
+
+    /* Arrow */
+    .action-card .ac-arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--ac-color, var(--primary));
+        margin-top: 0.6rem;
+        position: relative;
+        z-index: 1;
+        transition: gap 0.3s;
+    }
+    .action-card:hover .ac-arrow { gap: 10px; }
+    .action-card .ac-arrow i { transition: transform 0.3s; }
+    .action-card:hover .ac-arrow i { transform: translateX(-4px); }
+
+    /* Color variants */
+    .action-card.checkin {
+        --ac-color: var(--success);
+        --ac-glow: rgba(16,185,129,0.15);
+        --ac-border: rgba(16,185,129,0.5);
+        --ac-shadow: rgba(16,185,129,0.5);
+        --ac-icon-bg: linear-gradient(135deg, #34d399, #06b6d4);
+        --ac-bar: linear-gradient(90deg, #34d399, #06b6d4);
+    }
+    .action-card.checkout {
+        --ac-color: var(--danger);
+        --ac-glow: rgba(239,68,68,0.15);
+        --ac-border: rgba(239,68,68,0.5);
+        --ac-shadow: rgba(239,68,68,0.5);
+        --ac-icon-bg: linear-gradient(135deg, #f87171, #dc2626);
+        --ac-bar: linear-gradient(90deg, #f87171, #dc2626);
+    }
+    .action-card.dashboard {
+        --ac-color: var(--primary);
+        --ac-glow: rgba(var(--primary-rgb), 0.15);
+        --ac-border: rgba(var(--primary-rgb), 0.5);
+        --ac-shadow: rgba(var(--primary-rgb), 0.5);
+        --ac-icon-bg: linear-gradient(135deg, var(--primary), var(--secondary));
+        --ac-bar: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    .action-card.login {
+        --ac-color: var(--warning);
+        --ac-glow: rgba(251,191,36,0.15);
+        --ac-border: rgba(251,191,36,0.5);
+        --ac-shadow: rgba(251,191,36,0.5);
+        --ac-icon-bg: linear-gradient(135deg, #fbbf24, #f97316);
+        --ac-bar: linear-gradient(90deg, #fbbf24, #f97316);
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+        .hero-section { padding: 1.5rem 0.75rem 1.5rem; margin-bottom: 1.5rem; }
+        .hero-section .hero-logo { width: 76px; height: 76px; font-size: 2.1rem; border-radius: 22px; }
+        .hero-section h1 { font-size: 1.7rem; }
+        .hero-section .hero-subtitle { font-size: 0.92rem; }
+        .hero-feature { font-size: 0.72rem; padding: 5px 11px; }
+        .action-card { padding: 1.5rem 1.15rem; min-height: 220px; }
+        .action-card .ac-icon { width: 64px; height: 64px; font-size: 1.6rem; border-radius: 18px; }
+        .action-card h5 { font-size: 1.05rem; }
+        .action-card .ac-desc { font-size: 0.82rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     HERO SECTION
+     ============================================================ -->
+<div class="hero-section">
+    <div class="hero-logo">
+        <i class="fas fa-fingerprint"></i>
+    </div>
+    <h1>سامانه حضور و غیاب</h1>
+    <p class="hero-subtitle">
+        سیستم <strong>هوشمند تشخیص چهره</strong> برای ثبت دقیق ورود و خروج کارمندان،
+        بدون نیاز به کارت یا اثر انگشت.
+    </p>
+
+    <div class="hero-features">
+        <span class="hero-feature">
+            <i class="fas fa-bolt"></i>ثبت سریع
+        </span>
+        <span class="hero-feature">
+            <i class="fas fa-shield-alt"></i>امنیت بالا
+        </span>
+        <span class="hero-feature">
+            <i class="fas fa-chart-line"></i>گزارش دقیق
+        </span>
+        <span class="hero-feature">
+            <i class="fas fa-mobile-alt"></i>همه دستگاه‌ها
+        </span>
+    </div>
+</div>
+
+<!-- ============================================================
+     ACTION CARDS
+     ============================================================ -->
+<div class="row g-4 justify-content-center">
+
+    <!-- Check-in -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'mark-your-attendance' %}" class="action-card checkin">
+            <div class="ac-icon">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+            <h5>ثبت ورود</h5>
+            <p class="ac-desc">با نگاه به دوربین، ورود خود را در چند ثانیه ثبت کنید</p>
+            <span class="ac-arrow">
+                شروع ثبت ورود <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+    <!-- Check-out -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'mark-your-attendance-out' %}" class="action-card checkout">
+            <div class="ac-icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <h5>ثبت خروج</h5>
+            <p class="ac-desc">در پایان روز کاری، خروج خود را به همراه دلیل ثبت کنید</p>
+            <span class="ac-arrow">
+                شروع ثبت خروج <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
+    {% if user.is_authenticated %}
+    <!-- Dashboard -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'dashboard' %}" class="action-card dashboard">
+            <div class="ac-icon">
+                <i class="fas fa-tachometer-alt"></i>
+            </div>
+            <h5>داشبورد</h5>
+            <p class="ac-desc">مشاهده گزارش‌های حضور، مدیریت کاربران و تنظیمات</p>
+            <span class="ac-arrow">
+                ورود به داشبورد <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+    {% else %}
+    <!-- Login -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'login' %}" class="action-card login">
+            <div class="ac-icon">
+                <i class="fas fa-user-lock"></i>
+            </div>
+            <h5>ورود به پنل</h5>
+            <p class="ac-desc">برای دسترسی به داشبورد و گزارش‌ها، وارد شوید</p>
+            <span class="ac-arrow">
+                ورود با رمز <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

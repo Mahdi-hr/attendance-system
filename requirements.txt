@@ -1,0 +1,68 @@
+# ============================================================
+# وابستگی‌های سامانهٔ حضور و غیاب با تشخیص چهره
+#
+# ✅ پیش‌نیازهای سیستم (دبیان/اوبونتو) — قبل از pip این را نصب کن:
+#   sudo apt install build-essential cmake git
+#       python3-venv python3-dev
+#       libboost-all-dev
+#   sudo apt install libopenblas-dev liblapack-dev libjpeg-dev zlib1g-dev gfortran || true
+#   (libatlas-base-dev در اوبونتوهای جدید حذف شده و نیازی هم نیست؛ OpenBLAS کفایت می‌کند)
+#
+# ⚠️  python3 با نسخهٔ 3.10 تا 3.12 پیشنهاد می‌شود.
+#     dlib/opencv روی پایتون جدیدتر ممکن است نیاز به کامپایل داشته باشد.
+#
+# یک‌جا نصب کنید:
+#   python3 -m venv venv
+#   venv/bin/pip install --upgrade pip setuptools wheel
+#   venv/bin/pip install -r requirements.txt
+# ============================================================
+
+# ---------- چارچوب و وب (Django) ----------
+Django==5.2.16
+django-crispy-forms==2.6
+crispy-bootstrap4==2026.2
+django-pandas==0.6.7
+django-jazzmin==3.0.5
+gunicorn==26.2.0
+whitenoise==6.12.0
+
+# ---------- تشخیص چهره ----------
+# dlib/face_recognition نیاز به کامپایلر C++ و CMake دارد (فایل بالاببینید)
+dlib==20.0.1
+face-recognition==1.3.0
+face_recognition_models==0.3.0
+opencv-python==4.9.0.80
+imutils==0.5.4
+
+# ---------- محاسبات علمی و یادگیری ماشین ----------
+numpy==1.26.4
+scipy==1.15.3
+scikit-learn==1.7.2
+joblib==1.5.3
+threadpoolctl==3.6.0
+pandas==2.3.3
+matplotlib==3.10.9
+seaborn==0.13.2
+contourpy==1.3.2
+cycler==0.12.1
+fonttools==4.63.0
+kiwisolver==1.5.0
+pyparsing==3.3.2
+
+# ---------- تقویم شمسی (جلالی) ----------
+jdatetime==6.0.1
+jalali_core==1.0.0
+
+# ---------- تصویر و ابزارهای پایه ----------
+Pillow==12.3.0
+
+# ---------- کتابخانه‌های استاندارد/ترانزیتی Django ----------
+asgiref==3.12.1
+click==8.4.2
+packaging==26.3
+python-dateutil==2.9.0.post0
+pytz==2026.3.post1
+six==1.17.0
+sqlparse==0.6.0
+typing_extensions==4.16.0
+tzdata==2026.3
