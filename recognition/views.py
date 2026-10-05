@@ -1086,3 +1086,5 @@ def current_time_api(request):
         'datetime': now.isoformat(),
         'jalali_date': jalali_str,
     })
+
+# تغییر تستی از سرور
