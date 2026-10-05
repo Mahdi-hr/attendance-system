@@ -351,4 +351,3 @@ def monthly_summary(rows):
             'hours_text': format_hours(m['seconds']),
         })
     return result
-# تغییر دوم از سرور
