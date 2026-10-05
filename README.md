@@ -253,3 +253,63 @@ venv/bin/python manage.py test recognition users
 | مدل چهره کند | `GUNICORN_TIMEOUT` را بالا ببرید (پیش‌فرض ۱۲۰). |
 | دوربین کار نمی‌کند | `./check_camera.sh` را اجرا کنید و به `CAMERA_SETUP.md` مراجعه کنید. |
 | تغییرات قالب/استاتیک در تولید اعمال نمی‌شود | `venv/bin/python manage.py collectstatic --noinput` سپس ری‌استارت سرویس. |
+
+---
+
+## به‌روزرسانی کد از گیت‌هاب (`update.sh`)
+
+اسکریپت `update.sh` آخرین نسخهٔ کد را از گیت‌هاب می‌گیرد، **بدون دست‌زدن به داده‌های محلی**.
+
+```bash
+./update.sh --check    # فقط بگو چه چیزی قرار است عوض شود (بدون تغییر)
+./update.sh            # آپدیت با پرسش و تأیید
+./update.sh --yes      # بدون پرسش
+./update.sh --reset    # تغییرات محلی کد را دور بریز، دقیقاً نسخهٔ سرور
+./update.sh --no-restart
+```
+
+### چه چیزی به‌روز می‌شود و چه چیزی دست‌نخورده می‌ماند
+
+| به‌روز می‌شود (فقط فایل‌های کد) | هرگز دست نمی‌خورد (داده‌های تو) |
+| --- | --- |
+| `recognition/`, `users/`, templates، static، اسکریپت‌ها | `db.sqlite3` (دیتابیس) |
+| مایگریشن‌های جدید (با `migrate`) | `.env` (کلیدها و تنظیمات) |
+| پکیج‌های جدید `requirements.txt` | `face_recognition_data/` (چهره‌ها، embeddings، مدل‌ها) |
+| خروجی `collectstatic` | `staticfiles/`, `media/`, `venv/`, لاگ‌ها، فایل‌های untracked |
+
+### تضمین‌های اسکریپت
+
+1. **بکاپ خودکار داده‌ها** — پیش از هر مایگریشن، از دیتابیس با API رسمی sqlite
+   (ایمن حتی هنگام اجرای سرویس) در `backups/<تاریخ>/` کپی می‌گیرد.
+2. **تشخیص تداخل قبل از آپدیت** — اگر فایلی را هم تو تغییر داده باشی و هم در آپدیت
+   جدید عوض شده باشد، آپدیت **متوقف** می‌شود و راه‌حل پیشنهاد می‌دهد؛
+   هیچ conflict marker و هیچ خرابی‌ای پیش نمی‌آید.
+3. **حفظ تغییرات محلی** — تغییراتت در `git stash` امن می‌ماند و بعد از آپدیت برمی‌گردد.
+   فایل‌های untracked اصلاً جابه‌جا نمی‌شوند.
+4. **فقط fast-forward** — با `--ff-only`؛ هیچ merge commit و هیچ بازنویسی تاریخچه.
+5. **بازگشت خودکار** — خطا در هر مرحله (pip، migrate، …) باعث می‌شود کد به نسخهٔ قبل
+   برگردد، دیتابیس از بکاپ بازیابی شود و سرویس ری‌استارت شود.
+6. **قفل همزمانی** — دو آپدیت همزمان ممکن نیست (`.update.lock`).
+
+### اولین نصب روی سیستم جدید
+
+```bash
+git clone https://github.com/Mahdi-hr/Attendance-For-Office.git
+cd Attendance-For-Office
+
+cp .env.example .env
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"   # در .env بگذار
+sed -i "s|^DJANGO_SECRET_KEY=.*|DJANGO_SECRET_KEY=<کلید تولیدی>|" .env
+
+python3 -m venv venv
+venv/bin/pip install --upgrade pip setuptools wheel
+venv/bin/pip install -r requirements.txt
+
+venv/bin/python manage.py migrate
+venv/bin/python manage.py createsuperuser
+./run_server.sh
+```
+
+> 📌 `face_recognition_data/` در مخزن نیست (دادهٔ بیومتریک و فایل‌های حجیم مدل).
+> باید جداگانه منتقل شود — بدون آن قابلیت تشخیص چهره کار نمی‌کند.
+> مسیر پیش‌فرض مدل‌ها در `recognition/camera.py` تنظیم شده است.

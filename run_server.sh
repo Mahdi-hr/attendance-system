@@ -35,8 +35,10 @@ export DJANGO_USE_HTTPS="${DJANGO_USE_HTTPS:-0}"
 export DJANGO_ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-*}"
 
 if [ -z "${DJANGO_SECRET_KEY:-}" ]; then
-    echo "[هشدار] DJANGO_SECRET_KEY تنظیم نشده؛ از کلید پیش‌فرض استفاده می‌شود (فقط برای تست)."
-    export DJANGO_SECRET_KEY="django-insecure-56b5edb3154d63f6a2c0691c74c78bc02c16f83245d6f021"
+    echo "[هشدار] DJANGO_SECRET_KEY تنظیم نشده؛ یک کلید موقت و تصادفی ساخته می‌شود."
+    echo "[هشدار] با این کلید نشست‌ها با هر ری‌استارت بی‌اعتبار می‌شوند."
+    echo "[هشدار] برای تولید، در .env مقدار DJANGO_SECRET_KEY را تنظیم کنید."
+    export DJANGO_SECRET_KEY="django-insecure-$(head -c 32 /dev/urandom | base64 | tr -d '=+/')"
 fi
 
 WORKERS="${GUNICORN_WORKERS:-1}"                     # نکتهٔ معماری بالا

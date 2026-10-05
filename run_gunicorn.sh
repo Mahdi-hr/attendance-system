@@ -31,7 +31,13 @@ fi
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"
 export DJANGO_DEBUG="${DJANGO_DEBUG:-0}"            # production: خاموش
-export DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-4!of@+5)(cu6!@c&21m644*%n5)h(9h6shzgg5ka%005e=04qu}"
+# ⚠️ هیچ کلید ثابتی در کد نگذار. کلید باید از .env یا EnvironmentFile بیاید.
+if [ -z "${DJANGO_SECRET_KEY:-}" ]; then
+    echo "[هشدار] DJANGO_SECRET_KEY تنظیم نشده؛ یک کلید موقت و تصادفی ساخته می‌شود." >&2
+    echo "[هشدار] با این کلید نشست‌ها با هر ری‌استارت بی‌اعتبار می‌شوند." >&2
+    echo "[هشدار] برای تولید، در .env مقدار DJANGO_SECRET_KEY را تنظیم کنید." >&2
+    export DJANGO_SECRET_KEY="django-insecure-$(head -c 32 /dev/urandom | base64 | tr -d '=+/')"
+fi
 # ALLOWED_HOSTS به‌صورت پیش‌فرض '*' است؛ برای محدودکردن:
 # export DJANGO_ALLOWED_HOSTS="example.com,192.168.1.10"
 
