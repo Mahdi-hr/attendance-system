@@ -1,0 +1,241 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}گزارش معموریت‌ها{% endblock %}
+
+{% block extra_css %}
+<style>
+.st-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+}
+.st-pending   { background: rgba(245,158,11,0.14); color: #f59e0b;
+                box-shadow: inset 0 0 0 1px rgba(245,158,11,0.28); }
+.st-approved  { background: rgba(16,185,129,0.15); color: #10b981;
+                box-shadow: inset 0 0 0 1px rgba(16,185,129,0.28); }
+.st-rejected  { background: rgba(239,68,68,0.15); color: #ef4444;
+                box-shadow: inset 0 0 0 1px rgba(239,68,68,0.28); }
+.st-cancelled { background: rgba(148,163,184,0.12); color: var(--text-secondary);
+                box-shadow: inset 0 0 0 1px var(--glass-border); }
+.st-badge i { font-size: 0.72rem; }
+.st-pending::before, .st-approved::before, .st-rejected::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 8px currentColor;
+}
+.st-cancelled::before { content: none; }
+
+.range-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 10px;
+    background: rgba(var(--primary-rgb),0.12);
+    border: 1px solid rgba(var(--primary-rgb),0.3);
+    color: var(--primary); font-size: 0.82rem; font-weight: 600;
+    white-space: nowrap;
+}
+.dur-cell { font-weight: 700; color: var(--primary); white-space: nowrap; }
+.overnight-tag {
+    display: inline-block; margin-right: 6px;
+    font-size: 0.72rem; font-weight: 600;
+    color: #c084fc;
+    background: rgba(192,132,252,0.14);
+    border: 1px solid rgba(192,132,252,0.3);
+    border-radius: 8px; padding: 2px 8px;
+}
+.empty-state { padding: 3rem 1rem; text-align: center; }
+.empty-state .empty-icon {
+    width: 84px; height: 84px; border-radius: 24px;
+    background: rgba(var(--primary-rgb),0.1);
+    border: 1px solid rgba(var(--primary-rgb),0.25);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; color: var(--primary); margin-bottom: 1rem;
+}
+.action-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-12 col-lg-11 col-xl-10">
+
+    <div class="text-center mb-4">
+        <h1 class="page-title">
+            <i class="fas fa-table-list me-2" style="color:var(--primary)"></i>گزارش معموریت‌ها
+        </h1>
+        <p class="page-subtitle">
+            فهرست کامل مأموریت‌های بیرونی در بازهٔ انتخابی، همراه با خروجی اکسل.
+            پیش‌فرض فقط معموریت‌های <strong style="color:var(--success)">تأییدشده</strong>
+            نمایش داده می‌شود.
+        </p>
+    </div>
+
+    <!-- ===== فیلترها ===== -->
+    <div class="card-modern mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="{{ filter_form.q.id_for_label }}">
+                        <i class="fas fa-search me-1" style="color:var(--primary)"></i>جست‌وجوی کارمند
+                    </label>
+                    <input type="text" name="q" id="{{ filter_form.q.id_for_label }}"
+                           class="form-control" value="{{ filter_form.q.value|default:'' }}"
+                           placeholder="نام یا نام کاربری">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="{{ filter_form.status.id_for_label }}">
+                        <i class="fas fa-filter me-1" style="color:var(--primary)"></i>وضعیت
+                    </label>
+                    {{ filter_form.status }}
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="{{ filter_form.date_from.id_for_label }}">
+                        <i class="fas fa-calendar-alt me-1" style="color:var(--primary)"></i>از تاریخ
+                    </label>
+                    {{ filter_form.date_from }}
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="{{ filter_form.date_to.id_for_label }}">
+                        <i class="fas fa-calendar-alt me-1" style="color:var(--primary)"></i>تا تاریخ
+                    </label>
+                    {{ filter_form.date_to }}
+                </div>
+                <div class="col-6 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-gradient flex-fill">
+                        <i class="fas fa-filter me-1"></i>اعمال
+                    </button>
+                    <a href="{% url 'errands-list' %}" class="btn btn-outline-secondary"
+                       title="حذف فیلترها">
+                        <i class="fas fa-rotate-left"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== خلاصه + اکشن‌ها ===== -->
+    <div class="card-modern mb-4">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:3px;">
+                    <i class="fas fa-briefcase me-1"></i>تعداد معموریت در این فیلتر
+                </div>
+                <div style="font-size:1.5rem;font-weight:800;color:var(--text-primary);">
+                    {{ count|fa }} <span style="font-size:0.85rem;font-weight:500;color:var(--text-secondary);">مورد</span>
+                    <span class="range-chip ms-2">
+                        <i class="fas fa-hourglass-half"></i>مجموع {{ total_text }}
+                    </span>
+                </div>
+                {% if date_from or date_to %}
+                <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:5px;">
+                    <i class="fas fa-calendar-days me-1"></i>
+                    بازه:
+                    {% if date_from %}{{ date_from|to_jalali_full }}{% else %}ابتدای ثبت{% endif %}
+                    تا
+                    {% if date_to %}{{ date_to|to_jalali_full }}{% else %}امروز{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="action-buttons">
+                <a href="{% url 'errands-export' %}{% if filter_qs %}?{{ filter_qs }}{% endif %}"
+                   class="btn btn-gradient">
+                    <i class="fas fa-file-excel me-1"></i>خروجی اکسل
+                </a>
+                <a href="{% url 'errands-admin' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-user-shield me-1"></i>صفحهٔ بررسی
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== جدول ===== -->
+    <div class="card-modern">
+        <div class="card-header py-3">
+            <h5 class="mb-0 d-flex align-items-center" style="font-weight:700;">
+                <i class="fas fa-list me-2" style="color:var(--primary)"></i>فهرست معموریت‌ها
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if rows %}
+            <div class="table-responsive">
+                <table class="table table-modern mb-0 align-middle table-stack">
+                    <thead>
+                        <tr>
+                            <th style="width:55px;">ردیف</th>
+                            <th>کارمند</th>
+                            <th>تاریخ</th>
+                            <th>شروع</th>
+                            <th>پایان</th>
+                            <th>مدت</th>
+                            <th>دلیل</th>
+                            <th>وضعیت</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rows %}
+                        <tr>
+                            <td class="text-center" style="color:var(--text-secondary);font-weight:600;"
+                                data-label="ردیف">{{ forloop.counter|fa }}</td>
+                            <td data-label="کارمند">
+                                <span style="display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                                    <i class="fas fa-user" style="color:var(--primary);font-size:0.8rem;"></i>
+                                    {{ r.errand.user.first_name }} {{ r.errand.user.last_name }}
+                                </span>
+                            </td>
+                            <td style="white-space:nowrap;font-weight:600;" data-label="تاریخ">
+                                {{ r.start_jalali }}
+                            </td>
+                            <td style="white-space:nowrap;" data-label="شروع">{{ r.start_clock }}</td>
+                            <td style="white-space:nowrap;" data-label="پایان">
+                                {{ r.end_clock }}
+                                {% if r.start_clock and r.errand.start_time|date:"Y-m-d" != r.errand.end_time|date:"Y-m-d" %}
+                                <span class="overnight-tag"><i class="fas fa-moon"></i>فردا</span>
+                                {% endif %}
+                            </td>
+                            <td class="dur-cell" data-label="مدت">{{ r.duration }}</td>
+                            <td data-label="دلیل" style="max-width:240px;">
+                                {{ r.errand.reason|truncatechars:70 }}
+                                {% if r.errand.destination %}
+                                <div style="font-size:0.76rem;color:var(--text-muted);margin-top:3px;">
+                                    <i class="fas fa-map-marker-alt"></i> {{ r.errand.destination }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td data-label="وضعیت">
+                                <span class="st-badge st-{{ r.errand.status }}">
+                                    {{ r.errand.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-body empty-state">
+                <div class="empty-icon"><i class="fas fa-briefcase"></i></div>
+                <p style="margin:0;font-weight:600;color:var(--text-primary);font-size:1.05rem;">
+                    معموریتی در این بازه پیدا نشد
+                </p>
+                <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                    بازهٔ تاریخ یا وضعیت را تغییر دهید.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.jalaliDatepicker) {
+        window.jalaliDatepicker.startWatch();
+    }
+});
+</script>
+{% endblock %}

@@ -80,6 +80,21 @@ class JalaliDatePickerInput(forms.TextInput):
 		super().__init__(attrs=default)
 
 
+class JalaliDateTimePickerInput(forms.TextInput):
+	"""Text input for Jalali date + time (e.g. ۱۴۰۳/۰۵/۰۷ ۱۷:۳۰)."""
+	def __init__(self, attrs=None):
+		default = {
+			'readonly': 'readonly',
+			'class': 'jalali-date form-control',
+			'data-time': 'true',
+			'placeholder': '۱۴۰۳/۰۵/۰۷ ۱۷:۳۰',
+			'autocomplete': 'off',
+		}
+		if attrs:
+			default.update(attrs)
+		super().__init__(attrs=default)
+
+
 class JalaliDatePickerField(forms.CharField):
 	"""Text input holding a Jalali date like ۱۴۰۳/۰۵/۰۷.
 
@@ -107,6 +122,42 @@ class JalaliDatePickerField(forms.CharField):
 		except ValueError:
 			raise forms.ValidationError("تاریخ نامعتبر است")
 		return jd.togregorian()
+
+
+class JalaliDateTimePickerField(forms.CharField):
+	"""Text input holding a Jalali datetime like ۱۴۰۳/۰۵/۰۷ ۱۷:۳۰.
+
+	clean() converts it to a timezone-aware gregorian datetime.
+	"""
+	widget = JalaliDateTimePickerInput
+
+	def __init__(self, *args, **kwargs):
+		kwargs.setdefault('label', 'تاریخ و ساعت')
+		kwargs.setdefault('max_length', 40)
+		super().__init__(*args, **kwargs)
+
+	def clean(self, value):
+		value = super().clean(value)
+		if not value:
+			return None
+		import re
+		from django.utils import timezone
+		# Parse Jalali datetime: "۱۴۰۳/۰۵/۰۷ ۱۷:۳۰" or "1403/05/07 17:30"
+		digits = str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789')
+		text = value.translate(digits).strip()
+		# Split date and time parts
+		m = re.match(r'^(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})[ T](\d{1,2}):(\d{2})$', text)
+		if not m:
+			raise forms.ValidationError("قالب تاریخ و ساعت نامعتبر است. مثال: ۱۴۰۳/۰۵/۰۷ ۱۷:۳۰")
+		jy, jm, jd, hh, mn = map(int, m.groups())
+		try:
+			jd = jdatetime.datetime(jy, jm, jd, hh, mn)
+		except ValueError:
+			raise forms.ValidationError("تاریخ یا ساعت نامعتبر است")
+		greg = jd.togregorian()
+		if timezone.is_naive(greg):
+			greg = timezone.make_aware(greg, timezone.get_current_timezone())
+		return greg
 
 
 class DateRangeForm(forms.Form):

@@ -1,4 +1,9 @@
 from users.models import Present, Time, Break
+from errands.services import (
+    build_raw_map as errand_map,
+    effective_seconds,
+    subtract_intervals,
+)
 import jdatetime
 import datetime as dt
 
@@ -44,16 +49,71 @@ def pair_time_events(events):
     return sessions, open_time
 
 
+def _errand_labels(intervals, errands):
+    """ساخت برچسب‌های خوانا برای بازه و دلایل معموریت.
+
+    `intervals` بازه‌های **مؤثر** همان روز است (معموریت منهای حضور).
+    خروجی:
+        range_text : مثل «۰۹:۰۰ تا ۱۲:۳۰» یا «۰۹:۰۰ تا ۱۲:۳۰ و ۱۴:۰۰ تا ۱۷:۰۰»
+        reasons    : لیست دلایل معموریت‌های آن روز برای tooltip
+    """
+    if not intervals:
+        return '', []
+
+    parts = []
+    for start, end in intervals:
+        parts.append('%s تا %s' % (
+            fa_digits(start.strftime('%H:%M')),
+            fa_digits(end.strftime('%H:%M')),
+        ))
+
+    reasons = []
+    for errand in errands:
+        text = (getattr(errand, 'reason', '') or '').strip()
+        if text and text not in reasons:
+            reasons.append(text)
+
+    return ' و '.join(parts), reasons
+
+
+def _errand_note(errands):
+    """یادداشت کوتاه معموریت برای چاپ: «مأموریت: بانک — بایگانی»."""
+    if not errands:
+        return ''
+    labels = []
+    for errand in errands:
+        reason = (getattr(errand, 'reason', '') or '').strip()
+        destination = (getattr(errand, 'destination', '') or '').strip()
+        if destination and reason:
+            labels.append('%s (%s)' % (destination, reason))
+        elif destination:
+            labels.append(destination)
+        elif reason:
+            labels.append(reason)
+    if not labels:
+        return 'مأموریت'
+    return 'مأموریت: ' + ' | '.join(labels)
+
+
 def daily_rows(users, date_from=None, date_to=None):
     """Build per (user, date) attendance rows.
 
     `date_from`/`date_to` are optional gregorian date bounds; when either is
     None that bound is unbounded (so both None = all data in the database).
 
+    هر ردیف علاوه بر «مدت حضور» (ساعت فیزیکی ورود/خروج) دو چیز دیگر هم دارد:
+
+        errand_seconds : مدت معموریتِ **مؤثر** (تأییدشده، منهای همپوشانی با حضور)
+        total_seconds  : ساعت کار روز = work_seconds + errand_seconds
+
+    قاعده: اجتماعِ (حضور ∪ معموریت) = ساعت کار. چون مدت معموریت از حضور
+    فیزیکی کسر می‌شود، هیچ دقیقه‌ای دوبار شمرده نمی‌شود.
+
     Returns a list of dicts ordered by date then username:
       user, date, present, events, sessions, open_time,
-      first_in, last_out, work_seconds, work_text, breaks, break_text,
-      exit_reason, exit_reason_text
+      first_in, last_out, work_seconds, work_text, total_seconds, total_text,
+      errands, errand_seconds, errand_text, errand_label,
+      breaks, break_text, exit_reason, exit_reason_text
     """
     time_qs = (
         Time.objects
@@ -92,29 +152,59 @@ def daily_rows(users, date_from=None, date_to=None):
                 'exit_reason_text': ev.exit_reason_text
             }
 
+    # ---- معموریت‌های تأییدشده، تفکیک‌شده به روز ----
+    # فقط تأییدشده‌ها وارد محاسبه می‌شوند؛ درخواست‌های «در انتظار بررسی»
+    # هیچ اثری روی گزارش ندارند.
+    errand_raw = errand_map(users, date_from, date_to)
+
     by_key = {}
     for ev in time_qs:
         key = (ev.user_id, ev.date)
         by_key.setdefault(key, []).append(ev)
 
     rows = []
+    # کلیدهای کاربرانی که فقط معموریت تأییدشده دارند و هیچ رویداد حضوری
+    # ثبت نکرده‌اند هم باید در گزارش بیایند.
+    for key in errand_raw:
+        by_key.setdefault(key, [])
+
     for key, events in by_key.items():
         user_id, date = key
-        user = events[0].user
-        events = [e for e in events if e.time is not None]
-        if not events:
+        user = events[0].user if events else next(
+            (u for u in users if u.id == user_id), None
+        )
+        if user is None:
             continue
-        sessions, open_time = pair_time_events(events)
+        events = [e for e in events if e.time is not None]
+        sessions, open_time = pair_time_events(events) if events else ([], None)
         work_seconds = sum((o - i).total_seconds() for i, o in sessions)
         first_in = next((e.time for e in events if not e.out), None)
         last_out = next((e.time for e in reversed(events) if e.out), None)
         breaks = break_map.get(key, [])
         exit_info = exit_reason_map.get(key, {})
+
+        # معموریت مؤثر = بازهٔ معموریت منهای بازه‌های حضور فیزیکی
+        raw = errand_raw.get(key, {})
+        errand_intervals = raw.get('intervals', [])
+        errand_objects = raw.get('errands', [])
+        if errand_intervals:
+            errand_seconds = effective_seconds(errand_intervals, sessions)
+            effective = subtract_intervals(errand_intervals, sessions)
+        else:
+            errand_seconds = 0
+            effective = []
+
+        # برچسب‌های آمادهٔ نمایش برای قالب و چاپ
+        errand_range_text, errand_reasons = _errand_labels(effective, errand_objects)
+
         rows.append({
             'user': user,
             'username': user.username,
             'date': date,
-            'present': present_map.get(key, bool(events)),
+            # کسی که معموریت تأییدشده دارد، در آن روز «حاضر» شمرده می‌شود
+            # حتی اگر ورود فیزیکی ثبت نکرده باشد.
+            'present': bool(events) or bool(errand_intervals)
+                      or present_map.get(key, False),
             'events': events,
             'sessions': sessions,
             'open_time': open_time,
@@ -123,6 +213,16 @@ def daily_rows(users, date_from=None, date_to=None):
             'end_of_day': None,
             'work_seconds': work_seconds,
             'work_text': format_hours(work_seconds),
+            'errands': errand_objects,
+            'errand_intervals': effective,
+            'errand_seconds': errand_seconds,
+            'errand_text': format_hours(errand_seconds),
+            'errand_range_text': errand_range_text,
+            'errand_reasons': errand_reasons,
+            'errand_note': _errand_note(errand_objects),
+            'has_errand': bool(effective),
+            'total_seconds': work_seconds + errand_seconds,
+            'total_text': format_hours(work_seconds + errand_seconds),
             'breaks': breaks,
             'break_text': format_hours(sum(b.duration_minutes() * 60 for b in breaks)),
             'exit_reason': exit_info.get('exit_reason'),
@@ -149,6 +249,16 @@ def daily_rows(users, date_from=None, date_to=None):
                 'end_of_day': None,
                 'work_seconds': 0,
                 'work_text': format_hours(0),
+                'errands': [],
+                'errand_intervals': [],
+                'errand_seconds': 0,
+                'errand_text': format_hours(0),
+                'errand_range_text': '',
+                'errand_reasons': [],
+                'errand_note': '',
+                'has_errand': False,
+                'total_seconds': 0,
+                'total_text': format_hours(0),
                 'breaks': break_map.get(key, []),
                 'break_text': format_hours(0),
                 'exit_reason': exit_info.get('exit_reason'),
@@ -162,28 +272,38 @@ def daily_rows(users, date_from=None, date_to=None):
 def range_summary(rows):
     """Totals across a list of daily rows.
 
+    مجموع ساعت روی **ساعت کار** حساب می‌شود (حضور + معموریت مؤثر).
+
     Returns (days_present, total_seconds, unique_person_count).
     """
-    total_seconds = sum(r['work_seconds'] for r in rows)
+    total_seconds = sum(r.get('total_seconds', r['work_seconds']) for r in rows)
     days_present = len({(r['username'], r['date']) for r in rows if r['present']})
     person_count = len({r['username'] for r in rows})
     return days_present, total_seconds, person_count
+
+
+def errand_summary(rows):
+    """مجموع مدت معموریت در یک لیست ردیف‌ها."""
+    return sum(r.get('errand_seconds', 0) for r in rows)
 
 
 def per_user_summary(rows):
     """Aggregate work_seconds and days_present per user.
 
     Returns a list of dicts with: user, username, first_name, last_name,
-    days_present, total_seconds, total_text.
+    days_present, total_seconds, total_text, errand_seconds, errand_text.
     """
     from collections import defaultdict
-    agg = defaultdict(lambda: {'days': 0, 'seconds': 0, 'user_obj': None})
+    agg = defaultdict(lambda: {
+        'days': 0, 'seconds': 0, 'user_obj': None, 'errand': 0,
+    })
     for r in rows:
         if not r['present']:
             continue
         key = r['username']
         agg[key]['days'] += 1
-        agg[key]['seconds'] += r['work_seconds']
+        agg[key]['seconds'] += r.get('total_seconds', r['work_seconds'])
+        agg[key]['errand'] += r.get('errand_seconds', 0)
         if agg[key]['user_obj'] is None:
             agg[key]['user_obj'] = r['user']
     
@@ -198,6 +318,8 @@ def per_user_summary(rows):
                 'days_present': data['days'],
                 'total_seconds': data['seconds'],
                 'total_text': format_hours(data['seconds']),
+                'errand_seconds': data['errand'],
+                'errand_text': format_hours(data['errand']),
             })
     # Sort by total_seconds descending (most hours first)
     result.sort(key=lambda x: x['total_seconds'], reverse=True)
@@ -284,9 +406,11 @@ def weekly_summary(rows):
                 'week_end': fri,
                 'days': 0,
                 'seconds': 0,
+                'errand': 0,
             }
         weeks[key]['days'] += 1
-        weeks[key]['seconds'] += r['work_seconds']
+        weeks[key]['seconds'] += r.get('total_seconds', r['work_seconds'])
+        weeks[key]['errand'] += r.get('errand_seconds', 0)
 
     result = []
     for key in sorted(weeks):
@@ -304,6 +428,8 @@ def weekly_summary(rows):
             'days': w['days'],
             'seconds': w['seconds'],
             'hours_text': format_hours(w['seconds']),
+            'errand_seconds': w.get('errand', 0),
+            'errand_text': format_hours(w.get('errand', 0)),
         })
     return result
 
@@ -333,9 +459,11 @@ def monthly_summary(rows):
                 'month_name': MONTH_FA[j.month - 1],
                 'days': 0,
                 'seconds': 0,
+                'errand': 0,
             }
         months[key]['days'] += 1
-        months[key]['seconds'] += r['work_seconds']
+        months[key]['seconds'] += r.get('total_seconds', r['work_seconds'])
+        months[key]['errand'] += r.get('errand_seconds', 0)
 
     result = []
     for key in sorted(months):
@@ -349,5 +477,7 @@ def monthly_summary(rows):
             'days': m['days'],
             'seconds': m['seconds'],
             'hours_text': format_hours(m['seconds']),
+            'errand_seconds': m.get('errand', 0),
+            'errand_text': format_hours(m.get('errand', 0)),
         })
     return result

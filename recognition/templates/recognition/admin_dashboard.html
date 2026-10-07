@@ -374,6 +374,25 @@
         </a>
     </div>
 
+    <!-- Errands -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{% url 'errands-admin' %}" class="dash-card errands position-relative">
+            {% if pending_errand_count %}
+            <span class="err-badge" style="top:12px;left:12px;">
+                <i class="fas fa-hourglass-half"></i>{{ pending_errand_count }} در انتظار
+            </span>
+            {% endif %}
+            <div class="dc-icon-wrap">
+                <i class="fas fa-briefcase"></i>
+            </div>
+            <h5>معموریت‌ها</h5>
+            <p>بررسی و تأیید/رد درخواست‌های مأموریت بیرونی کارمندان</p>
+            <span class="dc-arrow">
+                بررسی درخواست‌ها <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+
 </div>
 
 {% endblock %}

@@ -19,6 +19,7 @@ from django.contrib.auth import views as auth_views
 from recognition import views as recog_views
 from users import views as users_views
 from users import forms as users_forms
+from errands import views as errands_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -61,6 +62,16 @@ urlpatterns = [
     path('manage/exit-reasons/update-order/<int:reason_id>/', recog_views.update_exit_reason_order, name='update-exit-reason-order'),
     path('checkout-errors/', recog_views.view_checkout_errors, name='view-checkout-errors'),
     path('checkout-errors/<int:error_id>/resolve/', recog_views.resolve_checkout_error, name='resolve-checkout-error'),
+    # ---- معموریت (کارمند) ----
+    path('errands/', errands_views.my_errands, name='errands-my'),
+    path('errands/<int:pk>/cancel/', errands_views.cancel_errand, name='errands-cancel'),
+    # ---- معموریت (ادمین) ----
+    path('manage/errands/', errands_views.admin_review, name='errands-admin'),
+    path('manage/errands/review/<int:pk>/', errands_views.review_errand, name='errands-review'),
+    path('manage/errands/bulk/', errands_views.bulk_review, name='errands-bulk'),
+    path('manage/errands/<int:pk>/edit/', errands_views.admin_edit, name='errands-edit'),
+    path('manage/errands/report/', errands_views.errand_list, name='errands-list'),
+    path('manage/errands/export/', errands_views.errand_export, name='errands-export'),
     path('manage/snapshots/', users_views.snapshot_review, name='snapshot-review'),
     path('manage/snapshots/image/<int:snapshot_id>/', users_views.snapshot_image, name='snapshot-image'),
     path('manage/snapshots/delete/<int:snapshot_id>/', users_views.snapshot_delete, name='snapshot-delete'),

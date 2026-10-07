@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'jazzmin',
     'users.apps.UsersConfig',
     'recognition.apps.RecognitionConfig',
+    'errands.apps.ErrandsConfig',
 
     'crispy_forms',
     'crispy_bootstrap4',

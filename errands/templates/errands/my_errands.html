@@ -1,0 +1,728 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}معموریت‌های من{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============================================================
+   وضعیت‌ها
+   ============================================================ */
+.st-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+}
+.st-pending {
+    background: rgba(var(--warning-rgb, 245, 158, 11), 0.14);
+    color: #f59e0b;
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.28);
+}
+.st-approved {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.28);
+}
+.st-rejected {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.28);
+}
+.st-cancelled {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-secondary);
+    box-shadow: inset 0 0 0 1px var(--glass-border);
+}
+.st-badge i { font-size: 0.72rem; }
+.st-approved::before,
+.st-pending::before,
+.st-rejected::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 8px currentColor;
+}
+.st-cancelled::before { content: none; }
+
+/* ============================================================
+   هشدار «در جریان بودن» معموریت
+   ============================================================ */
+.live-banner {
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.16), rgba(var(--primary-rgb), 0.1));
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+    border-radius: 18px;
+    padding: 1.15rem 1.5rem;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    position: relative; overflow: hidden;
+    animation: livePulse 2.6s ease-in-out infinite;
+}
+.live-banner::before {
+    content: '';
+    position: absolute; top: 0; right: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--primary));
+    background-size: 200% 100%;
+    animation: gradientShift 3s ease infinite;
+}
+@keyframes livePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0); }
+}
+.live-banner .live-icon {
+    width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+    background: rgba(var(--accent-rgb), 0.2);
+    color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
+}
+.live-banner .live-text { flex: 1 1 220px; min-width: 0; }
+.live-banner .live-text strong { display: block; color: var(--text-primary); font-size: 0.98rem; }
+.live-banner .live-text span { font-size: 0.83rem; color: var(--text-secondary); }
+
+/* ============================================================
+   فرم ثبت
+   ============================================================ */
+.form-card { position: relative; }
+.form-card .form-hint {
+    font-size: 0.8rem; color: var(--text-muted);
+    display: flex; align-items: flex-start; gap: 6px;
+    margin-top: 6px; line-height: 1.6;
+}
+.form-card .form-hint i { color: var(--primary); margin-top: 3px; flex-shrink: 0; }
+
+.range-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.75rem; align-items: end;
+}
+.range-grid .arrow {
+    padding-bottom: 12px; color: var(--primary); font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+}
+@media (max-width: 575px) {
+    .range-grid { grid-template-columns: 1fr; }
+    .range-grid .arrow { padding-bottom: 0; transform: rotate(90deg); }
+}
+
+.date-wrap { position: relative; }
+.date-wrap .date-icon {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary); font-size: 0.85rem;
+    pointer-events: none; z-index: 2;
+}
+.date-wrap input { padding-right: 38px !important; direction: ltr; text-align: right; }
+
+/* ============================================================
+   فیلتر کارت — شبیه بخش گزارشات
+   ============================================================ */
+.input-group-icon { position: relative; }
+.input-group-icon .input-icon {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary); font-size: 0.85rem;
+    pointer-events: none; z-index: 2;
+}
+.input-group-icon input { padding-right: 38px !important; direction: ltr; text-align: right; }
+
+.preset-chips {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+}
+.preset-chips .chip-label {
+    font-size: 0.75rem; color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.chip-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border-radius: 20px;
+    background: rgba(var(--primary-rgb), 0.1);
+    border: 1px solid rgba(var(--primary-rgb), 0.25);
+    color: var(--primary); font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; transition: all 0.25s;
+    white-space: nowrap;
+}
+.chip-btn:hover {
+    background: rgba(var(--primary-rgb), 0.18);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -4px rgba(var(--primary-rgb), 0.4);
+}
+.chip-btn i { font-size: 0.7rem; }
+
+@media (max-width: 575px) {
+    .chip-btn { font-size: 0.7rem; padding: 5px 10px; }
+}
+
+/* ============================================================
+   کارت معموریت
+   ============================================================ */
+.er-card {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 1.35rem;
+    position: relative; overflow: hidden;
+    transition: border-color 0.35s, box-shadow 0.35s, transform 0.35s;
+}
+.er-card::before {
+    content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px;
+}
+.er-card.s-pending::before   { background: linear-gradient(180deg, #f59e0b, #f97316); }
+.er-card.s-approved::before  { background: linear-gradient(180deg, #10b981, #059669); }
+.er-card.s-rejected::before  { background: linear-gradient(180deg, #ef4444, #dc2626); }
+.er-card.s-cancelled::before { background: linear-gradient(180deg, #64748b, #475569); }
+.er-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px -16px var(--shadow);
+}
+.er-card.s-approved:hover { border-color: rgba(16,185,129,0.4); }
+.er-card.s-pending:hover  { border-color: rgba(245,158,11,0.4); }
+
+.er-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 0.85rem; flex-wrap: wrap; margin-bottom: 1rem;
+    padding-bottom: 0.9rem; border-bottom: 1px dashed var(--glass-border);
+}
+.er-when {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 1rem; color: var(--text-primary);
+}
+.er-when .ico {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.2), rgba(var(--accent-rgb), 0.14));
+    color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+}
+.er-when .range-line {
+    font-size: 0.84rem; font-weight: 500; color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.er-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 10px;
+    background: rgba(148,163,184,0.08);
+    border: 1px solid var(--glass-border);
+    font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);
+    white-space: nowrap;
+}
+.chip i { color: var(--primary); font-size: 0.75rem; }
+.chip.dur {
+    background: rgba(var(--primary-rgb), 0.12);
+    border-color: rgba(var(--primary-rgb), 0.3);
+    color: var(--primary);
+    font-weight: 700;
+}
+.chip.overnight {
+    background: rgba(var(--secondary-rgb, 192,132,252), 0.14);
+    border-color: rgba(192,132,252,0.3);
+    color: #c084fc;
+}
+
+.er-reason {
+    font-size: 0.9rem; color: var(--text-primary);
+    line-height: 1.85; margin-bottom: 0.75rem;
+    word-break: break-word;
+}
+.er-reason .lbl {
+    font-size: 0.76rem; color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 5px; margin-bottom: 3px;
+}
+.er-note {
+    background: rgba(239, 68, 68, 0.09);
+    border: 1px solid rgba(239, 68, 68, 0.24);
+    border-radius: 12px; padding: 0.75rem 1rem;
+    font-size: 0.85rem; color: var(--text-primary);
+    display: flex; gap: 8px; align-items: flex-start;
+}
+.er-note i { color: #ef4444; margin-top: 3px; flex-shrink: 0; }
+.er-note .lbl { font-size: 0.75rem; color: #ef4444; font-weight: 700; display: block; }
+
+.er-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.75rem; flex-wrap: wrap;
+    margin-top: 1rem; padding-top: 0.9rem;
+    border-top: 1px dashed var(--glass-border);
+}
+.er-foot .meta { font-size: 0.78rem; color: var(--text-muted); }
+.er-foot .meta i { color: var(--text-secondary); }
+
+/* ============================================================
+   استات و خالی
+   ============================================================ */
+.count-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 25px; padding: 0 9px;
+    border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+    margin-right: 8px; background: rgba(255, 255, 255, 0.12);
+}
+.empty-state { padding: 3rem 1rem; text-align: center; }
+.empty-state .empty-icon {
+    width: 84px; height: 84px; border-radius: 24px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; color: var(--success); margin-bottom: 1rem;
+}
+
+/* دکمهٔ کوچک لغو */
+.btn-cancel-sm {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444; border-radius: 10px;
+    padding: 7px 16px; font-size: 0.82rem; font-weight: 600;
+    transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.btn-cancel-sm:hover {
+    background: rgba(239, 68, 68, 0.2); color: #ef4444;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -8px rgba(239, 68, 68, 0.5);
+}
+@media (max-width: 480px) {
+    .er-head { flex-direction: column; }
+    .er-foot { flex-direction: column-reverse; align-items: stretch; }
+    .er-foot .btn-cancel-sm { width: 100%; }
+    .er-foot .meta { text-align: center; }
+    .chip { font-size: 0.75rem; padding: 5px 10px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-12 col-lg-11 col-xl-10">
+
+    <!-- ============ عنوان ============ -->
+    <div class="text-center mb-4">
+        <h1 class="page-title">
+            <i class="fas fa-briefcase me-2" style="color:var(--primary)"></i>معموریت من
+        </h1>
+        <p class="page-subtitle">
+            مأموریت‌های بیرونی خود را ثبت کنید. پس از تأیید مدیر، مدت آن به‌عنوان
+            ساعت کار در گزارش‌ها و خروجی چاپ محاسبه می‌شود.
+        </p>
+    </div>
+
+    <!-- ============ معموریت در جریان ============ -->
+    {% if current_errand %}
+    <div class="live-banner mb-4">
+        <span class="live-icon"><i class="fas fa-satellite-dish"></i></span>
+        <div class="live-text">
+            <strong>شما الان در مأموریت هستید</strong>
+            <span>
+                از {{ current_errand.start_time|clock }} تا {{ current_errand.end_time|clock }}
+                — {{ current_errand.duration_display }}
+                {% if current_errand.destination %} · {{ current_errand.destination }}{% endif %}
+            </span>
+        </div>
+        <span class="st-badge st-approved"><i class="fas fa-check"></i>تأییدشده</span>
+    </div>
+    {% endif %}
+
+    <!-- ============ آمار ============ -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-number" style="color:var(--warning);">
+                    <i class="fas fa-hourglass-half"></i> {{ counts.pending|fa }}
+                </div>
+                <div class="stat-label">در انتظار بررسی</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-number" style="color:var(--success);">
+                    <i class="fas fa-check-circle"></i> {{ counts.approved|fa }}
+                </div>
+                <div class="stat-label">تأییدشده</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-number" style="color:var(--danger);">
+                    <i class="fas fa-times-circle"></i> {{ counts.rejected|fa }}
+                </div>
+                <div class="stat-label">ردشده</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-number" style="font-size:1.5rem;padding-top:0.6rem;">
+                    <i class="fas fa-clock"></i> {{ approved_text }}
+                </div>
+                <div class="stat-label">مجموع معموریت تأییدشده</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- ============ فرم ثبت ============ -->
+        {% if not is_admin_mode %}
+        <div class="col-12 col-lg-5">
+            <div class="card-modern form-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-plus-circle me-2" style="color:var(--primary)"></i>ثبت معموریت جدید</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate class="errand-form">
+                        {% csrf_token %}
+
+                        <!-- بازهٔ زمانی - شبیه بخش گزارشات -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-clock me-1" style="color:var(--primary)"></i>
+                                بازهٔ مأموریت
+                            </label>
+                            <small class="text-muted d-block mb-2">
+                                بازه مورد نظر را انتخاب کنید یا از میانبرهای آماده استفاده کنید
+                            </small>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">
+                                        <i class="fas fa-arrow-right"></i>از تاریخ و ساعت
+                                    </label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-calendar-alt input-icon"></i>
+                                        {{ form.start }}
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">
+                                        <i class="fas fa-arrow-left"></i>تا تاریخ و ساعت
+                                    </label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-calendar-alt input-icon"></i>
+                                        {{ form.end }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% for e in form.start.errors %}
+                                <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                            {% for e in form.end.errors %}
+                                <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                            <div class="preset-chips mt-3">
+                                <span class="chip-label"><i class="fas fa-bolt"></i>میانبر:</span>
+                                <button type="button" class="chip-btn" data-errand-preset="today">
+                                    <i class="fas fa-bullseye"></i>امروز
+                                </button>
+                                <button type="button" class="chip-btn" data-errand-preset="tomorrow">
+                                    <i class="fas fa-calendar-day"></i>فردا
+                                </button>
+                                <button type="button" class="chip-btn" data-errand-preset="week">
+                                    <i class="fas fa-calendar-week"></i>هفته جاری
+                                </button>
+                                <button type="button" class="chip-btn" data-errand-preset="currentMonth">
+                                    <i class="fas fa-calendar"></i>ماه جاری
+                                </button>
+                            </div>
+                            <div class="form-hint mt-2">
+                                <i class="fas fa-info-circle"></i>
+                                <span>
+                                    اگر مأموریت از نیمه‌شب گذشت (مثلاً ۱۷ دیروز تا ۰۴ امروز)
+                                    هر دو تاریخ را درست وارد کنید؛ مدت به‌درستی تقسیم می‌شود.
+                                    حداکثر {{ backdate_limit|fa }} روز به عقب قابل ثبت است.
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- دلیل -->
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.reason.id_for_label }}">
+                                <i class="fas fa-pen me-1" style="color:var(--primary)"></i>
+                                دلیل / موضوع مأموریت
+                            </label>
+                            {{ form.reason }}
+                            {% for e in form.reason.errors %}
+                                <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- مقصد و تماس -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label" for="{{ form.destination.id_for_label }}">
+                                    <i class="fas fa-map-marker-alt me-1" style="color:var(--primary)"></i>
+                                    مقصد
+                                </label>
+                                {{ form.destination }}
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label" for="{{ form.contact.id_for_label }}">
+                                    <i class="fas fa-phone me-1" style="color:var(--primary)"></i>
+                                    شمارهٔ تماس
+                                </label>
+                                {{ form.contact }}
+                            </div>
+                        </div>
+
+                        <div class="form-hint mb-3">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>پس از ثبت، وضعیت «در انتظار بررسی» می‌گیرد و تا تأیید مدیر
+                            روی ساعت کار شما اثری ندارد.</span>
+                        </div>
+
+                        <button type="submit" class="btn btn-gradient w-100">
+                            <i class="fas fa-paper-plane me-2"></i>ارسال درخواست معموریت
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ============ فهرست من ============ -->
+        <div class="col-12 {% if is_admin_mode %}col-lg-12{% else %}col-lg-7{% endif %}">
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <h5 class="mb-0" style="font-weight:700;">
+                    <i class="fas fa-list me-2" style="color:var(--primary)"></i>
+                    معموریت‌های من
+                    <span class="count-badge" style="background:rgba(var(--primary-rgb),0.2);color:var(--primary);">
+                        {{ page_obj.paginator.count|fa }}
+                    </span>
+                </h5>
+            </div>
+
+            {% if page_obj %}
+            <div class="d-flex flex-column gap-3">
+                {% for e in page_obj %}
+                <div class="er-card s-{{ e.status }}">
+                    <div class="er-head">
+                        <div class="er-when">
+                            <span class="ico"><i class="fas fa-briefcase"></i></span>
+                            <div>
+                                <div>
+                                    {{ e.start_time|to_jalali_full }}
+                                    <span style="color:var(--text-secondary);font-weight:500;">
+                                        {{ e.start_time|clock }} تا {{ e.end_time|clock }}
+                                    </span>
+                                </div>
+                                <div class="range-line">
+                                    {% if e.start_time|date:"Y-m-d" != e.end_time|date:"Y-m-d" %}
+                                        <i class="fas fa-moon me-1"></i>مأموریت شبانه (بین دو روز)
+                                    {% else %}
+                                        مأموریت در یک روز
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <span class="st-badge st-{{ e.status }}">
+                            {% if e.status == 'pending' %}<i class="fas fa-hourglass-half"></i>
+                            {% elif e.status == 'approved' %}<i class="fas fa-check"></i>
+                            {% elif e.status == 'rejected' %}<i class="fas fa-times"></i>
+                            {% else %}<i class="fas fa-ban"></i>{% endif %}
+                            {{ e.get_status_display }}
+                        </span>
+                    </div>
+
+                    <div class="er-chips mb-3">
+                        <span class="chip dur">
+                            <i class="fas fa-hourglass-half"></i>{{ e.duration_display }}
+                        </span>
+                        {% if e.start_time|date:"Y-m-d" != e.end_time|date:"Y-m-d" %}
+                        <span class="chip overnight">
+                            <i class="fas fa-moon"></i>بین دو روز
+                        </span>
+                        {% endif %}
+                        {% if e.destination %}
+                        <span class="chip"><i class="fas fa-map-marker-alt"></i>{{ e.destination }}</span>
+                        {% endif %}
+                        {% if e.contact %}
+                        <span class="chip"><i class="fas fa-phone"></i>{{ e.contact }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="er-reason">
+                        <span class="lbl"><i class="fas fa-pen"></i>دلیل</span>
+                        {{ e.reason }}
+                    </div>
+
+                    {% if e.status == 'rejected' and e.review_note %}
+                    <div class="er-note mb-2">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <span class="lbl">دلیل رد توسط مدیر</span>
+                            {{ e.review_note }}
+                        </div>
+                    </div>
+                    {% elif e.review_note %}
+                    <div class="er-note mb-2"
+                         style="background:rgba(148,163,184,0.08);border-color:var(--glass-border);">
+                        <i class="fas fa-user-shield" style="color:var(--primary)"></i>
+                        <div>
+                            <span class="lbl" style="color:var(--primary)">یادداشت مدیر</span>
+                            {{ e.review_note }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="er-foot">
+                        <span class="meta">
+                            <i class="fas fa-clock-rotate-left"></i>
+                            ثبت: {{ e.created_at|to_jalali }}
+                            {% if e.reviewed_by %}
+                            · بررسی: {{ e.reviewed_by.first_name }} {{ e.reviewed_by.last_name }}
+                            {% endif %}
+                        </span>
+                        {% if e.is_pending %}
+                        <form method="POST" action="{% url 'errands-cancel' e.pk %}"
+                              onsubmit="return confirm('این درخواست لغو شود؟');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-cancel-sm">
+                                <i class="fas fa-times me-1"></i>لغو درخواست
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- صفحه‌بندی -->
+            {% if page_obj.has_other_pages %}
+            <nav class="mt-4 d-flex justify-content-center">
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">
+                            {{ page_obj.number|fa }} / {{ page_obj.paginator.num_pages|fa }}
+                        </span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="card-modern">
+                <div class="card-body empty-state">
+                    <div class="empty-icon"><i class="fas fa-briefcase"></i></div>
+                    <p style="margin:0;font-weight:600;color:var(--text-primary);font-size:1.05rem;">
+                        هنوز معموریتی ثبت نکرده‌اید
+                    </p>
+                    <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                        از فرم کنار، مأموریت بیرونی خود را ثبت کنید.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
+<script src="{% static 'recognition/js/report-presets.js' %}"></script>
+<script>
+// Errand-specific presets (uses same logic as report-presets.js but for datetime inputs)
+(function () {
+    'use strict';
+
+    function g2j(gy, gm, gd) {
+        var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+        var gy2 = (gm > 2) ? gy + 1 : gy;
+        var days = 355666 + (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1];
+        var jy = -1595 + (33 * Math.floor(days / 12053));
+        days %= 12053;
+        jy += 4 * Math.floor(days / 1461);
+        days %= 1461;
+        if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+        var jm, jd;
+        if (days < 186) { jm = 1 + Math.floor(days / 31); jd = 1 + (days % 31); }
+        else { jm = 7 + Math.floor((days - 186) / 30); jd = 1 + ((days - 186) % 30); }
+        return { y: jy, m: jm, d: jd };
+    }
+
+    function j2num(j) {
+        return j.y + '/' + String(j.m).padStart(2, '0') + '/' + String(j.d).padStart(2, '0');
+    }
+
+    function shiftDays(date, days) {
+        var d = new Date(date.getTime() + days * 86400000);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    function g2greg(j) {
+        var jy2 = j.y + 1595;
+        var days = -355668 + (365 * jy2) + (Math.floor(jy2 / 33) * 8) + Math.floor(((jy2 % 33) + 3) / 4) + j.d + ((j.m < 7) ? (j.m - 1) * 31 : ((j.m - 7) * 30) + 186);
+        var gy = 400 * Math.floor(days / 146097);
+        days %= 146097;
+        if (days > 36524) { days--; gy += 100 * Math.floor(days / 36524); days %= 36524; if (days >= 365) days++; }
+        gy += 4 * Math.floor(days / 1461);
+        days %= 1461;
+        if (days > 365) { gy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+        var gd = days + 1;
+        var sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        var gm = 1;
+        while (gm < 13 && gd > sal_a[gm]) { gd -= sal_a[gm]; gm++; }
+        return new Date(gy, gm - 1, gd);
+    }
+
+    function errandPresetRange(name) {
+        var now = new Date();
+        var today = g2j(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        var currentHour = String(now.getHours()).padStart(2, '0');
+        var currentMin = String(now.getMinutes()).padStart(2, '0');
+        var currentTime = currentHour + ':' + currentMin;
+
+        if (name === 'today') {
+            return { from: { d: today, t: '08:00' }, to: { d: today, t: currentTime } };
+        }
+        if (name === 'tomorrow') {
+            var tm = shiftDays(now, 1);
+            var t = g2j(tm.getFullYear(), tm.getMonth() + 1, tm.getDate());
+            return { from: { d: t, t: '08:00' }, to: { d: t, t: '16:00' } };
+        }
+        if (name === 'currentMonth') return { from: { d: { y: today.y, m: today.m, d: 1 }, t: '08:00' }, to: { d: today, t: currentTime } };
+        if (name === 'week') {
+            var toGreg = new Date(g2greg(today));
+            var wd = toGreg.getDay(); // 0=Sun ... 6=Sat
+            var daysBack = (wd + 1) % 7; // Sat -> 0
+            var wStart = shiftDays(toGreg, -daysBack);
+            return {
+                from: { d: g2j(wStart.getFullYear(), wStart.getMonth() + 1, wStart.getDate()), t: '08:00' },
+                to: { d: today, t: currentTime }
+            };
+        }
+        return null;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-errand-preset]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var form = btn.closest('form');
+                if (!form) return;
+                var inputs = form.querySelectorAll('input.jalali-date[data-time="true"]');
+                if (inputs.length < 2) return;
+                var r = errandPresetRange(btn.dataset.errandPreset);
+                if (!r) return;
+                // Set from
+                inputs[0].value = j2num(r.from.d) + ' ' + r.from.t;
+                // Set to
+                inputs[1].value = j2num(r.to.d) + ' ' + r.to.t;
+                // Re-initialize pickers
+                inputs.forEach(function (inp) { inp._pdp = null; });
+                if (window.initPersianDatepickers) window.initPersianDatepickers();
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

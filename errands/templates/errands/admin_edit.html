@@ -1,0 +1,287 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load jalali_filters %}
+
+{% block title %}ویرایش معموریت{% endblock %}
+
+{% block extra_css %}
+<style>
+.edit-head {
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--accent-rgb), 0.09));
+    border: 1px solid rgba(var(--primary-rgb), 0.25);
+    border-radius: 18px;
+    padding: 1.15rem 1.4rem;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.edit-head .avatar {
+    width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb),0.24), rgba(var(--accent-rgb),0.16));
+    color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+}
+.edit-head .who { font-weight: 700; font-size: 1.05rem; color: var(--text-primary); }
+.edit-head .sub { font-size: 0.82rem; color: var(--text-secondary); }
+
+.st-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+}
+.st-pending   { background: rgba(245,158,11,0.14); color: #f59e0b;
+                box-shadow: inset 0 0 0 1px rgba(245,158,11,0.28); }
+.st-approved  { background: rgba(16,185,129,0.15); color: #10b981;
+                box-shadow: inset 0 0 0 1px rgba(16,185,129,0.28); }
+.st-rejected  { background: rgba(239,68,68,0.15); color: #ef4444;
+                box-shadow: inset 0 0 0 1px rgba(239,68,68,0.28); }
+.st-cancelled { background: rgba(148,163,184,0.12); color: var(--text-secondary);
+                box-shadow: inset 0 0 0 1px var(--glass-border); }
+.st-badge i { font-size: 0.72rem; }
+.st-pending::before, .st-approved::before, .st-rejected::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 8px currentColor;
+}
+.st-cancelled::before { content: none; }
+
+.range-grid {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    gap: 0.75rem; align-items: end;
+}
+.range-grid .arrow {
+    padding-bottom: 12px; color: var(--primary); font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+}
+@media (max-width: 575px) {
+    .range-grid { grid-template-columns: 1fr; }
+    .range-grid .arrow { padding-bottom: 0; transform: rotate(90deg); }
+}
+
+.date-wrap { position: relative; }
+.date-wrap .date-icon {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary); font-size: 0.85rem;
+    pointer-events: none; z-index: 2;
+}
+.date-wrap input { padding-right: 38px !important; direction: ltr; text-align: right; }
+
+.form-hint {
+    font-size: 0.8rem; color: var(--text-muted);
+    display: flex; align-items: flex-start; gap: 6px;
+    margin-top: 6px; line-height: 1.6;
+}
+.form-hint i { color: var(--primary); margin-top: 3px; flex-shrink: 0; }
+
+.warn-box {
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.28);
+    border-radius: 14px; padding: 0.9rem 1.1rem;
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 0.85rem; color: var(--text-primary); line-height: 1.7;
+}
+.warn-box i { color: var(--warning); margin-top: 3px; flex-shrink: 0; }
+
+.facts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem;
+}
+.fact {
+    background: rgba(148,163,184,0.06);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px; padding: 0.75rem 0.9rem;
+}
+.fact .k {
+    font-size: 0.74rem; color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px; margin-bottom: 3px;
+}
+.fact .v { font-size: 0.92rem; font-weight: 700; color: var(--text-primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-12 col-lg-10 col-xl-9">
+
+    <div class="text-center mb-4">
+        <h1 class="page-title">
+            <i class="fas fa-pen-to-square me-2" style="color:var(--primary)"></i>ویرایش معموریت
+        </h1>
+        <p class="page-subtitle">
+            اگر کارمند بازهٔ زمانی یا توضیحات را اشتباه ثبت کرده، اینجا اصلاح کنید.
+            تغییر بازه بلافاصله در گزارش‌ها اعمال می‌شود.
+        </p>
+    </div>
+
+    <!-- ===== کارت کارمند ===== -->
+    <div class="edit-head mb-4">
+        <span class="avatar"><i class="fas fa-briefcase"></i></span>
+        <div style="flex:1 1 200px;min-width:0;">
+            <div class="who">
+                {{ errand.user.first_name }} {{ errand.user.last_name }}
+                <span style="color:var(--text-muted);font-weight:500;font-size:0.85rem;">
+                    @{{ errand.user.username }}
+                </span>
+            </div>
+            <div class="sub">
+                ثبت: {{ errand.created_at|to_jalali }} · مدت فعلی: {{ errand.duration_display }}
+            </div>
+        </div>
+        <span class="st-badge st-{{ errand.status }}">{{ errand.get_status_display }}</span>
+    </div>
+
+    <div class="row g-4">
+        <!-- ===== فرم ===== -->
+        <div class="col-12 col-lg-8">
+            <div class="card-modern">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2" style="color:var(--primary)"></i>اطلاعات مأموریت
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert-modern alert-danger mb-3">
+                            {% for e in form.non_field_errors %}
+                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ e }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-clock me-1" style="color:var(--primary)"></i>
+                                بازهٔ مأموریت
+                            </label>
+                            <div class="range-grid">
+                                <div>
+                                    <label class="form-label" style="font-size:0.8rem;">از</label>
+                                    <div class="date-wrap">
+                                        <i class="fas fa-calendar-alt date-icon"></i>
+                                        {{ form.start }}
+                                    </div>
+                                </div>
+                                <div class="arrow"><i class="fas fa-arrow-left"></i></div>
+                                <div>
+                                    <label class="form-label" style="font-size:0.8rem;">تا</label>
+                                    <div class="date-wrap">
+                                        <i class="fas fa-calendar-alt date-icon"></i>
+                                        {{ form.end }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% for e in form.start.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                            {% for e in form.end.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                            <div class="form-hint">
+                                <i class="fas fa-info-circle"></i>
+                                <span>مأموریت بین دو روز (مثلاً ۱۷ دیروز تا ۰۴ امروز) مجاز است و
+                                به‌درستی بین دو روز تقسیم می‌شود.</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.reason.id_for_label }}">
+                                <i class="fas fa-pen me-1" style="color:var(--primary)"></i>
+                                دلیل / موضوع مأموریت
+                            </label>
+                            {{ form.reason }}
+                            {% for e in form.reason.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label" for="{{ form.destination.id_for_label }}">
+                                    <i class="fas fa-map-marker-alt me-1" style="color:var(--primary)"></i>
+                                    مقصد
+                                </label>
+                                {{ form.destination }}
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label" for="{{ form.contact.id_for_label }}">
+                                    <i class="fas fa-phone me-1" style="color:var(--primary)"></i>
+                                    شمارهٔ تماس
+                                </label>
+                                {{ form.contact }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex gap-2 flex-wrap">
+                            <button type="submit" class="btn btn-gradient">
+                                <i class="fas fa-save me-1"></i>ذخیرهٔ تغییرات
+                            </button>
+                            <a href="{% url 'errands-admin' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>انصراف
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== کناره ===== -->
+        <div class="col-12 col-lg-4">
+            <div class="card-modern mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2" style="color:var(--primary)"></i>
+                        خلاصهٔ فعلی
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="facts">
+                        <div class="fact">
+                            <div class="k"><i class="fas fa-play"></i>شروع</div>
+                            <div class="v">{{ errand.start_time|ja_datetime }}</div>
+                        </div>
+                        <div class="fact">
+                            <div class="k"><i class="fas fa-stop"></i>پایان</div>
+                            <div class="v">{{ errand.end_time|ja_datetime }}</div>
+                        </div>
+                        <div class="fact">
+                            <div class="k"><i class="fas fa-hourglass-half"></i>مدت</div>
+                            <div class="v">{{ errand.duration_display }}</div>
+                        </div>
+                        <div class="fact">
+                            <div class="k"><i class="fas fa-calendar-day"></i>شروع (کامل)</div>
+                            <div class="v" style="font-size:0.85rem;">
+                                {{ errand.start_time|to_jalali_full }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if errand.status == 'approved' %}
+            <div class="warn-box">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span>
+                    این معموریت <strong>تأییدشده</strong> است، پس تغییر بازهٔ آن
+                    بلافاصله روی ساعت کار در گزارش‌ها اثر می‌گذارد.
+                    اگر کارمند اشتباه ثبت کرده، بهتر است به‌جای ویرایش، رد و
+                    درخواست جدید ثبت کند — ولی ویرایش هم مجاز است.
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.jalaliDatepicker) {
+        window.jalaliDatepicker.startWatch();
+    }
+});
+</script>
+{% endblock %}

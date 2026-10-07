@@ -246,14 +246,15 @@ def group_to_rows(rows):
 			clock(r['first_in']) if r['first_in'] else '-',
 			clock(r['last_out']) if r['last_out'] else '-',
 			r['work_text'],
+			r.get('errand_text', '-'),         # ← NEW: مدت معموریت
 			r['break_text'] if r['break_text'] != '-' else '-',
 			exit_reason_display,
 		])
 	return out
 
 
-EXPORT_HEADERS = ['ردیف', 'تاریخ', 'کارمند', 'وضعیت', 'ورود و خروج', 'ساعت ورود', 'ساعت خروج', 'مدت حضور', 'استراحت', 'دلیل خروج']
-EXPORT_WIDTHS = [8, 24, 14, 10, 44, 12, 12, 16, 12, 24]
+EXPORT_HEADERS = ['ردیف', 'تاریخ', 'کارمند', 'وضعیت', 'ورود و خروج', 'ساعت ورود', 'ساعت خروج', 'مدت حضور', 'مدت معموریت', 'استراحت', 'دلیل خروج']
+EXPORT_WIDTHS = [8, 24, 14, 10, 44, 12, 12, 16, 12, 24, 20]
 
 
 def build_export_response(prefix, date_from, date_to, rows):
@@ -299,8 +300,12 @@ def dashboard(request):
     auto_fix_missing_checkouts_throttled()
     pending_errors = CheckOutError.objects.filter(status='pending').count()
     if can_access_admin(request):
+        from errands.models import Errand
         return render(request, 'recognition/admin_dashboard.html', {
             'pending_errors': pending_errors,
+            'pending_errand_count': Errand.objects.filter(
+                status=Errand.STATUS_PENDING
+            ).count(),
         })
     else:
         today = datetime.date.today()
@@ -346,6 +351,10 @@ def dashboard(request):
                 if b.break_out and b.break_in:
                     work_seconds -= int((b.break_in - b.break_out).total_seconds())
         
+        from errands import services as errand_services
+        from errands.models import Errand
+
+        my_errands = Errand.objects.filter(user=user)
         context = {
             'check_in_time': check_in_time,
             'check_out_time': paired_check_out if 'paired_check_out' in locals() else check_out_time,
@@ -353,6 +362,16 @@ def dashboard(request):
             'is_on_break': is_on_break,
             'break_start': break_start,
             'work_text': format_hours(max(0, work_seconds)),
+            # ---- معموریت ----
+            'current_errand': errand_services.open_errand_now(user),
+            'my_errand_counts': {
+                'pending': my_errands.filter(
+                    status=Errand.STATUS_PENDING).count(),
+                'approved': my_errands.filter(
+                    status=Errand.STATUS_APPROVED).count(),
+                'rejected': my_errands.filter(
+                    status=Errand.STATUS_REJECTED).count(),
+            },
         }
         return render(request, 'recognition/employee_dashboard.html', context)
 

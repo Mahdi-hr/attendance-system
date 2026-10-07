@@ -1043,6 +1043,8 @@
                             <th style="width:100px;">ورود</th>
                             <th style="width:100px;">خروج</th>
                             <th style="width:120px;">مدت حضور</th>
+                            <th style="width:160px;">معموریت</th>
+                            <th style="width:130px;">جمع ساعت کار</th>
                             <th>دلیل خروج</th>
                         </tr>
                     </thead>
@@ -1105,6 +1107,25 @@
                                 {% else %}
                                 <span class="work-badge empty">—</span>
                                 {% endif %}
+                            </td>
+                            <td data-label="معموریت">
+                                {% if item.errand_seconds %}
+                                <span class="errand-badge"
+                                      title="{{ item.errand_reasons|join:' | ' }}">
+                                    <i class="fas fa-briefcase"></i>{{ item.errand_text }}
+                                </span>
+                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px;">
+                                    {{ item.errand_range_text }}
+                                </div>
+                                {% else %}
+                                <span class="time-empty">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="جمع ساعت کار">
+                                <span class="work-badge total"
+                                      title="مدت حضور + مدت معموریت تأییدشده">
+                                    <i class="fas fa-calculator"></i>{{ item.total_text }}
+                                </span>
                             </td>
                             <td data-label="دلیل خروج">
                                 {% if item.exit_reason %}

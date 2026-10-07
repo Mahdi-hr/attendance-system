@@ -1,5 +1,6 @@
 /**
  * Persian Datepicker - Custom & Lightweight
+ * Supports date + time selection with modern UI
  * No dependencies required
  */
 (function() {
@@ -110,17 +111,40 @@
 
         var val = this.input.value;
         if (this.enableTime) {
-            var iso = this.hiddenInput ? this.hiddenInput.value : '';
-            var isoMatch = iso.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})/);
-            if (isoMatch) {
-                var jd = gregorianToJalali(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10), parseInt(isoMatch[3], 10));
-                this.selectedYear = jd.year;
-                this.selectedMonth = jd.month;
-                this.selectedDay = jd.day;
-                this.currentYear = jd.year;
-                this.currentMonth = jd.month;
-                this.selectedHour = parseInt(isoMatch[4], 10);
-                this.selectedMinute = parseInt(isoMatch[5], 10);
+            // ۱) اول خودِ ورودی را بخوان («1405/07/15 17:30» — شمسی)
+            var handled = false;
+            if (val) {
+                var digits = val
+                    .replace(/[۰-۹]/g, function (d) { return String(d.charCodeAt(0) - 0x06F0); })
+                    .replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x0660); });
+                var jm = digits.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
+                if (jm) {
+                    this.selectedYear = parseInt(jm[1], 10);
+                    this.selectedMonth = parseInt(jm[2], 10);
+                    this.selectedDay = parseInt(jm[3], 10);
+                    this.currentYear = this.selectedYear;
+                    this.currentMonth = this.selectedMonth;
+                    this.selectedHour = parseInt(jm[4], 10) % 24;
+                    this.selectedMinute = parseInt(jm[5], 10) % 60;
+                    handled = true;
+                }
+            }
+            // ۲) سپس مقدار میلادیِ hidden input (اگر طرح قدیمی استفاده می‌کند)
+            if (!handled && this.hiddenInput && this.hiddenInput.value) {
+                var isoMatch = this.hiddenInput.value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})/);
+                if (isoMatch) {
+                    var jd = gregorianToJalali(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10), parseInt(isoMatch[3], 10));
+                    this.selectedYear = jd.year;
+                    this.selectedMonth = jd.month;
+                    this.selectedDay = jd.day;
+                    this.currentYear = jd.year;
+                    this.currentMonth = jd.month;
+                    this.selectedHour = parseInt(isoMatch[4], 10);
+                    this.selectedMinute = parseInt(isoMatch[5], 10);
+                    handled = true;
+                }
+            }
+            if (handled) {
                 this.input.value = this._isoJalaliDisplay();
             }
         } else if (val && val.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
@@ -238,13 +262,7 @@
 
         html += '</div>';
         if (this.enableTime) {
-            html += '<div class="pdp-time">' +
-                '<span class="pdp-time-label">ساعت</span>' +
-                '<select data-field="hour">' + this._hourOptions() + '</select>' +
-                '<span class="pdp-dot">:</span>' +
-                '<select data-field="minute">' + this._minuteOptions() + '</select>' +
-                '<span class="pdp-time-label">دقیقه</span>' +
-                '</div>';
+            html += this._renderTimeSection();
         }
         html += '<div class="pdp-footer">' +
             '<button type="button" data-action="today">امروز</button>' +
@@ -253,6 +271,44 @@
 
         this.container.innerHTML = html;
         this.bindEvents();
+    };
+
+    PersianDatepicker.prototype._renderTimeSection = function() {
+        var hourOpts = '', minOpts = '';
+        for (var h = 0; h < 24; h++) {
+            var pad = h < 10 ? '0' + h : h;
+            hourOpts += '<option value="' + h + '"' + (h === this.selectedHour ? ' selected' : '') + '>' + toPersianNum(pad) + '</option>';
+        }
+        for (var m = 0; m < 60; m++) {
+            var pad = m < 10 ? '0' + m : m;
+            minOpts += '<option value="' + m + '"' + (m === this.selectedMinute ? ' selected' : '') + '>' + toPersianNum(pad) + '</option>';
+        }
+
+        var quickTimes = [
+            { h: 8, m: 0, label: '۸ صبح' },
+            { h: 9, m: 0, label: '۹ صبح' },
+            { h: 12, m: 0, label: '۱۲ ظهر' },
+            { h: 14, m: 0, label: '۱۴ عصر' },
+            { h: 17, m: 0, label: '۱۷ عصر' },
+            { h: 20, m: 0, label: '۲۰ شب' },
+            { h: 23, m: 59, label: '۲۳:۵۹' }
+        ];
+        var quickHtml = '';
+        for (var q = 0; q < quickTimes.length; q++) {
+            var qt = quickTimes[q];
+            quickHtml += '<button type="button" class="pdp-quick-btn" data-qh="' + qt.h + '" data-qm="' + qt.m + '">' + qt.label + '</button>';
+        }
+
+        return '<div class="pdp-time">' +
+            '<div class="pdp-time-row">' +
+                '<span class="pdp-time-label">ساعت</span>' +
+                '<div class="pdp-time-wheel"><select data-field="hour">' + hourOpts + '</select></div>' +
+                '<span class="pdp-dot">:</span>' +
+                '<div class="pdp-time-wheel"><select data-field="minute">' + minOpts + '</select></div>' +
+                '<span class="pdp-time-label">دقیقه</span>' +
+            '</div>' +
+            '<div class="pdp-quick-times">' + quickHtml + '</div>' +
+            '</div>';
     };
 
     PersianDatepicker.prototype.renderMonths = function() {
@@ -350,7 +406,20 @@
                 return;
             }
 
-            var sel = target.closest('.pdp-time select');
+            var qBtn = target.closest('.pdp-quick-btn');
+            if (qBtn && qBtn.getAttribute('data-qh') !== null) {
+                self.selectedHour = parseInt(qBtn.getAttribute('data-qh'), 10);
+                self.selectedMinute = parseInt(qBtn.getAttribute('data-qm'), 10);
+                if (self.selectedDay !== null) {
+                    self._syncHidden(self.selectedYear, self.selectedMonth, self.selectedDay);
+                    self.input.value = self._isoJalaliDisplay();
+                }
+                // بازرندر کامل تا حالت انتخاب‌شدهٔ دکمه‌ها هم به‌روز شود
+                self.render();
+                return;
+            }
+
+            var sel = target.closest('.pdp-time-wheel select');
             if (sel && sel.getAttribute('data-field')) {
                 self._setTimeField(sel.getAttribute('data-field'), parseInt(sel.value, 10));
                 return;
@@ -379,7 +448,7 @@
             }
         };
 
-        var selects = container.querySelectorAll('.pdp-time select');
+        var selects = container.querySelectorAll('.pdp-time-wheel select');
         for (var i = 0; i < selects.length; i++) {
             selects[i].addEventListener('change', function() {
                 self._setTimeField(this.getAttribute('data-field'), parseInt(this.value, 10));
@@ -411,7 +480,13 @@
             value += ' ' + this._pad(this.selectedHour) + ':' + this._pad(this.selectedMinute);
         }
         this.input.value = value;
-        this.hide();
+        // در حالت «تاریخ + ساعت» پنجره باز می‌ماند تا ساعت هم تنظیم شود؛
+        // بستن با کلیک بیرون یا دوباره روی ورودی انجام می‌شود.
+        if (this.enableTime) {
+            this.render();  // هایلایت روز انتخاب‌شده به‌روز شود
+        } else {
+            this.hide();
+        }
         var evt = document.createEvent('Event');
         evt.initEvent('change', true, true);
         this.input.dispatchEvent(evt);
@@ -431,22 +506,6 @@
         var g = jalaliToGregorian(year, month, day);
         this.hiddenInput.value = g.year + '-' + this._pad(g.month) + '-' + this._pad(g.day) +
             'T' + this._pad(this.selectedHour) + ':' + this._pad(this.selectedMinute);
-    };
-
-    PersianDatepicker.prototype._hourOptions = function() {
-        var out = '';
-        for (var h = 0; h < 24; h++) {
-            out += '<option value="' + h + '"' + (h === this.selectedHour ? ' selected' : '') + '>' + this._pad(h) + '</option>';
-        }
-        return out;
-    };
-
-    PersianDatepicker.prototype._minuteOptions = function() {
-        var out = '';
-        for (var m = 0; m < 60; m++) {
-            out += '<option value="' + m + '"' + (m === this.selectedMinute ? ' selected' : '') + '>' + this._pad(m) + '</option>';
-        }
-        return out;
     };
 
     function initAll() {
