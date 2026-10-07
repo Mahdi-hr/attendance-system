@@ -1,0 +1,91 @@
+{% load jalali_filters %}
+{# کارت یک درخواست معموریت — ورودی: e #}
+<div class="er-card s-{{ e.status }}">
+    <div class="er-head">
+        <div class="er-when">
+            <span class="ico"><i class="fas fa-briefcase"></i></span>
+            <div>
+                <div>
+                    {{ e.start_time|to_jalali_full }}
+                    <span style="color:var(--text-secondary);font-weight:500;">
+                        {{ e.start_time|clock }} تا {{ e.end_time|clock }}
+                    </span>
+                </div>
+                <div class="range-line">
+                    {% if e.start_time|date:"Y-m-d" != e.end_time|date:"Y-m-d" %}
+                        <i class="fas fa-moon me-1"></i>مأموریت شبانه (بین دو روز)
+                    {% else %}
+                        مأموریت در یک روز
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <span class="st-badge st-{{ e.status }}">
+            {% if e.status == 'pending' %}<i class="fas fa-hourglass-half"></i>
+            {% elif e.status == 'approved' %}<i class="fas fa-check"></i>
+            {% elif e.status == 'rejected' %}<i class="fas fa-times"></i>
+            {% else %}<i class="fas fa-ban"></i>{% endif %}
+            {{ e.get_status_display }}
+        </span>
+    </div>
+
+    <div class="er-chips mb-3">
+        <span class="chip dur">
+            <i class="fas fa-hourglass-half"></i>{{ e.duration_display }}
+        </span>
+        {% if e.start_time|date:"Y-m-d" != e.end_time|date:"Y-m-d" %}
+        <span class="chip overnight">
+            <i class="fas fa-moon"></i>بین دو روز
+        </span>
+        {% endif %}
+        {% if e.destination %}
+        <span class="chip"><i class="fas fa-map-marker-alt"></i>{{ e.destination }}</span>
+        {% endif %}
+        {% if e.contact %}
+        <span class="chip"><i class="fas fa-phone"></i>{{ e.contact }}</span>
+        {% endif %}
+    </div>
+
+    <div class="er-reason">
+        <span class="lbl"><i class="fas fa-pen"></i>دلیل</span>
+        {{ e.reason }}
+    </div>
+
+    {% if e.status == 'rejected' and e.review_note %}
+    <div class="er-note mb-2">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+            <span class="lbl">دلیل رد توسط مدیر</span>
+            {{ e.review_note }}
+        </div>
+    </div>
+    {% elif e.review_note %}
+    <div class="er-note mb-2"
+         style="background:rgba(148,163,184,0.08);border-color:var(--glass-border);">
+        <i class="fas fa-user-shield" style="color:var(--primary)"></i>
+        <div>
+            <span class="lbl" style="color:var(--primary)">یادداشت مدیر</span>
+            {{ e.review_note }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="er-foot">
+        <span class="meta">
+            <i class="fas fa-clock-rotate-left"></i>
+            ثبت: {{ e.created_at|to_jalali }}
+            {% if e.reviewed_by %}
+            · بررسی: {{ e.reviewed_by.first_name }} {{ e.reviewed_by.last_name }}
+            {% endif %}
+        </span>
+        {% if e.is_pending %}
+        <form method="POST" action="{% url 'errands-cancel' e.pk %}"
+              onsubmit="return confirm('این درخواست لغو شود؟');">
+            {% csrf_token %}
+            <button type="submit" class="btn-cancel-sm">
+                <i class="fas fa-times me-1"></i>لغو درخواست
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>

@@ -179,3 +179,44 @@ class BreakForm(forms.Form):
 		widget=forms.TextInput(attrs={'placeholder': 'مثلاً: ناهار، جلسه، ...', 'class': 'form-control'}),
 		required=True
 	)
+
+
+class CheckoutErrorFilterForm(forms.Form):
+	"""فیلتر صفحهٔ «خطاهای خروج»: جستجو + وضعیت + بازهٔ تاریخ شمسی."""
+	STATUS_PENDING = 'pending'
+	STATUS_RESOLVED = 'resolved'
+
+	q = forms.CharField(
+		label='جستجو', required=False,
+		widget=forms.TextInput(attrs={
+			'placeholder': 'نام یا نام کاربری…',
+			'class': 'form-control',
+			'autocomplete': 'off',
+		}),
+	)
+	status = forms.CharField(
+		label='وضعیت', required=False,
+		widget=forms.Select(
+			attrs={'class': 'form-select'},
+			choices=[
+				('', 'همه وضعیت‌ها'),
+				(STATUS_PENDING, 'در انتظار بررسی'),
+				(STATUS_RESOLVED, 'رفع‌شده'),
+			],
+		),
+	)
+	date_from = JalaliDatePickerField(label='از تاریخ', required=False)
+	date_to = JalaliDatePickerField(label='تا تاریخ', required=False)
+
+	def clean_status(self):
+		# مقدار ناشناخته (لینک دست‌ساز) بی‌صدا به «همه» برمی‌گردد
+		value = (self.cleaned_data.get('status') or '').strip()
+		return value if value in {self.STATUS_PENDING, self.STATUS_RESOLVED} else ''
+
+	def clean(self):
+		cleaned = super().clean()
+		date_from = cleaned.get('date_from')
+		date_to = cleaned.get('date_to')
+		if date_from and date_to and date_to < date_from:
+			raise forms.ValidationError('«تا تاریخ» نمی‌تواند قبل از «از تاریخ» باشد.')
+		return cleaned

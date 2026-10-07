@@ -761,3 +761,269 @@ class ErrandListExportTests(TestCase):
         self.client.force_login(self.employee)
         r = self.client.get(reverse('errands-list'))
         self.assertRedirects(r, reverse('not-authorised'))
+
+
+class MyErrandsSectionsTests(TestCase):
+    """«معموریت‌های من» باید دو بخش جدا داشته باشد و هر بخش حداکثر ۳ کارت
+    در هر صفحه نشان دهد (تا صفحه شلوغ نشود)."""
+
+    def setUp(self):
+        self.employee = User.objects.create_user('reza', password='x')
+        self.admin = User.objects.create_superuser('boss', 'b@b.com', 'x')
+        self.today = timezone.localdate()
+        self.url = reverse('errands-my')
+        self.client.force_login(self.employee)
+
+    def make(self, count, status, base_day=None):
+        """ساخت `count` درخواست با روزهای پیاپی (نزدیک‌ترین، اول)."""
+        base_day = base_day or self.today
+        made = []
+        for i in range(count):
+            day = base_day - dt.timedelta(days=i)
+            errand = Errand.objects.create(
+                user=self.employee,
+                start_time=aware(day.year, day.month, day.day, 8, 0),
+                end_time=aware(day.year, day.month, day.day, 12, 0),
+                reason='مأموریت شماره %d' % i,
+            )
+            if status == Errand.STATUS_APPROVED:
+                errand.approve(self.admin)
+            elif status == Errand.STATUS_REJECTED:
+                errand.reject(self.admin, note='با برنامهٔ شیفت همپوشانی دارد')
+            made.append(errand)
+        return made
+
+    def test_context_has_two_paginated_sections(self):
+        self.make(2, Errand.STATUS_PENDING)
+        self.make(1, Errand.STATUS_APPROVED,
+                  self.today - dt.timedelta(days=10))
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['pending_page'].paginator.count, 2)
+        self.assertEqual(r.context['done_page'].paginator.count, 1)
+        self.assertEqual(r.context['mine_count'], 3)
+
+    def test_pending_section_shows_max_three_cards(self):
+        self.make(5, Errand.STATUS_PENDING)
+        r = self.client.get(self.url)
+        self.assertEqual(len(r.context['pending_page']), 3)
+        self.assertEqual(r.context['pending_page'].paginator.count, 5)
+
+    def test_pending_second_page_has_the_rest(self):
+        self.make(5, Errand.STATUS_PENDING)
+        r = self.client.get(self.url + '?pending_page=2')
+        self.assertEqual(r.context['pending_page'].number, 2)
+        self.assertEqual(len(r.context['pending_page']), 2)
+
+    def test_done_section_paginates_independently(self):
+        self.make(4, Errand.STATUS_REJECTED,
+                  self.today - dt.timedelta(days=20))
+        r = self.client.get(self.url)
+        self.assertEqual(len(r.context['done_page']), 3)
+        r2 = self.client.get(self.url + '?done_page=2')
+        self.assertEqual(r2.context['done_page'].number, 2)
+        self.assertEqual(len(r2.context['done_page']), 1)
+
+    def test_sections_have_headings_and_nav(self):
+        self.make(4, Errand.STATUS_PENDING)
+        r = self.client.get(self.url)
+        self.assertContains(r, 'در انتظار بررسی')
+        self.assertContains(r, 'درخواست‌های بررسی‌شده')
+        # لینک صفحهٔ بعدِ همان بخش
+        self.assertContains(r, 'pending_page=2')
+
+    def test_empty_sections_show_friendly_notes(self):
+        r = self.client.get(self.url)
+        self.assertContains(r, 'هنوز معموریتی ثبت نکرده‌اید')
+
+    def test_both_sections_mixed(self):
+        """دو بخش هم‌زمان: ۳ در انتظار + ۳ بررسی‌شده در هر کدام حداکثر ۳."""
+        self.make(4, Errand.STATUS_PENDING)
+        self.make(3, Errand.STATUS_APPROVED,
+                  self.today - dt.timedelta(days=20))
+        r = self.client.get(self.url)
+        self.assertEqual(len(r.context['pending_page']), 3)
+        self.assertEqual(len(r.context['done_page']), 3)
+        self.assertEqual(r.context['pending_page'].paginator.count, 4)
+        self.assertEqual(r.context['done_page'].paginator.count, 3)
+
+
+class ErrandAdminTests(TestCase):
+    """پنل ادمین جنگو برای معموریت‌ها — /admin/errands/errand/."""
+
+    def setUp(self):
+        self.boss = User.objects.create_superuser('boss', 'b@b.com', 'x')
+        self.ali = User.objects.create_user(
+            'ali', password='x', first_name='علی')
+        self.url = reverse('admin:errands_errand_changelist')
+        self.today = timezone.localdate()
+        self.client.force_login(self.boss)
+
+    def make(self, user=None, day=None, status=None):
+        day = day or self.today
+        errand = Errand.objects.create(
+            user=user or self.ali,
+            start_time=aware(day.year, day.month, day.day, 8, 0),
+            end_time=aware(day.year, day.month, day.day, 12, 0),
+            reason='مراجعه به بانک',
+            destination='شعبهٔ مرکزی',
+        )
+        if status == Errand.STATUS_APPROVED:
+            errand.approve(self.boss)
+        elif status == Errand.STATUS_REJECTED:
+            errand.reject(self.boss, note='دلیل قدیمی')
+        return errand
+
+    def act(self, action, errands):
+        """POST کردن عملیات گروهی (دیجنگو بعد از عملیات ۳۰۲ می‌زند)."""
+        r = self.client.post(self.url, {
+            'action': action,
+            '_selected_action': [str(e.pk) for e in errands],
+            'select_across': '0',
+            'index': '0',
+        })
+        self.assertIn(r.status_code, (200, 302))
+        return r
+
+    # ---------- فهرست و فیلترها ----------
+
+    def test_changelist_renders_with_jalali_columns(self):
+        self.make()
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'بازه (تهران)')
+        self.assertContains(r, 'مدت')
+        self.assertContains(r, 'در انتظار بررسی')   # نشان وضعیت
+        self.assertContains(r, 'بررسی در پنل')       # لینک عملیات سریع
+
+    def test_search_by_username_and_reason(self):
+        self.make()
+        self.make(user=User.objects.create_user('reza', first_name='رضا'),
+                  day=self.today - dt.timedelta(days=1))
+        r = self.client.get(self.url, {'q': 'ali'})
+        self.assertContains(r, 'علی (@ali)')
+        self.assertNotContains(r, 'رضا (@reza)')
+        r2 = self.client.get(self.url, {'q': 'بانک'})
+        self.assertContains(r2, 'علی (@ali)')
+
+    def test_status_filter(self):
+        self.make(status=Errand.STATUS_APPROVED)
+        r = self.client.get(self.url, {'status': 'pending'})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, 'بررسی در پنل')  # ردیف تأییدشده نیست
+
+    # ---------- عملیات گروهی ----------
+
+    def test_approve_action_sets_reviewer(self):
+        errand = self.make()
+        self.act('approve_selected', [errand])
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_APPROVED)
+        self.assertEqual(errand.reviewed_by, self.boss)
+        self.assertIsNotNone(errand.reviewed_at)
+
+    def test_approve_action_skips_already_reviewed(self):
+        errand = self.make(status=Errand.STATUS_APPROVED)
+        self.make(day=self.today - dt.timedelta(days=1))
+        self.act('approve_selected', [errand])
+        errand.refresh_from_db()
+        self.assertEqual(errand.reviewed_by, self.boss)
+
+    def test_reject_action_redirects_to_bulk_page(self):
+        errand = self.make()
+        r = self.act('reject_selected', [errand])
+        expected = reverse('admin:errands_errand_bulk_reject')
+        self.assertRedirects(r, '%s?ids=%d' % (expected, errand.pk))
+
+    def test_reset_action_returns_to_pending(self):
+        errand = self.make(status=Errand.STATUS_APPROVED)
+        self.act('reset_selected', [errand])
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_PENDING)
+        self.assertIsNone(errand.reviewed_by)
+        self.assertEqual(errand.review_note, '')
+
+    def test_cancel_action(self):
+        errand = self.make()
+        self.act('cancel_selected', [errand])
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_CANCELLED)
+
+    def test_export_action_returns_xlsx(self):
+        self.make()
+        r = self.act('export_selected', list(Errand.objects.all()))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('spreadsheet', r['Content-Type'])
+        self.assertTrue(r.content.startswith(b'PK'))
+
+    # ---------- صفحهٔ میانی «رد گروهی» ----------
+
+    def test_bulk_reject_page_lists_selection(self):
+        errand = self.make()
+        url = reverse('admin:errands_errand_bulk_reject')
+        r = self.client.get(url, {'ids': str(errand.pk)})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'دلیل رد')
+        self.assertContains(r, 'علی (@ali)')
+        self.assertContains(r, 'مراجعه به بانک')
+
+    def test_bulk_reject_without_note_keeps_pending(self):
+        errand = self.make()
+        url = reverse('admin:errands_errand_bulk_reject')
+        r = self.client.post(url, {'ids': str(errand.pk), 'note': '   '})
+        self.assertEqual(r.status_code, 200)  # همان صفحه با خطا
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_PENDING)
+
+    def test_bulk_reject_with_note_rejects_and_records(self):
+        errand = self.make()
+        url = reverse('admin:errands_errand_bulk_reject')
+        r = self.client.post(url, {
+            'ids': str(errand.pk),
+            'note': 'با برنامهٔ شیفت همپوشانی دارد',
+        })
+        self.assertRedirects(r, self.url)
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_REJECTED)
+        self.assertEqual(errand.review_note, 'با برنامهٔ شیفت همپوشانی دارد')
+        self.assertEqual(errand.reviewed_by, self.boss)
+
+    def test_bulk_reject_skips_already_reviewed(self):
+        errand = self.make(status=Errand.STATUS_APPROVED)
+        url = reverse('admin:errands_errand_bulk_reject')
+        self.client.post(url, {'ids': str(errand.pk), 'note': 'دلیل تازه'})
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_APPROVED)
+
+    def test_bulk_reject_get_without_ids_is_safe(self):
+        url = reverse('admin:errands_errand_bulk_reject')
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'هیچ درخواستی برای رد پیدا نشد')
+
+    # ---------- فرم تک‌موردی ----------
+
+    def test_save_model_auto_sets_reviewer(self):
+        from django.contrib import admin as django_admin
+        from django.test import RequestFactory
+
+        from errands.admin import ErrandAdmin
+
+        errand = self.make()
+        errand.status = Errand.STATUS_APPROVED
+        request = RequestFactory().post(
+            '/admin/errands/errand/%d/change/' % errand.pk)
+        request.user = self.boss
+        ErrandAdmin(Errand, django_admin.site).save_model(
+            request, errand, form=None, change=True)
+        errand.refresh_from_db()
+        self.assertEqual(errand.status, Errand.STATUS_APPROVED)
+        self.assertEqual(errand.reviewed_by, self.boss)
+        self.assertIsNotNone(errand.reviewed_at)
+
+    def test_non_staff_cannot_open_admin(self):
+        self.client.force_login(
+            User.objects.create_user('noship', password='x'))
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/admin/login/', r['Location'])

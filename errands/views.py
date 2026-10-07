@@ -31,6 +31,7 @@ from .forms import ErrandAdminEditForm, ErrandFilterForm, ErrandForm, ErrandRevi
 from .models import Errand
 
 PER_PAGE = 25
+MY_PER_PAGE = 3  # «معموریت‌های من»: حداکثر ۳ درخواست اخیر در هر صفحه از هر بخش
 
 
 def _jalali_input(value):
@@ -100,15 +101,20 @@ def my_errands(request):
             )
             return redirect(reverse('errands-my'))
 
-    # فهرست کاربر
+    # فهرست کاربر — دو بخش جداگانه با حداکثر ۳ درخواست اخیر در هر صفحه
+    # («در انتظار بررسی» و «بررسی‌شده») تا صفحه شلوغ نشود.
     mine = (
         Errand.objects
         .filter(user=user)
         .select_related('reviewed_by')
         .order_by('-start_time', '-id')
     )
-    paginator = Paginator(mine, PER_PAGE)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    pending_page = Paginator(
+        mine.filter(status=Errand.STATUS_PENDING), MY_PER_PAGE
+    ).get_page(request.GET.get('pending_page'))
+    done_page = Paginator(
+        mine.exclude(status=Errand.STATUS_PENDING), MY_PER_PAGE
+    ).get_page(request.GET.get('done_page'))
 
     # آمار بالای صفحه
     all_mine = Errand.objects.filter(user=user)
@@ -126,7 +132,9 @@ def my_errands(request):
 
     return render(request, 'errands/my_errands.html', {
         'form': errand_form,
-        'page_obj': page_obj,
+        'pending_page': pending_page,
+        'done_page': done_page,
+        'mine_count': mine.count(),
         'counts': counts,
         'approved_text': format_hours(approved_seconds),
         'current_errand': current,

@@ -1,7 +1,15 @@
 /**
  * Persian Datepicker - Custom & Lightweight
- * Supports date + time selection with modern UI
- * No dependencies required
+ * پایه: تقویم سبک ERP — با پشتیبانی «تاریخ + ساعت» برای بخش معموریت.
+ *
+ * امکانات:
+ *   • انتخاب تاریخ شمسی (روز / ماه / سال) بدون وابستگی
+ *   • حالت data-time="true": انتخاب ساعت با چرخ + دکمه‌های سریع؛
+ *     پنجره هنگام انتخاب تاریخ باز می‌ماند تا ساعت هم تنظیم شود
+ *   • آینه‌کردن مقدار میلادی ISO در ورودی مخفی (data-hidden-name)
+ *   • خواندن مقدار اولیه از خودِ ورودی (شمسی/میلادی، ارقام فارسی یا لاتین)
+ *   • بستن با Escape / کلیک بیرون؛ محدودبودن به viewport
+ *   • شنونده‌ها فقط یک‌بار برای هر ورودی ثبت می‌شوند (بدون پنجرهٔ مومیایی)
  */
 (function() {
     'use strict';
@@ -70,6 +78,13 @@
         return String(num).replace(/\d/g, function(d) { return pd[parseInt(d)]; });
     }
 
+    /** ارقام فارسی/عربی → لاتین */
+    function toLatinDigits(str) {
+        return String(str)
+            .replace(/[۰-۹]/g, function(d) { return String(d.charCodeAt(0) - 0x06F0); })
+            .replace(/[٠-٩]/g, function(d) { return String(d.charCodeAt(0) - 0x0660); });
+    }
+
     function getTodayJalali() {
         var now = new Date();
         return gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
@@ -87,9 +102,8 @@
         this.selectedYear = null;
         this.selectedMonth = null;
         this.selectedDay = null;
-        // Time mode: enabled with data-time="true" on the input. When on, the
-        // chosen Jalali date + time is mirrored into a sibling hidden input
-        // (name given by data-hidden-name, e.g. "out_time") as Gregorian ISO.
+        // حالت زمان: با data-time="true" فعال می‌شود. مقدار شمسیِ انتخاب‌شده
+        // به‌صورت ISO میلادی در ورودی مخفی (نام از data-hidden-name) آینه می‌شود.
         this.enableTime = input.getAttribute('data-time') === 'true';
         this.hiddenInput = null;
         var hiddenName = this.enableTime ? input.getAttribute('data-hidden-name') : null;
@@ -103,21 +117,16 @@
         this.init();
     }
 
-    PersianDatepicker.prototype.init = function() {
-        var self = this;
-        this.input.setAttribute('readonly', 'readonly');
-        this.input.style.cursor = 'pointer';
-        this.input.style.userSelect = 'none';
-
+    /** مقدار اولیهٔ ورودی (شمسی «1405/07/15 17:30» یا ISO مخفی) را می‌خواند */
+    PersianDatepicker.prototype._parseInitialValue = function() {
+        this.selectedYear = this.selectedMonth = this.selectedDay = null;
         var val = this.input.value;
+
         if (this.enableTime) {
-            // ۱) اول خودِ ورودی را بخوان («1405/07/15 17:30» — شمسی)
             var handled = false;
+            // ۱) اول خودِ ورودی را بخوان (ارقام فارسی یا لاتین)
             if (val) {
-                var digits = val
-                    .replace(/[۰-۹]/g, function (d) { return String(d.charCodeAt(0) - 0x06F0); })
-                    .replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x0660); });
-                var jm = digits.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
+                var jm = toLatinDigits(val).match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
                 if (jm) {
                     this.selectedYear = parseInt(jm[1], 10);
                     this.selectedMonth = parseInt(jm[2], 10);
@@ -129,7 +138,7 @@
                     handled = true;
                 }
             }
-            // ۲) سپس مقدار میلادیِ hidden input (اگر طرح قدیمی استفاده می‌کند)
+            // ۲) سپس مقدار میلادیِ hidden input (طرح‌های قدیمی)
             if (!handled && this.hiddenInput && this.hiddenInput.value) {
                 var isoMatch = this.hiddenInput.value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})/);
                 if (isoMatch) {
@@ -147,29 +156,61 @@
             if (handled) {
                 this.input.value = this._isoJalaliDisplay();
             }
-        } else if (val && val.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
-            var parts = val.split('/');
-            this.selectedYear = parseInt(parts[0]);
-            this.selectedMonth = parseInt(parts[1]);
-            this.selectedDay = parseInt(parts[2]);
-            this.currentYear = this.selectedYear;
-            this.currentMonth = this.selectedMonth;
+        } else if (val) {
+            var dm = toLatinDigits(val).match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+            if (dm) {
+                this.selectedYear = parseInt(dm[1], 10);
+                this.selectedMonth = parseInt(dm[2], 10);
+                this.selectedDay = parseInt(dm[3], 10);
+                this.currentYear = this.selectedYear;
+                this.currentMonth = this.selectedMonth;
+            }
         }
+    };
 
-        this.input.addEventListener('click', function(e) {
+    /** بازخوانی مقدار وقتی بیرون از تقویم عوضش کرده (میانبرها/ریست) */
+    PersianDatepicker.prototype.reload = function() {
+        this._parseInitialValue();
+        if (this.container) this.render();
+    };
+
+    PersianDatepicker.prototype.init = function() {
+        var self = this;
+        this.input.setAttribute('readonly', 'readonly');
+        this.input.style.cursor = 'pointer';
+        this.input.style.userSelect = 'none';
+        this._parseInitialValue();
+
+        // شنونده‌ها فقط یک‌بار برای هر ورودی ثبت می‌شوند و همیشه از
+        // «نسخهٔ فعلی» (input._pdp) استفاده می‌کنند؛ این‌طوری بعد از ریست
+        // توسط میانبرها، پنجرهٔ قبلی مومیایی نمی‌شود.
+        if (this.input._pdpBound) return;
+        this.input._pdpBound = true;
+        var input = this.input;
+
+        input.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            if (self.container) {
-                self.hide();
+            var pdp = input._pdp;
+            if (!pdp) return;
+            if (pdp.container) {
+                pdp.hide();
             } else {
-                self.show();
+                pdp.show();
             }
         });
 
         document.addEventListener('click', function(e) {
-            if (self.container && !self.container.contains(e.target) && e.target !== self.input) {
-                self.hide();
+            var pdp = input._pdp;
+            if (pdp && pdp.container && !pdp.container.contains(e.target) && e.target !== input) {
+                pdp.hide();
             }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            var pdp = input._pdp;
+            if (pdp && pdp.container) pdp.hide();
         });
     };
 
@@ -178,33 +219,44 @@
         this.container = document.createElement('div');
         this.container.className = 'pdp-container';
 
-        // Append to body with fixed positioning to avoid overflow clipping
+        // الحاق به body با position:fixed تا overflow والد بریده‌اش نکند
         document.body.appendChild(this.container);
 
-        // Position relative to viewport using the input's bounding rect
         var rect = this.input.getBoundingClientRect();
-
-        // Ensure container doesn't go off-screen right (RTL)
         this.container.style.position = 'fixed';
-        this.container.style.top = (rect.bottom + 4) + 'px';
+        this.container.style.top = (rect.bottom + 6) + 'px';
         this.container.style.left = rect.left + 'px';
         this.container.style.zIndex = '999999';
 
-        // Adjust if going off left edge
+        // اصلاح خروج از viewport (چپ/راست/پایین)
         var self = this;
-        setTimeout(function() {
-            if (self.container) {
-                var cRect = self.container.getBoundingClientRect();
-                if (cRect.left < 8) {
-                    self.container.style.left = '8px';
-                }
-                if (cRect.bottom > window.innerHeight - 8) {
-                    self.container.style.top = (rect.top - cRect.height - 4) + 'px';
-                }
+        var adjust = function() {
+            if (!self.container) return;
+            var cRect = self.container.getBoundingClientRect();
+            var left = cRect.left;
+            if (left < 8) left = 8;
+            if (left + cRect.width > window.innerWidth - 8) {
+                left = Math.max(8, window.innerWidth - cRect.width - 8);
             }
-        }, 10);
+            self.container.style.left = left + 'px';
 
+            var top = rect.bottom + 6;
+            if (cRect.height && rect.bottom + 6 + cRect.height > window.innerHeight - 8) {
+                top = Math.max(8, rect.top - cRect.height - 6);
+            }
+            self.container.style.top = top + 'px';
+        };
         this.render();
+        adjust();
+        setTimeout(adjust, 10);
+
+        window.addEventListener('resize', function onResize() {
+            if (!self.container) {
+                window.removeEventListener('resize', onResize);
+                return;
+            }
+            adjust();
+        });
     };
 
     PersianDatepicker.prototype.hideAll = function() {
@@ -226,16 +278,15 @@
     };
 
     PersianDatepicker.prototype.renderDays = function() {
-        var self = this;
         var daysInMonth = getDaysInJalaliMonth(this.currentYear, this.currentMonth);
         var firstGreg = jalaliToGregorian(this.currentYear, this.currentMonth, 1);
         var firstDayOfWeek = new Date(firstGreg.year, firstGreg.month - 1, firstGreg.day).getDay();
         var startDay = (firstDayOfWeek + 1) % 7;
 
         var html = '<div class="pdp-header">' +
-            '<div class="pdp-nav"><button type="button" data-action="prev-month"><i class="fas fa-chevron-right"></i></button></div>' +
+            '<div class="pdp-nav"><button type="button" data-action="prev-month" aria-label="ماه قبل"><i class="fas fa-chevron-right"></i></button></div>' +
             '<div class="pdp-title" data-action="show-months">' + PERSIAN_MONTHS[this.currentMonth - 1] + ' ' + toPersianNum(this.currentYear) + '</div>' +
-            '<div class="pdp-nav"><button type="button" data-action="next-month"><i class="fas fa-chevron-left"></i></button></div>' +
+            '<div class="pdp-nav"><button type="button" data-action="next-month" aria-label="ماه بعد"><i class="fas fa-chevron-left"></i></button></div>' +
             '</div>';
 
         html += '<div class="pdp-weekdays">';
@@ -265,8 +316,8 @@
             html += this._renderTimeSection();
         }
         html += '<div class="pdp-footer">' +
-            '<button type="button" data-action="today">امروز</button>' +
-            '<button type="button" data-action="clear">پاک کردن</button>' +
+            '<button type="button" data-action="today"><i class="fas fa-bullseye"></i>امروز</button>' +
+            '<button type="button" data-action="clear"><i class="fas fa-eraser"></i>پاک کردن</button>' +
             '</div>';
 
         this.container.innerHTML = html;
@@ -296,23 +347,22 @@
         var quickHtml = '';
         for (var q = 0; q < quickTimes.length; q++) {
             var qt = quickTimes[q];
-            quickHtml += '<button type="button" class="pdp-quick-btn" data-qh="' + qt.h + '" data-qm="' + qt.m + '">' + qt.label + '</button>';
+            var active = (qt.h === this.selectedHour && qt.m === this.selectedMinute) ? ' pdp-quick-active' : '';
+            quickHtml += '<button type="button" class="pdp-quick-btn' + active + '" data-qh="' + qt.h + '" data-qm="' + qt.m + '">' + qt.label + '</button>';
         }
 
         return '<div class="pdp-time">' +
+            '<div class="pdp-time-title"><i class="fas fa-clock"></i>ساعت</div>' +
             '<div class="pdp-time-row">' +
-                '<span class="pdp-time-label">ساعت</span>' +
-                '<div class="pdp-time-wheel"><select data-field="hour">' + hourOpts + '</select></div>' +
+                '<div class="pdp-time-wheel"><select data-field="hour" aria-label="ساعت">' + hourOpts + '</select></div>' +
                 '<span class="pdp-dot">:</span>' +
-                '<div class="pdp-time-wheel"><select data-field="minute">' + minOpts + '</select></div>' +
-                '<span class="pdp-time-label">دقیقه</span>' +
+                '<div class="pdp-time-wheel"><select data-field="minute" aria-label="دقیقه">' + minOpts + '</select></div>' +
             '</div>' +
             '<div class="pdp-quick-times">' + quickHtml + '</div>' +
             '</div>';
     };
 
     PersianDatepicker.prototype.renderMonths = function() {
-        var self = this;
         var html = '<div class="pdp-header">' +
             '<div class="pdp-nav"><button type="button" data-action="prev-year"><i class="fas fa-chevron-right"></i></button></div>' +
             '<div class="pdp-title" data-action="show-years">' + toPersianNum(this.currentYear) + '</div>' +
@@ -332,7 +382,6 @@
     };
 
     PersianDatepicker.prototype.renderYears = function() {
-        var self = this;
         var startYear = this.currentYear - 5;
         var endYear = this.currentYear + 10;
 
@@ -402,6 +451,7 @@
                     if (self.hiddenInput) self.hiddenInput.value = '';
                     self.selectedYear = self.selectedMonth = self.selectedDay = null;
                     self.hide();
+                    self._dispatchChange();
                 }
                 return;
             }
@@ -413,15 +463,10 @@
                 if (self.selectedDay !== null) {
                     self._syncHidden(self.selectedYear, self.selectedMonth, self.selectedDay);
                     self.input.value = self._isoJalaliDisplay();
+                    self._dispatchChange();
                 }
                 // بازرندر کامل تا حالت انتخاب‌شدهٔ دکمه‌ها هم به‌روز شود
                 self.render();
-                return;
-            }
-
-            var sel = target.closest('.pdp-time-wheel select');
-            if (sel && sel.getAttribute('data-field')) {
-                self._setTimeField(sel.getAttribute('data-field'), parseInt(sel.value, 10));
                 return;
             }
 
@@ -456,6 +501,12 @@
         }
     };
 
+    PersianDatepicker.prototype._dispatchChange = function() {
+        var evt = document.createEvent('Event');
+        evt.initEvent('change', true, true);
+        this.input.dispatchEvent(evt);
+    };
+
     PersianDatepicker.prototype._setTimeField = function(field, value) {
         if (field === 'hour') {
             this.selectedHour = Math.max(0, Math.min(23, value || 0));
@@ -465,6 +516,7 @@
         if (this.selectedDay !== null) {
             this._syncHidden(this.selectedYear, this.selectedMonth, this.selectedDay);
             this.input.value = this._isoJalaliDisplay();
+            this._dispatchChange();
         }
     };
 
@@ -481,15 +533,13 @@
         }
         this.input.value = value;
         // در حالت «تاریخ + ساعت» پنجره باز می‌ماند تا ساعت هم تنظیم شود؛
-        // بستن با کلیک بیرون یا دوباره روی ورودی انجام می‌شود.
+        // بستن با کلیک بیرون، Escape یا دوباره روی ورودی انجام می‌شود.
         if (this.enableTime) {
             this.render();  // هایلایت روز انتخاب‌شده به‌روز شود
         } else {
             this.hide();
         }
-        var evt = document.createEvent('Event');
-        evt.initEvent('change', true, true);
-        this.input.dispatchEvent(evt);
+        this._dispatchChange();
     };
 
     PersianDatepicker.prototype._pad = function(n) {
@@ -513,6 +563,8 @@
         for (var i = 0; i < inputs.length; i++) {
             if (!inputs[i]._pdp) {
                 inputs[i]._pdp = new PersianDatepicker(inputs[i]);
+            } else {
+                inputs[i]._pdp.reload();
             }
         }
     }

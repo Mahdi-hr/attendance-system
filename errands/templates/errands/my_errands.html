@@ -249,6 +249,51 @@
 .er-foot .meta i { color: var(--text-secondary); }
 
 /* ============================================================
+   دو بخش فهرست (در انتظار / بررسی‌شده)
+   ============================================================ */
+.er-section { margin-bottom: 1.75rem; }
+.er-section:last-child { margin-bottom: 0; }
+.er-section-head {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; font-size: 0.92rem;
+    color: var(--text-primary);
+    margin: 0 0 0.85rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.07);
+    border: 1px dashed var(--glass-border);
+}
+.er-section-head i { font-size: 0.85rem; }
+.er-section-head.is-pending i { color: var(--warning); }
+.er-section-head.is-decided i { color: var(--primary); }
+.er-sec-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 26px; height: 22px; padding: 0 8px;
+    border-radius: 20px; font-size: 0.74rem; font-weight: 700;
+    margin-right: auto;
+}
+.er-sec-badge.pending {
+    background: rgba(var(--warning-rgb, 245, 158, 11), 0.16);
+    color: var(--warning);
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+.er-sec-badge.decided {
+    background: rgba(var(--primary-rgb), 0.16);
+    color: var(--primary);
+    box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.3);
+}
+.er-section-empty {
+    display: flex; align-items: center; gap: 8px;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    background: rgba(148, 163, 184, 0.06);
+    border: 1px dashed var(--glass-border);
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+}
+.er-section-empty i { color: var(--success); }
+
+/* ============================================================
    استات و خالی
    ============================================================ */
 .count-badge {
@@ -473,141 +518,22 @@
         </div>
         {% endif %}
 
-        <!-- ============ فهرست من ============ -->
+        <!-- ============ فهرست من — دو بخش ============ -->
         <div class="col-12 {% if is_admin_mode %}col-lg-12{% else %}col-lg-7{% endif %}">
             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <h5 class="mb-0" style="font-weight:700;">
                     <i class="fas fa-list me-2" style="color:var(--primary)"></i>
                     معموریت‌های من
                     <span class="count-badge" style="background:rgba(var(--primary-rgb),0.2);color:var(--primary);">
-                        {{ page_obj.paginator.count|fa }}
+                        {{ mine_count|fa }}
                     </span>
                 </h5>
+                <small class="text-muted" style="font-size:0.75rem;">
+                    <i class="fas fa-layer-group me-1"></i>هر صفحه ۳ درخواست اخیر نمایش داده می‌شود
+                </small>
             </div>
 
-            {% if page_obj %}
-            <div class="d-flex flex-column gap-3">
-                {% for e in page_obj %}
-                <div class="er-card s-{{ e.status }}">
-                    <div class="er-head">
-                        <div class="er-when">
-                            <span class="ico"><i class="fas fa-briefcase"></i></span>
-                            <div>
-                                <div>
-                                    {{ e.start_time|to_jalali_full }}
-                                    <span style="color:var(--text-secondary);font-weight:500;">
-                                        {{ e.start_time|clock }} تا {{ e.end_time|clock }}
-                                    </span>
-                                </div>
-                                <div class="range-line">
-                                    {% if e.start_time|date:"Y-m-d" != e.end_time|date:"Y-m-d" %}
-                                        <i class="fas fa-moon me-1"></i>مأموریت شبانه (بین دو روز)
-                                    {% else %}
-                                        مأموریت در یک روز
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        <span class="st-badge st-{{ e.status }}">
-                            {% if e.status == 'pending' %}<i class="fas fa-hourglass-half"></i>
-                            {% elif e.status == 'approved' %}<i class="fas fa-check"></i>
-                            {% elif e.status == 'rejected' %}<i class="fas fa-times"></i>
-                            {% else %}<i class="fas fa-ban"></i>{% endif %}
-                            {{ e.get_status_display }}
-                        </span>
-                    </div>
-
-                    <div class="er-chips mb-3">
-                        <span class="chip dur">
-                            <i class="fas fa-hourglass-half"></i>{{ e.duration_display }}
-                        </span>
-                        {% if e.start_time|date:"Y-m-d" != e.end_time|date:"Y-m-d" %}
-                        <span class="chip overnight">
-                            <i class="fas fa-moon"></i>بین دو روز
-                        </span>
-                        {% endif %}
-                        {% if e.destination %}
-                        <span class="chip"><i class="fas fa-map-marker-alt"></i>{{ e.destination }}</span>
-                        {% endif %}
-                        {% if e.contact %}
-                        <span class="chip"><i class="fas fa-phone"></i>{{ e.contact }}</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="er-reason">
-                        <span class="lbl"><i class="fas fa-pen"></i>دلیل</span>
-                        {{ e.reason }}
-                    </div>
-
-                    {% if e.status == 'rejected' and e.review_note %}
-                    <div class="er-note mb-2">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <div>
-                            <span class="lbl">دلیل رد توسط مدیر</span>
-                            {{ e.review_note }}
-                        </div>
-                    </div>
-                    {% elif e.review_note %}
-                    <div class="er-note mb-2"
-                         style="background:rgba(148,163,184,0.08);border-color:var(--glass-border);">
-                        <i class="fas fa-user-shield" style="color:var(--primary)"></i>
-                        <div>
-                            <span class="lbl" style="color:var(--primary)">یادداشت مدیر</span>
-                            {{ e.review_note }}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="er-foot">
-                        <span class="meta">
-                            <i class="fas fa-clock-rotate-left"></i>
-                            ثبت: {{ e.created_at|to_jalali }}
-                            {% if e.reviewed_by %}
-                            · بررسی: {{ e.reviewed_by.first_name }} {{ e.reviewed_by.last_name }}
-                            {% endif %}
-                        </span>
-                        {% if e.is_pending %}
-                        <form method="POST" action="{% url 'errands-cancel' e.pk %}"
-                              onsubmit="return confirm('این درخواست لغو شود؟');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-cancel-sm">
-                                <i class="fas fa-times me-1"></i>لغو درخواست
-                            </button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- صفحه‌بندی -->
-            {% if page_obj.has_other_pages %}
-            <nav class="mt-4 d-flex justify-content-center">
-                <ul class="pagination">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="page-item active">
-                        <span class="page-link">
-                            {{ page_obj.number|fa }} / {{ page_obj.paginator.num_pages|fa }}
-                        </span>
-                    </li>
-                    {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
-
-            {% else %}
+            {% if not mine_count %}
             <div class="card-modern">
                 <div class="card-body empty-state">
                     <div class="empty-icon"><i class="fas fa-briefcase"></i></div>
@@ -615,10 +541,103 @@
                         هنوز معموریتی ثبت نکرده‌اید
                     </p>
                     <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                        {% if is_admin_mode %}
+                        کارمندان از بخش «معموریت من» درخواست ثبت می‌کنند؛ اینجا وضعیت همه را می‌بینید.
+                        {% else %}
                         از فرم کنار، مأموریت بیرونی خود را ثبت کنید.
+                        {% endif %}
                     </p>
                 </div>
             </div>
+
+            {% else %}
+            <!-- ---- بخش ۱: در انتظار بررسی ---- -->
+            <section class="er-section">
+                <h6 class="er-section-head is-pending">
+                    <i class="fas fa-hourglass-half"></i>
+                    در انتظار بررسی
+                    <span class="er-sec-badge pending">{{ pending_page.paginator.count|fa }}</span>
+                </h6>
+
+                <div class="d-flex flex-column gap-3">
+                    {% for e in pending_page %}
+                        {% include 'errands/_errand_card.html' %}
+                    {% empty %}
+                        <div class="er-section-empty">
+                            <i class="fas fa-check-circle"></i>
+                            درخواستی در انتظار بررسی نیست.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if pending_page.has_other_pages %}
+                <nav class="mt-3 d-flex justify-content-center">
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if pending_page.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?pending_page={{ pending_page.previous_page_number }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ pending_page.number|fa }} / {{ pending_page.paginator.num_pages|fa }}</span>
+                        </li>
+                        {% if pending_page.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?pending_page={{ pending_page.next_page_number }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </section>
+
+            <!-- ---- بخش ۲: بررسی‌شده (تأیید / رد / لغو) ---- -->
+            <section class="er-section">
+                <h6 class="er-section-head is-decided">
+                    <i class="fas fa-clipboard-check"></i>
+                    درخواست‌های بررسی‌شده
+                    <span class="er-sec-badge decided">{{ done_page.paginator.count|fa }}</span>
+                </h6>
+
+                <div class="d-flex flex-column gap-3">
+                    {% for e in done_page %}
+                        {% include 'errands/_errand_card.html' %}
+                    {% empty %}
+                        <div class="er-section-empty">
+                            <i class="fas fa-inbox"></i>
+                            هنوز درخواست بررسی‌شده‌ای ندارید.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if done_page.has_other_pages %}
+                <nav class="mt-3 d-flex justify-content-center">
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if done_page.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?done_page={{ done_page.previous_page_number }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ done_page.number|fa }} / {{ done_page.paginator.num_pages|fa }}</span>
+                        </li>
+                        {% if done_page.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?done_page={{ done_page.next_page_number }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </section>
             {% endif %}
         </div>
     </div>

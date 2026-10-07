@@ -62,6 +62,7 @@ urlpatterns = [
     path('manage/exit-reasons/update-order/<int:reason_id>/', recog_views.update_exit_reason_order, name='update-exit-reason-order'),
     path('checkout-errors/', recog_views.view_checkout_errors, name='view-checkout-errors'),
     path('checkout-errors/<int:error_id>/resolve/', recog_views.resolve_checkout_error, name='resolve-checkout-error'),
+    path('checkout-errors/<int:error_id>/reopen/', recog_views.reopen_checkout_error, name='reopen-checkout-error'),
     # ---- معموریت (کارمند) ----
     path('errands/', errands_views.my_errands, name='errands-my'),
     path('errands/<int:pk>/cancel/', errands_views.cancel_errand, name='errands-cancel'),

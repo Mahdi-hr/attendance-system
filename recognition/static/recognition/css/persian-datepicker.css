@@ -1,84 +1,111 @@
-/* Persian Datepicker popup + attendance report styles (theme aware) */
+/* ============================================================
+   Persian Datepicker popup + attendance report styles
+   تقویم شمسی — تاریخ و ساعت (تم تیره/روشن)
+   ============================================================ */
 
 /* ---------- Popup ---------- */
 .pdp-container {
     position: fixed;
-    width: 320px;
-    padding: 16px;
-    background: var(--bg-card-solid, #1e293b);
-    border: 1px solid var(--glass-border, rgba(148,163,184,0.25));
-    border-radius: 16px;
-    box-shadow: 0 24px 60px var(--shadow, rgba(0,0,0,0.4));
+    width: 324px;
+    padding: 14px 14px 12px;
+    background:
+        linear-gradient(var(--bg-card-solid, #1e293b), var(--bg-card-solid, #1e293b)) padding-box,
+        linear-gradient(135deg, rgba(var(--primary-rgb, 129,140,248), 0.65), rgba(var(--accent-rgb, 34,211,238), 0.35)) border-box;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    box-shadow:
+        0 24px 60px -18px var(--shadow, rgba(0,0,0,0.55)),
+        0 0 0 1px rgba(var(--primary-rgb, 129,140,248), 0.06),
+        0 8px 30px -12px rgba(var(--primary-rgb, 129,140,248), 0.35);
     color: var(--text-primary, #f1f5f9);
     direction: rtl;
     text-align: center;
     font-family: 'Vazirmatn', sans-serif;
     user-select: none;
-    animation: pdpFadeIn 0.2s ease-out;
+    animation: pdpFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes pdpFadeIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-[data-theme="light"] .pdp-container { background: #ffffff; }
+[data-theme="light"] .pdp-container {
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(135deg, rgba(var(--primary-rgb, 79,70,229), 0.55), rgba(var(--accent-rgb, 8,145,178), 0.3)) border-box;
+    box-shadow: 0 20px 50px -20px rgba(15, 23, 42, 0.35);
+}
 
 .pdp-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    padding: 4px;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb, 129,140,248), 0.1), rgba(var(--accent-rgb, 34,211,238), 0.05));
+    border: 1px solid var(--glass-border, rgba(148,163,184,0.14));
+    border-radius: 14px;
+    padding: 6px 8px;
 }
 
 .pdp-nav button, .pdp-footer button {
-    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), rgba(var(--accent-rgb), 0.08));
+    background: linear-gradient(135deg, rgba(var(--primary-rgb, 129,140,248), 0.14), rgba(var(--accent-rgb, 34,211,238), 0.08));
     border: 1px solid var(--glass-border, rgba(148,163,184,0.2));
     color: var(--text-primary, #f1f5f9);
-    border-radius: 10px;
-    padding: 8px 14px;
+    border-radius: 11px;
+    padding: 7px 13px;
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
-    transition: all 0.25s;
+    font-family: inherit;
+    transition: all 0.22s;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
 }
 
 .pdp-nav button:hover, .pdp-footer button:hover {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border-color: var(--primary);
+    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
+    border-color: transparent;
+    color: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px -6px var(--primary);
+    box-shadow: 0 6px 18px -6px var(--primary, #818cf8);
 }
+.pdp-nav button:active, .pdp-footer button:active { transform: translateY(0); }
 
 .pdp-title {
     flex: 1;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.98rem;
     cursor: pointer;
-    padding: 8px 0;
+    padding: 7px 6px;
     border-radius: 10px;
-    background: linear-gradient(90deg, var(--primary), var(--accent));
+    background: linear-gradient(90deg, var(--primary, #818cf8), var(--accent, #22d3ee));
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: all 0.22s;
 }
-.pdp-title:hover { background: rgba(var(--primary-rgb), 0.1); -webkit-text-fill-color: initial; }
+.pdp-title:hover {
+    background: rgba(var(--primary-rgb, 129,140,248), 0.12);
+    background-clip: border-box;
+    -webkit-background-clip: border-box;
+    -webkit-text-fill-color: var(--text-primary, #f1f5f9);
+}
 
 .pdp-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 .pdp-weekdays span {
     color: var(--text-secondary, #94a3b8);
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 6px 0;
-    text-transform: uppercase;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 5px 0;
 }
 
 .pdp-days {
@@ -88,28 +115,34 @@
 }
 
 .pdp-day {
-    padding: 10px 0;
-    border-radius: 10px;
+    padding: 9px 0;
+    border-radius: 11px;
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 500;
-    transition: all 0.2s;
+    line-height: 1.4;
+    transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
     position: relative;
 }
-.pdp-day:hover { background: rgba(var(--primary-rgb), 0.18); transform: scale(1.08); z-index: 2; }
+.pdp-day:hover {
+    background: rgba(var(--primary-rgb, 129,140,248), 0.18);
+    transform: scale(1.07);
+    z-index: 2;
+}
 .pdp-day.pdp-disabled { visibility: hidden; pointer-events: none; }
-.pdp-day.pdp-friday { color: var(--danger, #ef4444); }
+.pdp-day.pdp-friday { color: var(--danger, #f87171); }
 .pdp-day.pdp-today {
-    outline: 2px solid var(--accent, #06b6d4);
-    outline-offset: -2px;
-    color: var(--accent);
+    box-shadow: inset 0 0 0 1.5px var(--accent, #22d3ee);
+    color: var(--accent, #22d3ee);
+    font-weight: 700;
 }
 .pdp-day.pdp-selected {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
     color: #fff;
     font-weight: 700;
-    box-shadow: 0 4px 16px -4px var(--primary);
+    box-shadow: 0 6px 16px -6px var(--primary, #818cf8);
 }
+.pdp-day.pdp-selected.pdp-today { box-shadow: 0 6px 16px -6px var(--primary, #818cf8), inset 0 0 0 1.5px rgba(255,255,255,0.7); }
 
 .pdp-footer {
     display: flex;
@@ -117,19 +150,32 @@
     gap: 10px;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px solid var(--glass-border, rgba(148,163,184,0.15));
+    border-top: 1px dashed var(--glass-border, rgba(148,163,184,0.18));
 }
 .pdp-footer button { flex: 1; font-size: 0.8rem; }
 
-/* -------- Time Picker (Modern) -------- */
+/* -------- Time Picker -------- */
 .pdp-time {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 9px;
     margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--glass-border, rgba(148, 163, 184, 0.15));
+    padding: 11px 10px 10px;
+    border: 1px solid rgba(var(--primary-rgb, 129,140,248), 0.22);
+    border-radius: 14px;
+    background: linear-gradient(160deg, rgba(var(--primary-rgb, 129,140,248), 0.1), rgba(var(--accent-rgb, 34,211,238), 0.05));
 }
+
+.pdp-time-title {
+    font-size: 0.76rem;
+    color: var(--text-secondary, #94a3b8);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.pdp-time-title i { color: var(--primary, #818cf8); }
 
 .pdp-time-row {
     display: flex;
@@ -142,28 +188,27 @@
     font-size: 0.7rem;
     color: var(--text-secondary, #94a3b8);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .pdp-time-wheel {
     position: relative;
     flex: 1;
-    max-width: 100px;
+    max-width: 110px;
 }
 
 .pdp-time-wheel select {
     width: 100%;
     appearance: none;
-    background: var(--form-bg, rgba(30, 41, 59, 0.6));
+    background: var(--form-bg, rgba(30, 41, 59, 0.7));
     border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.2));
-    border-radius: 10px;
+    border-radius: 11px;
     color: var(--text-primary, #f1f5f9);
-    padding: 10px 36px 10px 12px;
-    font-size: 0.95rem;
+    padding: 9px 34px 9px 12px;
+    font-size: 1rem;
     font-family: inherit;
-    font-weight: 600;
+    font-weight: 700;
     text-align: center;
+    text-align-last: center;
     cursor: pointer;
     transition: all 0.2s;
     -webkit-appearance: none;
@@ -178,17 +223,16 @@
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--text-secondary);
+    color: var(--text-secondary, #94a3b8);
     pointer-events: none;
     font-size: 0.75rem;
 }
 
-.pdp-time-wheel select:hover { border-color: var(--primary); }
+.pdp-time-wheel select:hover { border-color: var(--primary, #818cf8); }
 .pdp-time-wheel select:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
-    background: var(--bg-card-solid, #1e293b);
+    border-color: var(--primary, #818cf8);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 129,140,248), 0.2);
 }
 .pdp-time option {
     background: var(--bg-card-solid, #1e293b);
@@ -196,11 +240,10 @@
 }
 
 .pdp-dot {
-    color: var(--text-secondary, #94a3b8);
-    font-weight: 700;
-    font-size: 1.2rem;
+    color: var(--primary, #818cf8);
+    font-weight: 800;
+    font-size: 1.3rem;
     line-height: 1;
-    margin: 0 2px;
 }
 
 .pdp-quick-times {
@@ -208,57 +251,64 @@
     justify-content: center;
     gap: 6px;
     flex-wrap: wrap;
-    margin-top: 4px;
 }
 
 .pdp-quick-btn {
-    padding: 6px 14px;
+    padding: 5px 12px;
     border-radius: 20px;
-    background: rgba(var(--primary-rgb), 0.1);
+    background: rgba(var(--primary-rgb, 129,140,248), 0.1);
     border: 1px solid var(--glass-border, rgba(148,163,184,0.2));
-    color: var(--primary);
-    font-size: 0.75rem;
-    font-weight: 600;
+    color: var(--primary, #818cf8);
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
 }
 .pdp-quick-btn:hover {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border-color: var(--primary);
+    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
+    border-color: transparent;
     color: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px -4px var(--primary);
+    box-shadow: 0 4px 12px -4px var(--primary, #818cf8);
+}
+.pdp-quick-btn.pdp-quick-active {
+    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 12px -4px var(--primary, #818cf8);
 }
 
 /* -------- Month / Year views -------- */
 .pdp-months-grid, .pdp-years-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 9px;
     margin-top: 6px;
 }
 
 .pdp-month-item, .pdp-year-item {
-    padding: 14px 6px;
+    padding: 13px 6px;
     border-radius: 12px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     font-weight: 600;
     transition: all 0.2s;
-    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--accent-rgb), 0.04));
+    background: linear-gradient(135deg, rgba(var(--primary-rgb, 129,140,248), 0.08), rgba(var(--accent-rgb, 34,211,238), 0.04));
     border: 1px solid var(--glass-border, rgba(148,163,184,0.15));
 }
 .pdp-month-item:hover, .pdp-year-item:hover {
-    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.18), rgba(var(--accent-rgb), 0.1));
+    background: linear-gradient(135deg, rgba(var(--primary-rgb, 129,140,248), 0.2), rgba(var(--accent-rgb, 34,211,238), 0.1));
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px -8px var(--primary);
+    box-shadow: 0 8px 20px -8px var(--primary, #818cf8);
 }
 .pdp-month-item.pdp-current, .pdp-year-item.pdp-current {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
     color: #fff;
     font-weight: 700;
-    border-color: var(--primary);
+    border-color: transparent;
+    box-shadow: 0 6px 16px -6px var(--primary, #818cf8);
 }
 
 /* ---------- attendance event pills ---------- */
@@ -334,7 +384,7 @@
 
 /* responsive tweaks */
 @media (max-width: 640px) {
-    .pdp-container { width: min(320px, calc(100vw - 24px)); }
+    .pdp-container { width: min(324px, calc(100vw - 24px)); }
     .stat-card .stat-number { font-size: 1.5rem !important; }
     .table-modern th, .table-modern td { padding: 10px 8px; }
 }

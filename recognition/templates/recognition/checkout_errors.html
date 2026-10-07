@@ -208,6 +208,160 @@
         margin-right: 8px;
         background: rgba(255,255,255,0.12);
     }
+
+    /* ===== Filter card ===== */
+    .filter-card {
+        background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.06),
+            rgba(var(--accent-rgb), 0.04));
+        border: 1px solid var(--glass-border);
+        border-radius: 18px;
+        padding: 1.25rem 1.4rem;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 1.75rem;
+    }
+    .filter-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(var(--primary-rgb), 0.08), transparent 55%);
+        pointer-events: none;
+    }
+    .filter-card .filter-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+    .filter-card .filter-head .fh-icon {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.85rem;
+        box-shadow: 0 6px 16px -6px var(--glow);
+        flex-shrink: 0;
+    }
+    .filter-card .filter-head h5 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text-primary);
+    }
+    .filter-card .filter-head small {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        font-weight: 400;
+        margin-top: 1px;
+    }
+    .filter-card .form-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .filter-card .form-label i {
+        font-size: 0.7rem;
+        color: var(--primary);
+        opacity: 0.85;
+    }
+    .filter-card .form-control,
+    .filter-card .form-select,
+    .filter-card input[type="text"] {
+        background: var(--form-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 10px !important;
+        padding: 9px 14px !important;
+        font-size: 0.87rem;
+        height: 40px;
+        transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .filter-card .form-control:focus,
+    .filter-card .form-select:focus,
+    .filter-card input[type="text"]:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18) !important;
+    }
+    .filter-card .input-group-icon .input-icon { right: 13px; color: var(--primary); opacity: 0.8; }
+
+    /* Preset chips */
+    .preset-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        position: relative;
+        z-index: 1;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px dashed var(--glass-border);
+    }
+    .preset-chips .chip-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-left: 4px;
+    }
+    .chip-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.25s;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+    .chip-btn:hover {
+        background: rgba(var(--primary-rgb), 0.12);
+        border-color: var(--primary);
+        color: var(--text-primary);
+        box-shadow: 0 6px 16px -8px var(--glow);
+    }
+    .chip-btn i { font-size: 0.72rem; }
+
+    /* ===== بازگشایی خطا ===== */
+    .reopen-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 10px;
+        background: rgba(var(--warning-rgb, 245, 158, 11), 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: var(--warning);
+        font-size: 0.78rem;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.22s;
+        white-space: nowrap;
+    }
+    .reopen-btn:hover {
+        background: rgba(245, 158, 11, 0.22);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px -8px rgba(245, 158, 11, 0.6);
+    }
 </style>
 {% endblock %}
 
@@ -227,19 +381,92 @@
         </div>
 
         <!-- ============================================
+             FILTER — جستجو / وضعیت / بازهٔ تاریخ
+             ============================================ -->
+        <div class="filter-card">
+            <div class="filter-head">
+                <span class="fh-icon"><i class="fas fa-sliders-h"></i></span>
+                <div>
+                    <h5>فیلتر خطاها</h5>
+                    <small>با جستجو، وضعیت یا بازهٔ تاریخ، سریع‌تر به خطای موردنظر برسید</small>
+                </div>
+            </div>
+
+            <form method="GET" autocomplete="off">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-search"></i>جستجو (نام یا نام کاربری)
+                        </label>
+                        {{ filter_form.q }}
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-filter"></i>وضعیت
+                        </label>
+                        {{ filter_form.status }}
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">
+                            <i class="fas fa-calendar-alt"></i>از تاریخ
+                        </label>
+                        <div class="input-group-icon">
+                            <i class="fas fa-calendar-alt input-icon"></i>
+                            {{ filter_form.date_from }}
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">
+                            <i class="fas fa-calendar-alt"></i>تا تاریخ
+                        </label>
+                        <div class="input-group-icon">
+                            <i class="fas fa-calendar-alt input-icon"></i>
+                            {{ filter_form.date_to }}
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="submit" class="btn btn-gradient w-100" style="height:40px;padding:0;">
+                            <i class="fas fa-filter me-1"></i>اعمال فیلتر
+                        </button>
+                    </div>
+                </div>
+
+                <div class="preset-chips">
+                    <span class="chip-label"><i class="fas fa-bolt"></i>میانبر:</span>
+                    <button type="button" class="chip-btn" data-jalali-preset="today">
+                        <i class="fas fa-bullseye"></i>امروز
+                    </button>
+                    <button type="button" class="chip-btn" data-jalali-preset="week">
+                        <i class="fas fa-calendar-week"></i>هفته جاری
+                    </button>
+                    <button type="button" class="chip-btn" data-jalali-preset="currentMonth">
+                        <i class="fas fa-calendar"></i>ماه جاری
+                    </button>
+                    <button type="button" class="chip-btn" data-jalali-preset="month">
+                        <i class="fas fa-calendar-alt"></i>۳۰ روز اخیر
+                    </button>
+                    <a href="{% url 'view-checkout-errors' %}" class="chip-btn">
+                        <i class="fas fa-eraser"></i>نمایش همه
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- ============================================
              PENDING ERRORS — Card list
              ============================================ -->
-        {% if pending_errors %}
+        {% if show_pending %}
         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
             <h5 class="mb-0 d-flex align-items-center" style="font-weight:700;">
                 <i class="fas fa-hourglass-half me-2" style="color:var(--danger)"></i>
                 در انتظار بررسی
                 <span class="count-badge" style="background:rgba(239,68,68,0.18);color:var(--danger);">
-                    {{ pending_errors|length|fa }}
+                    {{ pending_count|fa }}
                 </span>
             </h5>
         </div>
 
+        {% if pending_errors %}
         <div class="d-flex flex-column gap-3 mb-4">
             {% for error in pending_errors %}
             <div class="error-card">
@@ -348,15 +575,22 @@
                     خطای خروج در انتظار بررسی وجود ندارد.
                 </p>
                 <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                    {% if is_filtered %}
+                    با این فیلتر خطای در انتظاری پیدا نشد —
+                    <a href="{% url 'view-checkout-errors' %}">نمایش همه خطاها</a>
+                    {% else %}
                     همه چیز مرتبه ✨
+                    {% endif %}
                 </p>
             </div>
         </div>
+        {% endif %}
         {% endif %}
 
         <!-- ============================================
              RESOLVED ERRORS — Clean table
              ============================================ -->
+        {% if show_resolved %}
         {% if resolved_errors %}
         <div class="card-modern card">
             <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap gap-2"
@@ -365,7 +599,7 @@
                     <i class="fas fa-check-double me-2" style="color:var(--success)"></i>
                     خطاهای رفع‌شده
                     <span class="count-badge" style="background:rgba(16,185,129,0.18);color:var(--success);">
-                        {{ resolved_errors|length|fa }}
+                        {{ resolved_count|fa }}
                     </span>
                 </h5>
             </div>
@@ -381,6 +615,7 @@
                                 <th>دلیل خروج</th>
                                 <th>رفع توسط</th>
                                 <th>یادداشت</th>
+                                <th class="text-center" style="width:100px;">عمل</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -428,13 +663,66 @@
                                 <td data-label="یادداشت" style="color:var(--text-secondary);max-width:220px;">
                                     {{ error.note|default:'—' }}
                                 </td>
+                                <td data-label="عمل" class="text-center">
+                                    <form method="POST"
+                                          action="{% url 'reopen-checkout-error' error.id %}"
+                                          onsubmit="return confirm('خطا دوباره به «در انتظار بررسی» برگردد؟\nزمان خروج به حالت خودکار (۲۳:۵۹:۵۹) بازگردانده می‌شود تا دوباره اصلاح شود.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="reopen-btn"
+                                                title="بازگشایی و اصلاح دوباره">
+                                            <i class="fas fa-undo-rotate-left"></i>
+                                            <span class="d-none d-md-inline ms-1">بازگشایی</span>
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+
+                {% if resolved_page.has_other_pages %}
+                <div class="card-body border-top d-flex justify-content-center">
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if resolved_page.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="?resolved_page={{ resolved_page.previous_page_number }}{% if filter_query %}&{{ filter_query }}{% endif %}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">
+                                {{ resolved_page.number|fa }} / {{ resolved_page.paginator.num_pages|fa }}
+                            </span>
+                        </li>
+                        {% if resolved_page.has_next %}
+                        <li class="page-item">
+                            <a class="page-link"
+                               href="?resolved_page={{ resolved_page.next_page_number }}{% if filter_query %}&{{ filter_query }}{% endif %}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
             </div>
         </div>
+        {% elif is_filtered %}
+        <div class="card-modern card">
+            <div class="card-body empty-state">
+                <div class="empty-icon"><i class="fas fa-search"></i></div>
+                <p style="margin:0;font-weight:600;color:var(--text-primary);font-size:1.05rem;">
+                    خطای رفع‌شده‌ای با این فیلتر پیدا نشد.
+                </p>
+                <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
+                    <a href="{% url 'view-checkout-errors' %}">نمایش همه خطاها</a>
+                </p>
+            </div>
+        </div>
+        {% endif %}
         {% endif %}
 
     </div>
@@ -443,12 +731,5 @@
 
 {% block extra_js %}
 <script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
-<script>
-    // Initialize any jalali datepicker inputs on this page
-    document.addEventListener('DOMContentLoaded', function() {
-        if (window.jalaliDatepicker) {
-            window.jalaliDatepicker.startWatch();
-        }
-    });
-</script>
+<script src="{% static 'recognition/js/report-presets.js' %}"></script>
 {% endblock %}

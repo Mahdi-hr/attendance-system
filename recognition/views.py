@@ -1,5 +1,8 @@
 from django.shortcuts import render,redirect,get_object_or_404
-from .forms import usernameForm, BreakForm, DateRangeForm, EmployeeDateRangeForm
+from .forms import (
+    usernameForm, BreakForm, DateRangeForm, EmployeeDateRangeForm,
+    CheckoutErrorFilterForm,
+)
 from django.contrib import messages
 from django.contrib.auth.models import User
 import time
@@ -9,6 +12,7 @@ from users.models import Present, Time, Break, CheckOutError, ExitReason
 from users.roles import can_access_admin, is_pure_admin
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.urls import reverse
 from urllib.parse import urlencode
@@ -984,18 +988,67 @@ def reorder_exit_reasons(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+CHECKOUT_RESOLVED_PER_PAGE = 15
+
+
 @login_required
 def view_checkout_errors(request):
     if not can_access_admin(request):
         return redirect('not-authorised')
     auto_fix_missing_checkouts_throttled()
-    errors = CheckOutError.objects.select_related('user', 'time_record', 'resolved_by').all()
-    pending = [e for e in errors if e.status == CheckOutError.STATUS_PENDING]
-    resolved = [e for e in errors if e.status == CheckOutError.STATUS_RESOLVED]
+
+    # ---- فیلتر (جستجو / وضعیت / بازهٔ تاریخ شمسی) ----
+    filter_form = CheckoutErrorFilterForm(request.GET)
+    qs = (
+        CheckOutError.objects
+        .select_related('user', 'time_record', 'resolved_by')
+        .all()
+    )
+    status_value = ''
+    if filter_form.is_valid():
+        data = filter_form.cleaned_data
+        status_value = data.get('status') or ''
+        q = (data.get('q') or '').strip()
+        if q:
+            qs = qs.filter(
+                models.Q(user__username__icontains=q)
+                | models.Q(user__first_name__icontains=q)
+                | models.Q(user__last_name__icontains=q)
+            )
+        if data.get('date_from'):
+            qs = qs.filter(date__gte=data['date_from'])
+        if data.get('date_to'):
+            qs = qs.filter(date__lte=data['date_to'])
+
+    show_pending = status_value in ('', CheckoutErrorFilterForm.STATUS_PENDING)
+    show_resolved = status_value in ('', CheckoutErrorFilterForm.STATUS_RESOLVED)
+
+    pending_qs = qs.filter(status=CheckOutError.STATUS_PENDING)
+    resolved_qs = qs.filter(status=CheckOutError.STATUS_RESOLVED)
+    resolved_page = Paginator(
+        resolved_qs, CHECKOUT_RESOLVED_PER_PAGE
+    ).get_page(request.GET.get('resolved_page'))
+
     active_reasons = ExitReason.objects.filter(is_active=True).order_by('sort_order', 'title')
+
     return render(request, 'recognition/checkout_errors.html', {
-        'pending_errors': pending,
-        'resolved_errors': resolved,
+        'filter_form': filter_form,
+        'status_value': status_value,
+        'is_filtered': any(
+            request.GET.get(k)
+            for k in ('q', 'status', 'date_from', 'date_to')
+        ),
+        'show_pending': show_pending,
+        'show_resolved': show_resolved,
+        'pending_errors': pending_qs if show_pending else CheckOutError.objects.none(),
+        'pending_count': pending_qs.count(),
+        'resolved_errors': resolved_page if show_resolved else None,
+        'resolved_page': resolved_page if show_resolved else None,
+        'resolved_count': resolved_qs.count(),
+        'filter_query': urlencode(
+            {k: v for k, v in request.GET.items()
+             if k != 'resolved_page' and v},
+        ),
         'active_reasons': active_reasons,
     })
 
@@ -1044,6 +1097,39 @@ def resolve_checkout_error(request, error_id):
     error.save(update_fields=['status', 'note', 'resolved_by', 'resolved_at'])
 
     messages.success(request, f'خطای خروج کارمند «{error.user.username}» با موفقیت رفع شد.')
+    return redirect('view-checkout-errors')
+
+
+@login_required
+@require_POST
+def reopen_checkout_error(request, error_id):
+    """بازگشایی خطای رفع‌شده.
+
+    وضعیت به «در انتظار بررسی» برمی‌گردد و زمان خروج ثبت‌شده به حالت
+    خودکار (۲۳:۵۹:۵۹) بازگردانده می‌شود تا اصلاحِ دوباره انجام شود.
+    """
+    if not can_access_admin(request):
+        return redirect('not-authorised')
+    error = get_object_or_404(CheckOutError, id=error_id)
+
+    if error.status != CheckOutError.STATUS_RESOLVED:
+        messages.warning(request, 'فقط خطای «رفع‌شده» را می‌توان بازگشایی کرد.')
+        return redirect('view-checkout-errors')
+
+    error.status = CheckOutError.STATUS_PENDING
+    error.resolved_by = None
+    error.resolved_at = None
+    error.save(update_fields=['status', 'resolved_by', 'resolved_at'])
+
+    if error.time_record_id and error.auto_out_time:
+        time_rec = error.time_record
+        time_rec.time = error.auto_out_time
+        time_rec.save(update_fields=['time'])
+
+    messages.info(
+        request,
+        f'خطای خروج «{error.user.username}» بازگشایی شد و دوباره در انتظار بررسی است.',
+    )
     return redirect('view-checkout-errors')
 
 
