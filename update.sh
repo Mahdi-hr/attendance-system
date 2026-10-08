@@ -33,7 +33,7 @@
 set -Eeuo pipefail
 
 # ---------- تنظیمات قابل تغییر با محیط ----------
-REPO_URL="${REPO_URL:-https://github.com/Mahdi-hr/Attendance-For-Office.git}"
+REPO_URL="${REPO_URL:-https://github.com/Mahdi-hr/attendance-system.git}"
 REMOTE="${REMOTE:-origin}"
 BRANCH="${BRANCH:-main}"
 SERVICE_NAME="${SERVICE_NAME:-attendance}"
@@ -106,7 +106,7 @@ command -v git >/dev/null 2>&1 || die "git نصب نیست. نصب: sudo apt ins
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
     || die "این پوشه مخزن گیت نیست. ابتدا در پوشهٔ اصلی پروژه اجرا کن، یا مخزن را کلون کن:
-    git clone $REPO_URL && cd Attendance-For-Office"
+    git clone $REPO_URL && cd attendance-system"
 
 # اگر در حالت detached head هستیم، خطا بده
 if [ "$(git symbolic-ref -q --short HEAD || true)" = "" ]; then
@@ -175,6 +175,25 @@ step "دریافت از گیت‌هاب"
 if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
     git remote add "$REMOTE" "$REPO_URL"
     info "remote '$REMOTE' اضافه شد: $REPO_URL"
+else
+    # آدرس remote ممکن است مربوط به ریپوی قدیمی باشد (ریپو حذف/تغییرنام شده).
+    # برای remoteهای https آدرس را خودکار همگام می‌کنیم؛ remoteهای ssh را
+    # دست نمی‌زنیم چون ممکن است عمداً با کلید تنظیم شده باشند.
+    CURRENT_URL="$(git remote get-url "$REMOTE")"
+    if [ "$CURRENT_URL" != "$REPO_URL" ]; then
+        case "$CURRENT_URL" in
+            https://*)
+                git remote set-url "$REMOTE" "$REPO_URL"
+                info "remote '$REMOTE' همگام شد: $CURRENT_URL  →  $REPO_URL"
+                ;;
+            *)
+                warn "remote '$REMOTE' با REPO_URL فرق دارد:
+     فعلی:         $CURRENT_URL
+     مورد انتظار:  $REPO_URL
+     برای همگام‌سازی: git remote set-url $REMOTE $REPO_URL"
+                ;;
+        esac
+    fi
 fi
 
 git fetch --prune --tags "$REMOTE" 2>&1 | sed 's/^/   /' || die "ارتباط با گیت‌هاب برقرار نشد (اینترنت یا دسترسی به remote را بررسی کن)."

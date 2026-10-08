@@ -70,7 +70,7 @@
 ## ساختار پروژه
 
 ```
-Attendance-For-Office/
+attendance-system/
 ├── manage.py
 ├── requirements.txt
 ├── README.md
@@ -294,8 +294,8 @@ venv/bin/python manage.py test recognition users
 ### اولین نصب روی سیستم جدید
 
 ```bash
-git clone https://github.com/Mahdi-hr/Attendance-For-Office.git
-cd Attendance-For-Office
+git clone https://github.com/Mahdi-hr/attendance-system.git
+cd attendance-system
 
 cp .env.example .env
 python3 -c "import secrets; print(secrets.token_urlsafe(50))"   # در .env بگذار
