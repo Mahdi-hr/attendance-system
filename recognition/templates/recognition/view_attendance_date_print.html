@@ -9,11 +9,58 @@
     <link href="{% static 'recognition/fonts/vazirmatn/vazirmatn.css' %}" rel="stylesheet">
     <style>
         /* =========================================================
-           PAGE SETUP — A4 PORTRAIT / PRINT SAFE
+           PAGE SETUP — A4 LANDSCAPE
+           هدر/فوترِ تکرارشونده داخل حاشیهٔ کاغذ چاپ می‌شود؛ چون در
+           حاشیه است، هرگز روی متن جدول نمی‌افتد و در همهٔ برگه‌ها
+           دیده می‌شود.
            ========================================================= */
         @page {
-            size: A4 portrait;
-            margin: 8mm 7mm 8mm 7mm;
+            size: A4 landscape;
+            margin: 14mm 8mm 13mm 8mm;
+
+            @top-right {
+                content: "گزارش حضور و غیاب بر اساس تاریخ";
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 8.5pt;
+                font-weight: 700;
+                color: #111;
+            }
+
+            @top-center {
+                content: "سامانه حضور و غیاب هوشمند — کیان پرداز نقش جهان";
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 7.5pt;
+                color: #444;
+            }
+
+            @top-left {
+                content: "بازه گزارش: {% if date_from %}{{ date_from|to_jalali|fa }}{% else %}از ابتدا{% endif %} تا {% if date_to %}{{ date_to|to_jalali|fa }}{% else %}تاکنون{% endif %}";
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 7.5pt;
+                color: #444;
+            }
+
+            @bottom-right {
+                content: "تاریخ تهیه: {{ generated_at|to_jalali|fa }}";
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 7pt;
+                color: #555;
+            }
+
+            @bottom-center {
+                content: "صفحه " counter(page) " از " counter(pages);
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 7.5pt;
+                font-weight: 700;
+                color: #333;
+            }
+
+            @bottom-left {
+                content: "این گزارش رسمی و محرمانه است";
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 7pt;
+                color: #555;
+            }
         }
 
         * {
@@ -74,13 +121,13 @@
         }
 
         /* =========================================================
-           PAPER — EXACT A4 PROPORTION ON SCREEN
+           PAPER — A4 LANDSCAPE PROPORTION ON SCREEN
            ========================================================= */
         .paper {
-            width: min(210mm, calc(100% - 24px));
-            min-height: 297mm;
+            width: min(297mm, calc(100% - 24px));
+            min-height: 210mm;
             margin: 18px auto;
-            padding: 7mm 7mm 6mm;
+            padding: 7mm 8mm;
             background: #fff;
             box-shadow: 0 3px 18px rgba(0,0,0,.12);
             border: 1px solid #d1d5db;
@@ -207,8 +254,8 @@
         }
 
         /* =========================================================
-           TABLE — PORTRAIT A4 / FIXED COLUMN GRID
-           مجموع عرض ستون‌ها دقیقاً 100% است.
+           TABLE — LANDSCAPE A4 / FIXED COLUMN GRID
+           مجموع عرض ستون‌ها دقیقاً 100% و برابر با تعداد ستون‌های thead.
            ========================================================= */
         table.report-table {
             width: 100%;
@@ -241,17 +288,23 @@
             min-width: 0;
             overflow-wrap: anywhere;
             word-break: normal;
+            background: #fff;
         }
 
+        /* راه‌های جداکنندهٔ گروه روزها */
         table.report-table tbody tr.day-start td {
             border-top: 2px solid #000;
+        }
+
+        table.report-table tbody tr.alt td {
+            background: #f7f9fc;
         }
 
         table.report-table .date-cell {
             font-weight: 800;
             font-size: 7.3pt;
             text-align: center;
-            background: #f3f4f6;
+            background: #eef1f6 !important;
             vertical-align: middle !important;
             border-left: 2px solid #000 !important;
             padding: 5px 2px !important;
@@ -267,7 +320,7 @@
         table.report-table .date-cell .date-count {
             display: inline-block;
             margin-top: 4px;
-            padding: 1px 4px;
+            padding: 1px 5px;
             border: 1px solid #000;
             border-radius: 10px;
             font-size: 6.2pt;
@@ -280,9 +333,10 @@
         table.report-table .row-num {
             font-weight: 700;
             text-align: center;
-            background: #f9fafb;
+            background: #f9fafb !important;
             font-size: 7.2pt;
             white-space: nowrap;
+            color: #374151;
         }
 
         table.report-table .emp-name {
@@ -293,11 +347,34 @@
             word-break: break-word;
         }
 
+        /* وضعیت به شکل قرص رنگی — خوانا در چاپ سیاه‌وسفید هم */
         table.report-table .status-cell {
             text-align: center;
             font-weight: 700;
             font-size: 7.1pt;
             white-space: nowrap;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 1px 7px 2px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 6.9pt;
+            border: 1px solid transparent;
+            line-height: 1.35;
+        }
+
+        .status-pill.present {
+            background: #dcfce7;
+            color: #14532d;
+            border-color: #4ade80;
+        }
+
+        .status-pill.absent {
+            background: #fee2e2;
+            color: #7f1d1d;
+            border-color: #f87171;
         }
 
         /* ساعت‌ها داخل ستون خودشان می‌مانند و هرگز از سلول بیرون نمی‌زنند. */
@@ -309,6 +386,7 @@
             font-size: 7.1pt;
             padding-left: 1px;
             padding-right: 1px;
+            direction: ltr;
         }
 
         table.report-table .work-cell {
@@ -319,8 +397,27 @@
             overflow-wrap: anywhere;
         }
 
+        table.report-table .errand-cell {
+            color: #6d28d9;
+            font-size: 7pt;
+        }
+
+        table.report-table .errand-cell .errand-range {
+            display: block;
+            font-size: 6.3pt;
+            color: #7c3aed;
+            font-weight: 600;
+            margin-top: 1px;
+        }
+
+        table.report-table .total-cell {
+            font-weight: 800;
+            color: #1e293b;
+            background: #f1f5f9 !important;
+        }
+
         /* =========================================================
-           EVENTS — بدون nowrap برای جلوگیری از بیرون‌زدگی
+           EVENTS
            ========================================================= */
         table.report-table .events-cell {
             padding: 3px 3px !important;
@@ -355,12 +452,15 @@
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
             flex: 0 0 auto;
+            padding: 0 4px;
+            border: 1px solid;
+            border-radius: 3px;
         }
 
-        .event-line .ev-badge.in  { color: #065f46; }
-        .event-line .ev-badge.out { color: #991b1b; }
-        .event-line .ev-badge.open { color: #92400e; }
-        .event-line .ev-badge.break { color: #3730a3; }
+        .event-line .ev-badge.in    { color: #065f46; background: #ecfdf5; border-color: #6ee7b7; }
+        .event-line .ev-badge.out   { color: #991b1b; background: #fef2f2; border-color: #fca5a5; }
+        .event-line .ev-badge.open  { color: #92400e; background: #fffbeb; border-color: #fcd34d; }
+        .event-line .ev-badge.break { color: #3730a3; background: #eef2ff; border-color: #a5b4fc; }
 
         .event-line .ev-reason {
             display: inline-block;
@@ -394,6 +494,33 @@
             overflow-wrap: anywhere;
             word-break: break-word;
         }
+
+        /* =========================================================
+           LEGEND
+           ========================================================= */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px 14px;
+            margin-top: 5px;
+            padding: 4px 6px;
+            border: 1px dashed #9ca3af;
+            font-size: 6.6pt;
+            color: #374151;
+            background: #f9fafb;
+        }
+
+        .legend .lg b {
+            font-weight: 800;
+            margin-left: 2px;
+        }
+
+        .legend .lg-in    { color: #065f46; }
+        .legend .lg-out   { color: #991b1b; }
+        .legend .lg-open  { color: #92400e; }
+        .legend .lg-break { color: #3730a3; }
+        .legend .lg-muted { color: #6b7280; font-style: italic; }
 
         /* =========================================================
            SIGNATURE AREA
@@ -436,12 +563,10 @@
         }
 
         /* =========================================================
-           EMPLOYEE SUMMARY SECTION
+           SUMMARY SECTIONS
            ========================================================= */
         .summary-section {
             margin-top: 12px;
-            page-break-inside: avoid;
-            break-inside: avoid;
         }
 
         .summary-title {
@@ -486,6 +611,10 @@
             text-align: center;
         }
 
+        .summary-table td.strong {
+            font-weight: 800;
+        }
+
         .summary-table tbody tr:nth-child(even) td {
             background: #fafafa;
         }
@@ -497,6 +626,56 @@
 
         .summary-table tfoot tr.summary-total td {
             font-size: 7.5pt;
+        }
+
+        /* ---- نمودار میله‌ای سهم از کل ---- */
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .bar-pct {
+            flex: 0 0 auto;
+            min-width: 30px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 7pt;
+            color: #111827;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bar-track {
+            position: relative;
+            flex: 1 1 auto;
+            height: 9px;
+            min-width: 0;
+            background: #e5e7eb;
+            border: 1px solid #9ca3af;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, #7c3aed 0%, #2563eb 100%);
+            border-radius: 4px;
+        }
+
+        /* ---- دو جدول خلاصهٔ کنار هم (هفتگی/ماهانه) ---- */
+        .two-col {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-items: start;
+        }
+
+        .col-block {
+            min-width: 0;
         }
 
         /* =========================================================
@@ -552,11 +731,6 @@
            PRINT RULES
            ========================================================= */
         @media print {
-            @page {
-                size: A4 portrait;
-                margin: 8mm 7mm 8mm 7mm;
-            }
-
             html, body {
                 width: 100%;
                 background: #fff;
@@ -580,7 +754,12 @@
             .report-header,
             .info-grid,
             .signature-area,
-            .report-footer {
+            .legend {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .summary-section {
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
@@ -611,14 +790,32 @@
                 color: #000 !important;
             }
 
+            table.report-table tbody tr.alt td {
+                background: #f7f9fc !important;
+            }
+
             table.report-table .date-cell,
-            table.report-table .row-num {
-                background: #f3f4f6 !important;
+            table.report-table .row-num,
+            table.report-table .total-cell {
+                background: #eef1f6 !important;
+            }
+
+            .summary-table thead {
+                display: table-header-group;
+            }
+
+            .summary-table tbody tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .col-block {
+                page-break-inside: auto;
             }
         }
 
         /* Screen responsive */
-        @media screen and (max-width: 700px) {
+        @media screen and (max-width: 900px) {
             .paper {
                 width: calc(100% - 10px);
                 margin: 5px auto;
@@ -639,7 +836,8 @@
                 border-top: none;
             }
 
-            .signature-area {
+            .signature-area,
+            .two-col {
                 grid-template-columns: 1fr;
             }
 
@@ -687,14 +885,14 @@
                 </div>
                 <div class="report-meta">
                     <div class="meta-line">
-                        تاریخ تهیه: <strong>{{ generated_at|to_jalali }}</strong>
+                        تاریخ تهیه: <strong>{{ generated_at|to_jalali|fa }}</strong>
                     </div>
                     {% if date_from or date_to %}
                     <div class="meta-line">
                         بازه گزارش:
-                        <strong>{{ date_from|to_jalali|default:'از ابتدا' }}</strong>
+                        <strong>{{ date_from|to_jalali|fa|default:'از ابتدا' }}</strong>
                         تا
-                        <strong>{{ date_to|to_jalali|default:'تاکنون' }}</strong>
+                        <strong>{{ date_to|to_jalali|fa|default:'تاکنون' }}</strong>
                     </div>
                     {% else %}
                     <div class="meta-line">
@@ -736,15 +934,17 @@
         {% if rows %}
         <table class="report-table">
             <colgroup>
-                <col style="width:11%;">
-                <col style="width:4.5%;">
-                <col style="width:10.5%;">
-                <col style="width:7.5%;">
-                <col style="width:24%;">
+                <col style="width:10%;">
+                <col style="width:3%;">
+                <col style="width:10%;">
+                <col style="width:6%;">
+                <col style="width:22%;">
+                <col style="width:5.5%;">
+                <col style="width:5.5%;">
+                <col style="width:8.5%;">
+                <col style="width:9.5%;">
                 <col style="width:8%;">
-                <col style="width:8%;">
-                <col style="width:11%;">
-                <col style="width:15.5%;">
+                <col style="width:12%;">
             </colgroup>
             <thead>
                 <tr>
@@ -765,25 +965,25 @@
                 {% regroup rows by date as grouped_days %}
                 {% for day in grouped_days %}
                     {% for r in day.list %}
-                    <tr class="{% if forloop.first and not forloop.parentloop.first %}day-start{% endif %}">
+                    <tr class="{% if forloop.first %}day-start{% endif %}{% if forloop.parentloop.counter|divisibleby:2 %} alt{% endif %}">
 
                         {% if forloop.first %}
                         <!-- 📅 تاریخ — یک بار برای همه کارمندهای این روز -->
                         <td class="date-cell" rowspan="{{ day.list|length }}">
-                            <span class="date-text">{{ day.grouper|to_jalali_full }}</span>
+                            <span class="date-text">{{ day.grouper|to_jalali_full|fa }}</span>
                             <span class="date-count">{{ day.list|length|fa }} نفر</span>
                         </td>
                         {% endif %}
 
-                        <!-- شماره ردیف -->
-                        <td class="row-num">{{ forloop.counter|fa }}</td>
+                        <!-- شماره ردیف پیوسته در کل گزارش -->
+                        <td class="row-num">{{ r.row_index|fa }}</td>
 
                         <!-- نام کارمند -->
                         <td class="emp-name">{{ r.user.first_name }} {{ r.user.last_name }}</td>
 
                         <!-- وضعیت -->
                         <td class="status-cell">
-                            {% if r.present %}حاضر{% else %}غایب{% endif %}
+                            {% if r.present %}<span class="status-pill present">حاضر</span>{% else %}<span class="status-pill absent">غایب</span>{% endif %}
                         </td>
 
                         <!-- رویدادها — هر کدام در یک خط -->
@@ -830,15 +1030,15 @@
                         <td class="work-cell">{{ r.work_text }}</td>
 
                         <!-- معموریت -->
-                        <td class="work-cell" style="color:#7c3aed; font-size:9pt;">
+                        <td class="work-cell errand-cell">
                             {% if r.errand_seconds %}
                                 {{ r.errand_text }}
-                                <br><span style="font-size:7.5pt;color:#999;">{{ r.errand_range_text }}</span>
+                                {% if r.errand_range_text %}<span class="errand-range">{{ r.errand_range_text }}</span>{% endif %}
                             {% else %}—{% endif %}
                         </td>
 
                         <!-- جمع ساعت کار -->
-                        <td class="work-cell total" style="font-weight:700;color:#1e293b;">{{ r.total_text }}</td>
+                        <td class="work-cell total-cell">{{ r.total_text }}</td>
 
                         <!-- دلیل خروج -->
                         <td class="exit-reason-cell">
@@ -855,6 +1055,15 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- ===== LEGEND ===== -->
+        <div class="legend">
+            <span class="lg"><b class="lg-in">▲</b>ورود</span>
+            <span class="lg"><b class="lg-out">▼</b>خروج</span>
+            <span class="lg"><b class="lg-open">◐</b>هنوز در محل</span>
+            <span class="lg"><b class="lg-break">⏸</b>استراحت</span>
+            <span class="lg lg-muted">جمع ساعت کار = مدت حضور + مدت معموریت مؤثر</span>
+        </div>
         {% else %}
         <div class="empty-print">
             <span class="empty-icon">&#xf01c;</span>
@@ -889,12 +1098,20 @@
         <div class="summary-section">
             <h3 class="summary-title">خلاصه ساعات کار هر کارمند در بازه گزارش</h3>
             <table class="summary-table">
+                <colgroup>
+                    <col style="width:5%;">
+                    <col style="width:27%;">
+                    <col style="width:14%;">
+                    <col style="width:21%;">
+                    <col style="width:33%;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>نام و نام خانوادگی</th>
                         <th>تعداد روز حضور</th>
                         <th>مجموع ساعات کار</th>
+                        <th>سهم از کل ساعت کار</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -903,7 +1120,15 @@
                         <td class="text-center">{{ forloop.counter|fa }}</td>
                         <td class="text-right">{{ summary.first_name }} {{ summary.last_name }}</td>
                         <td class="text-center">{{ summary.days_present|fa }}</td>
-                        <td class="text-center">{{ summary.total_text }}</td>
+                        <td class="text-center strong">{{ summary.total_text }}</td>
+                        <td>
+                            <div class="bar-row">
+                                <span class="bar-pct">{{ summary.share_pct|fa }}٪</span>
+                                <span class="bar-track">
+                                    <span class="bar-fill" style="width: {{ summary.bar_pct }}%;"></span>
+                                </span>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -912,15 +1137,103 @@
                         <td colspan="2" class="text-right">مجموع کل</td>
                         <td class="text-center">{{ days_present|fa }}</td>
                         <td class="text-center">{{ total_text }}</td>
+                        <td class="text-center">۱۰۰٪</td>
                     </tr>
                 </tfoot>
             </table>
         </div>
         {% endif %}
 
+        <!-- ===== WEEKLY & MONTHLY SUMMARY ===== -->
+        {% if weekly or monthly %}
+        <div class="summary-section">
+            <div class="two-col">
+
+                {% if weekly %}
+                <div class="col-block">
+                    <h3 class="summary-title">خلاصه هفتگی</h3>
+                    <table class="summary-table">
+                        <colgroup>
+                            <col style="width:32%;">
+                            <col style="width:17%;">
+                            <col style="width:25%;">
+                            <col style="width:26%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>هفته (ماه/روز)</th>
+                                <th>نفر-روز حضور</th>
+                                <th>مجموع ساعت کار</th>
+                                <th>سهم از کل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for w in weekly %}
+                            <tr>
+                                <td class="text-right">{{ w.label }}</td>
+                                <td class="text-center">{{ w.days|fa }}</td>
+                                <td class="text-center strong">{{ w.hours_text }}</td>
+                                <td>
+                                    <div class="bar-row">
+                                        <span class="bar-pct">{{ w.share_pct|fa }}٪</span>
+                                        <span class="bar-track">
+                                            <span class="bar-fill" style="width: {{ w.bar_pct }}%;"></span>
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                {% if monthly %}
+                <div class="col-block">
+                    <h3 class="summary-title">خلاصه ماهانه</h3>
+                    <table class="summary-table">
+                        <colgroup>
+                            <col style="width:32%;">
+                            <col style="width:17%;">
+                            <col style="width:25%;">
+                            <col style="width:26%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>ماه</th>
+                                <th>نفر-روز حضور</th>
+                                <th>مجموع ساعت کار</th>
+                                <th>سهم از کل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in monthly %}
+                            <tr>
+                                <td class="text-right">{{ m.label }}</td>
+                                <td class="text-center">{{ m.days|fa }}</td>
+                                <td class="text-center strong">{{ m.hours_text }}</td>
+                                <td>
+                                    <div class="bar-row">
+                                        <span class="bar-pct">{{ m.share_pct|fa }}٪</span>
+                                        <span class="bar-track">
+                                            <span class="bar-fill" style="width: {{ m.bar_pct }}%;"></span>
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+        {% endif %}
+
         <!-- ===== FOOTER ===== -->
         <div class="report-footer">
-            <span class="f-item">تاریخ تهیه: {{ generated_at|to_jalali }}</span>
+            <span class="f-item">تاریخ تهیه: {{ generated_at|to_jalali|fa }}</span>
             <span class="f-item">سامانه حضور و غیاب با تشخیص چهره</span>
             <span class="f-item">این گزارش رسمی و محرمانه است</span>
         </div>

@@ -37,6 +37,47 @@ PER_PAGE = 30
 XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
+def _number_rows(rows):
+	"""شمارهٔ ردیف پیوسته (۱..n) روی ردیف‌های گزارش چاپی می‌گذارد.
+
+	پیش‌تر شماره داخل هر گروه از نو شروع می‌شد و ستون «#» در جدول چاپی
+	برای هر روز دوباره از ۱ آغاز می‌شد.
+	"""
+	for index, row in enumerate(rows, 1):
+		row['row_index'] = index
+	return rows
+
+
+def _add_share_bars(items, seconds_key='seconds'):
+	"""درصد «سهم از کل» و عرض میلهٔ نمودار را به جدول‌های خلاصه اضافه می‌کند.
+
+	میله نسبت به بیشترین مقدار مقیاس می‌شود تا تفاوت‌ها دیده شود و
+	برچسب درصد، سهم واقعی از کل بازه را نشان می‌دهد.
+	"""
+	total = sum(item.get(seconds_key) or 0 for item in items)
+	peak = max([item.get(seconds_key) or 0 for item in items], default=0)
+	for item in items:
+		value = item.get(seconds_key) or 0
+		item['share_pct'] = int(round(value * 100 / total)) if total else 0
+		item['bar_pct'] = int(round(value * 100 / peak)) if peak else 0
+	return items
+
+
+def _newest_first(rows):
+	"""جدولِ گزارش آنلاین را از جدیدترین تاریخ شروع می‌کند.
+
+	دو مرتبه‌سازیِ پایدار: اول (تاریخ، نام) صعودی تا نام کارمندان داخل هر روز
+	به‌ترتیب الفبا بماند، بعد فقط تاریخِ نزولی. نتیجه: جدیدترین روز بالای
+	جدول و کارمندانِ همان روز همچنان الفبا.
+
+	فقط صفحهٔ آنلاین را جابه‌جا می‌کند؛ خروجی چاپی و اکسل ترتیب خودشان
+	را (قدیمی‌ترین اول) حفظ می‌کنند.
+	"""
+	rows.sort(key=lambda r: (r['date'], r['username']))
+	rows.sort(key=lambda r: r['date'], reverse=True)
+	return rows
+
+
 # ============================================================================
 # کمک‌کننده‌های صف انتظار دوربین
 # ----------------------------------------------------------------------------
@@ -550,7 +591,7 @@ def view_attendance_date(request):
 		else:
 			messages.error(request, 'فیلتر تاریخ نامعتبر است.')
 
-	rows = daily_rows(employees_queryset(), date_from, date_to)
+	rows = _newest_first(daily_rows(employees_queryset(), date_from, date_to))
 	days_present, total_seconds, person_count = range_summary(rows)
 	total_text = format_hours(total_seconds)
 	avg_text = format_hours(total_seconds // days_present) if days_present else '-'
@@ -599,8 +640,9 @@ def view_attendance_date_print(request):
 		if date_from and date_to and date_to < date_from:
 			date_from = date_to = None
 	rows = daily_rows(employees_queryset(), date_from, date_to)
+	_number_rows(rows)
 	days_present, total_seconds, person_count = range_summary(rows)
-	user_summaries = per_user_summary(rows)
+	user_summaries = _add_share_bars(per_user_summary(rows), 'total_seconds')
 	return render(request, 'recognition/view_attendance_date_print.html', {
 		'rows': rows,
 		'date_from': date_from,
@@ -611,6 +653,8 @@ def view_attendance_date_print(request):
 		'average_text': format_hours(total_seconds // days_present) if days_present else '-',
 		'generated_at': datetime.datetime.now(),
 		'user_summaries': user_summaries,
+		'weekly': _add_share_bars(weekly_summary(rows)),
+		'monthly': _add_share_bars(monthly_summary(rows)),
 	})
 
 
@@ -640,7 +684,7 @@ def view_attendance_employee(request):
 
 	if show_report:
 		user = User.objects.get(username=username)
-		rows = daily_rows([user], date_from, date_to)
+		rows = _newest_first(daily_rows([user], date_from, date_to))
 		days_present, total_seconds, _ = range_summary(rows)
 		total_text = format_hours(total_seconds)
 		if days_present:
@@ -712,9 +756,13 @@ def view_attendance_employee_print(request):
 		if date_from and date_to and date_to < date_from:
 			date_from = date_to = None
 	rows = daily_rows([User.objects.get(username=username)], date_from, date_to)
+	_number_rows(rows)
 	days_present, total_seconds, _ = range_summary(rows)
+	employee = User.objects.get(username=username)
+	employee_name = ('%s %s' % (employee.first_name, employee.last_name)).strip() or employee.username
 	return render(request, 'recognition/view_attendance_employee_print.html', {
 		'username': username,
+		'employee_name': employee_name,
 		'rows': rows,
 		'date_from': date_from,
 		'date_to': date_to,
@@ -722,8 +770,8 @@ def view_attendance_employee_print(request):
 		'total_text': format_hours(total_seconds),
 		'average_text': format_hours(total_seconds // days_present) if days_present else '-',
 		'max_day_text': format_hours(max(r['work_seconds'] for r in rows)) if rows else '-',
-		'weekly': weekly_summary(rows),
-		'monthly': monthly_summary(rows),
+		'weekly': _add_share_bars(weekly_summary(rows)),
+		'monthly': _add_share_bars(monthly_summary(rows)),
 		'generated_at': datetime.datetime.now(),
 	})
 
@@ -797,9 +845,15 @@ def view_my_attendance_print(request):
 		if date_from and date_to and date_to < date_from:
 			date_from = date_to = None
 	rows = daily_rows([request.user], date_from, date_to)
+	_number_rows(rows)
 	days_present, total_seconds, _ = range_summary(rows)
+	employee_name = (
+		('%s %s' % (request.user.first_name, request.user.last_name)).strip()
+		or request.user.username
+	)
 	return render(request, 'recognition/view_attendance_employee_print.html', {
 		'username': username,
+		'employee_name': employee_name,
 		'rows': rows,
 		'date_from': date_from,
 		'date_to': date_to,
@@ -807,8 +861,8 @@ def view_my_attendance_print(request):
 		'total_text': format_hours(total_seconds),
 		'average_text': format_hours(total_seconds // days_present) if days_present else '-',
 		'max_day_text': format_hours(max(r['work_seconds'] for r in rows)) if rows else '-',
-		'weekly': weekly_summary(rows),
-		'monthly': monthly_summary(rows),
+		'weekly': _add_share_bars(weekly_summary(rows)),
+		'monthly': _add_share_bars(monthly_summary(rows)),
 		'generated_at': datetime.datetime.now(),
 	})
 
