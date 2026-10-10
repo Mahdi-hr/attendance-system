@@ -1,9 +1,9 @@
-"""ویوهای بخش معموریت.
+"""ویوهای بخش مأموریت.
 
 سه گروه صفحه:
-  ۱) کارمند  : ثبت درخواست، لیست «معموریت‌های من»، لغو، مشاهدهٔ نتیجه
+  ۱) کارمند  : ثبت درخواست، لیست «مأموریت‌های من»، لغو، مشاهدهٔ نتیجه
   ۲) ادمین   : صف بررسی، تأیید/رد، ویرایش بازهٔ ثبت‌شده
-  ۳) گزارش   : فهرست معموریت‌ها در یک بازه (برای خروجی اکسل و چاپ)
+  ۳) گزارش   : فهرست مأموریت‌ها در یک بازه (برای خروجی اکسل و چاپ)
 
 دسترسی با `can_access_admin(request)` کنترل می‌شود — همان الگوی
 «پرچم admin_mode در session» که کل سامانه از آن استفاده می‌کند.
@@ -31,7 +31,7 @@ from .forms import ErrandAdminEditForm, ErrandFilterForm, ErrandForm, ErrandRevi
 from .models import Errand
 
 PER_PAGE = 25
-MY_PER_PAGE = 3  # «معموریت‌های من»: حداکثر ۳ درخواست اخیر در هر صفحه از هر بخش
+MY_PER_PAGE = 3  # «مأموریت‌های من»: حداکثر ۳ درخواست اخیر در هر صفحه از هر بخش
 
 
 def _jalali_input(value):
@@ -75,7 +75,7 @@ def _filter_qs(request):
 
 @login_required
 def my_errands(request):
-    """ثبت درخواست جدید + فهرست معموریت‌های خودِ کارمند.
+    """ثبت درخواست جدید + فهرست مأموریت‌های خودِ کارمند.
 
     اگر کاربر در «حالت ادمین» باشد، فرم ثبت نمایش داده نمی‌شود
     (ادمین‌ها فقط بررسی می‌کنند، درخواست ثبت نمی‌کنند).
@@ -96,7 +96,7 @@ def my_errands(request):
             errand.save()
             messages.success(
                 request,
-                'درخواست معموریت ثبت شد و برای بررسی به مدیر ارسال گردید. '
+                'درخواست مأموریت ثبت شد و برای بررسی به مدیر ارسال گردید. '
                 'پس از تأیید، در گزارش‌ها محاسبه خواهد شد.',
             )
             return redirect(reverse('errands-my'))
@@ -150,7 +150,7 @@ def cancel_errand(request, pk):
     """کارمند درخواست «در انتظار» خودش را لغو می‌کند."""
     errand = get_object_or_404(Errand, pk=pk, user=request.user)
     if errand.cancel(request.user):
-        messages.info(request, 'درخواست معموریت لغو شد.')
+        messages.info(request, 'درخواست مأموریت لغو شد.')
     else:
         messages.warning(
             request,
@@ -165,7 +165,7 @@ def cancel_errand(request, pk):
 
 @login_required
 def admin_review(request):
-    """صف بررسی معموریت‌ها: در انتظار / تأییدشده / ردشده."""
+    """صف بررسی مأموریت‌ها: در انتظار / تأییدشده / ردشده."""
     if not can_access_admin(request):
         return redirect('not-authorised')
 
@@ -210,7 +210,7 @@ def admin_review(request):
 @login_required
 @require_POST
 def review_errand(request, pk):
-    """تأیید یا رد یک درخواست معموریت."""
+    """تأیید یا رد یک درخواست مأموریت."""
     if not can_access_admin(request):
         return redirect('not-authorised')
 
@@ -232,7 +232,7 @@ def review_errand(request, pk):
         if errand.approve(request.user, note=note):
             messages.success(
                 request,
-                'معموریت %s تأیید شد. از این پس در گزارش‌ها محاسبه می‌شود.'
+                'مأموریت %s تأیید شد. از این پس در گزارش‌ها محاسبه می‌شود.'
                 % errand.user.username,
             )
         else:
@@ -242,7 +242,7 @@ def review_errand(request, pk):
         if errand.reject(request.user, note=note):
             messages.info(
                 request,
-                'معموریت %s رد شد و کارمند دلیل را می‌بیند.'
+                'مأموریت %s رد شد و کارمند دلیل را می‌بیند.'
                 % errand.user.username,
             )
         else:
@@ -253,7 +253,7 @@ def review_errand(request, pk):
 
 @login_required
 def admin_edit(request, pk):
-    """ادمین بازه یا توضیحات یک معموریت را اصلاح می‌کند.
+    """ادمین بازه یا توضیحات یک مأموریت را اصلاح می‌کند.
 
     این صفحه برای وقتی است که کارمند بازه را اشتباه زده و خودش
     نمی‌تواند (چون بعد از تأیید دیگر قابل لغو نیست).
@@ -266,7 +266,7 @@ def admin_edit(request, pk):
 
     if request.method == 'POST' and form.is_valid():
         form.save()
-        messages.success(request, 'معموریت به‌روزرسانی شد.')
+        messages.success(request, 'مأموریت به‌روزرسانی شد.')
         return redirect(reverse('errands-admin'))
 
     return render(request, 'errands/admin_edit.html', {
@@ -321,7 +321,7 @@ def bulk_review(request):
 
 @login_required
 def errand_list(request):
-    """فهرست همهٔ معموریت‌ها در یک بازه — برای ادمین."""
+    """فهرست همهٔ مأموریت‌ها در یک بازه — برای ادمین."""
     if not can_access_admin(request):
         return redirect('not-authorised')
 
@@ -356,7 +356,7 @@ def errand_list(request):
 
 @login_required
 def errand_export(request):
-    """خروجی اکسل معموریت‌ها."""
+    """خروجی اکسل مأموریت‌ها."""
     if not can_access_admin(request):
         return redirect('not-authorised')
 
@@ -390,7 +390,7 @@ def errand_export(request):
         ])
 
     book = build_xlsx(
-        sheet_name='معموریت‌ها',
+        sheet_name='مأموریت‌ها',
         headers=['ردیف', 'شروع', 'پایان', 'مدت', 'کارمند', 'دلیل', 'مقصد',
                  'وضعیت', 'بررسی‌کننده'],
         rows=rows,

@@ -196,7 +196,7 @@ class DiagnosticsTests(SuperuserMixin, TestCase):
             self.assertIn('status', item)
             self.assertIn('fixable', item)
             self.assertIn('key', item)
-            self.assertIn(item['status'], ('ok', 'warn', 'error'))
+            self.assertIn(item['status'], ('ok', 'warn', 'info', 'error'))
 
     def test_fast_checks_are_cheap(self):
         checks = diagnostics.fast_checks()

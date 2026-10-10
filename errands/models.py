@@ -1,6 +1,6 @@
-"""ممدل دادهٔ معموریت.
+"""ممدل دادهٔ مأموریت.
 
-«معموریت» یعنی کارمند در یک بازهٔ زمانی مشخص به جای محل کار، مأموریت
+«مأموریت» یعنی کارمند در یک بازهٔ زمانی مشخص به جای محل کار، مأموریت
 بیرونی داشته است (بانک، دادگاه، مشتری، بازدید کارگاه و …).
 
 چرخهٔ کار:
@@ -21,19 +21,19 @@ from django.utils import timezone
 
 
 class ErrandQuerySet(models.QuerySet):
-    """کوئری‌ست‌های پرکاربرد اپ معموریت."""
+    """کوئری‌ست‌های پرکاربرد اپ مأموریت."""
 
     def approved(self):
-        """فقط معموریت‌های تأییدشده — این‌ها هستند که روی گزارش اثر دارند."""
+        """فقط مأموریت‌های تأییدشده — این‌ها هستند که روی گزارش اثر دارند."""
         return self.filter(status=Errand.STATUS_APPROVED)
 
     def pending(self):
         return self.filter(status=Errand.STATUS_PENDING)
 
     def for_window(self, date_from=None, date_to=None):
-        """معموریت‌هایی که با بازهٔ تاریخی تلاقی دارند.
+        """مأموریت‌هایی که با بازهٔ تاریخی تلاقی دارند.
 
-        نکته: شرط روی `end_time` و `start_time` جداست تا معموریتی که از
+        نکته: شرط روی `end_time` و `start_time` جداست تا مأموریتی که از
         قبل از بازه شروع شده و داخل بازه ادامه دارد هم پیدا شود.
         """
         qs = self
@@ -46,10 +46,10 @@ class ErrandQuerySet(models.QuerySet):
         return qs
 
     def active_overlap(self, start, end, exclude_pk=None):
-        """معموریت‌های همپوشان با یک بازه (برای جلوگیری از ثبت تکراری).
+        """مأموریت‌های همپوشان با یک بازه (برای جلوگیری از ثبت تکراری).
 
         همپوشانی وقتی رخ می‌دهد که `existing.start < end` و
-        `existing.end > start`؛ معموریت‌هایی که دقیقاً به هم می‌چسبند
+        `existing.end > start`؛ مأموریت‌هایی که دقیقاً به هم می‌چسبند
         (پایان یکی = شروع دیگری) همپوشانی نیستند.
         """
         qs = self.filter(start_time__lt=end, end_time__gt=start)
@@ -76,7 +76,7 @@ def _end_of_day(date):
 
 
 class Errand(models.Model):
-    """یک درخواست/ثبت معموریت با بازهٔ زمانی مشخص."""
+    """یک درخواست/ثبت مأموریت با بازهٔ زمانی مشخص."""
 
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
@@ -99,8 +99,8 @@ class Errand(models.Model):
     )
 
     # ---------- بازهٔ زمانی (aware، به وقت تهران) ----------
-    start_time = models.DateTimeField(verbose_name='شروع معموریت')
-    end_time = models.DateTimeField(verbose_name='پایان معموریت')
+    start_time = models.DateTimeField(verbose_name='شروع مأموریت')
+    end_time = models.DateTimeField(verbose_name='پایان مأموریت')
 
     # ---------- توضیحات ----------
     reason = models.CharField(
@@ -158,8 +158,8 @@ class Errand(models.Model):
     objects = ErrandQuerySet.as_manager()
 
     class Meta:
-        verbose_name = 'معموریت'
-        verbose_name_plural = 'معموریت‌ها'
+        verbose_name = 'مأموریت'
+        verbose_name_plural = 'مأموریت‌ها'
         ordering = ['-start_time', '-id']
         indexes = [
             models.Index(fields=['user', 'start_time'], name='errand_user_start_idx'),
@@ -217,7 +217,7 @@ class Errand(models.Model):
 
     @property
     def is_open(self):
-        """آیا همین الان داخل بازهٔ این معموریت است؟"""
+        """آیا همین الان داخل بازهٔ این مأموریت است؟"""
         if not self.is_approved:
             return False
         now = timezone.now()

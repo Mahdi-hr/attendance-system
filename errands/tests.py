@@ -1,4 +1,4 @@
-"""تست‌های اپ معموریت.
+"""تست‌های اپ مأموریت.
 
 این تست‌ها عمداً روی «حالت‌های مرزی» تمرکز دارند، چون جایی هستند که
 یک باگ بی‌صدا باعث می‌شود ساعت کار اشتباه حساب شود.
@@ -54,13 +54,13 @@ class IntervalMathTests(TestCase):
         self.assertEqual(len(merge_intervals([a, b])), 2)
 
     def test_subtract_removes_overlap(self):
-        """معموریت ۸ تا ۱۶ منهای حضور ۸ تا ۱۲ = فقط ۱۲ تا ۱۶."""
+        """مأموریت ۸ تا ۱۶ منهای حضور ۸ تا ۱۲ = فقط ۱۲ تا ۱۶."""
         base = [(aware(2026, 9, 20, 8), aware(2026, 9, 20, 16))]
         cuts = [(aware(2026, 9, 20, 8), aware(2026, 9, 20, 12))]
         self.assertEqual(total_seconds(subtract_intervals(base, cuts)), 4 * 3600)
 
     def test_subtract_cuts_from_middle(self):
-        """حضور ۱۰ تا ۱۴ از وسط معموریت ۸ تا ۱۸ → دو تکه: ۲ ساعت + ۴ ساعت."""
+        """حضور ۱۰ تا ۱۴ از وسط مأموریت ۸ تا ۱۸ → دو تکه: ۲ ساعت + ۴ ساعت."""
         base = [(aware(2026, 9, 20, 8), aware(2026, 9, 20, 18))]   # 10h
         cuts = [(aware(2026, 9, 20, 10), aware(2026, 9, 20, 14))]  # 4h
         result = subtract_intervals(base, cuts)
@@ -70,7 +70,7 @@ class IntervalMathTests(TestCase):
         self.assertEqual(total_seconds(result), 6 * 3600)
 
     def test_subtract_full_cover_leaves_nothing(self):
-        """اگر کل معموریت با حضور پوشانده شود، معموریت مؤثر صفر است."""
+        """اگر کل مأموریت با حضور پوشانده شود، مأموریت مؤثر صفر است."""
         base = [(aware(2026, 9, 20, 8), aware(2026, 9, 20, 12))]
         cuts = [(aware(2026, 9, 20, 7), aware(2026, 9, 20, 13))]
         self.assertEqual(subtract_intervals(base, cuts), [])
@@ -98,7 +98,7 @@ class IntervalMathTests(TestCase):
         )
 
     def test_effective_seconds_prefers_union_not_double_count(self):
-        """مهم‌ترین تست: ۴ ساعت حضور + ۸ ساعت معموریتِ همپوشان = ۸ ساعت، نه ۱۲."""
+        """مهم‌ترین تست: ۴ ساعت حضور + ۸ ساعت مأموریتِ همپوشان = ۸ ساعت، نه ۱۲."""
         work = [(aware(2026, 9, 20, 8), aware(2026, 9, 20, 12))]
         errand = [(aware(2026, 9, 20, 8), aware(2026, 9, 20, 16))]
         effective = effective_seconds(errand, work)
@@ -163,7 +163,7 @@ class ErrandModelTests(TestCase):
 
 
 class ReportIntegrationTests(TestCase):
-    """معموریت باید در گزارش‌ها درست بنشیند."""
+    """مأموریت باید در گزارش‌ها درست بنشیند."""
 
     def setUp(self):
         self.user = User.objects.create_user('ali', password='x')
@@ -208,7 +208,7 @@ class ReportIntegrationTests(TestCase):
         self.assertIsNone(rows[0]['first_in'])
 
     def test_no_double_count_with_physical_attendance(self):
-        """حضور ۸ تا ۱۲ + معموریت ۱۰ تا ۱۸ → ۴ + ۸ = ۱۲ ساعت (نه ۱۴)."""
+        """حضور ۸ تا ۱۲ + مأموریت ۱۰ تا ۱۸ → ۴ + ۸ = ۱۲ ساعت (نه ۱۴)."""
         self.add_time(aware(2026, 9, 20, 8), out=False)
         self.add_time(aware(2026, 9, 20, 12), out=True)
         Errand.objects.create(
@@ -224,7 +224,7 @@ class ReportIntegrationTests(TestCase):
         self.assertEqual(rows[0]['total_seconds'], 10 * 3600)   # ۸ تا ۱۸
 
     def test_errand_spanning_midnight_splits_across_days(self):
-        """معموریت ۲۰ دیروز تا ۰۴ امروز → ۴ ساعت دیروز + ۴ ساعت امروز."""
+        """مأموریت ۲۰ دیروز تا ۰۴ امروز → ۴ ساعت دیروز + ۴ ساعت امروز."""
         Errand.objects.create(
             user=self.user,
             start_time=aware(2026, 9, 19, 20),
@@ -310,7 +310,7 @@ class DateTimePickerFieldTests(SimpleTestCase):
 
 
 # ============================================================
-#  فرم ثبت معموریت — اعتبارسنجی
+#  فرم ثبت مأموریت — اعتبارسنجی
 # ============================================================
 
 class ErrandFormTests(TestCase):
@@ -443,7 +443,7 @@ class EmployeeErrandViewTests(TestCase):
         # میانبرهای شبیه بخش گزارشات
         for preset in ('today', 'week', 'currentMonth'):
             self.assertContains(r, 'data-errand-preset="%s"' % preset)
-        self.assertContains(r, 'ثبت معموریت جدید')
+        self.assertContains(r, 'ثبت مأموریت جدید')
 
     def test_employee_creates_pending_errand(self):
         self.login(self.employee)
@@ -482,9 +482,9 @@ class EmployeeErrandViewTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIs(r.context['form'], None)
         self.assertTrue(r.context['is_admin_mode'])
-        self.assertNotContains(r, 'ثبت معموریت جدید')
+        self.assertNotContains(r, 'ثبت مأموریت جدید')
         # ولی فهرست همچنان دیده می‌شود
-        self.assertContains(r, 'معموریت‌های من')
+        self.assertContains(r, 'مأموریت‌های من')
 
     def test_admin_mode_ignores_create_post(self):
         self.login(self.admin)
@@ -507,7 +507,7 @@ class EmployeeErrandViewTests(TestCase):
         self.assertContains(r, 'دلیل رد توسط مدیر')
 
     def test_page_renders_with_approved_overnight_errand(self):
-        """رجرسیون: آمار معموریت تأییدشده قبلاً ۵۰۰ می‌داد (unpack سه‌تایی)."""
+        """رجرسیون: آمار مأموریت تأییدشده قبلاً ۵۰۰ می‌داد (unpack سه‌تایی)."""
         Errand.objects.create(
             user=self.employee,
             start_time=aware(2026, 9, 20, 17),
@@ -764,7 +764,7 @@ class ErrandListExportTests(TestCase):
 
 
 class MyErrandsSectionsTests(TestCase):
-    """«معموریت‌های من» باید دو بخش جدا داشته باشد و هر بخش حداکثر ۳ کارت
+    """«مأموریت‌های من» باید دو بخش جدا داشته باشد و هر بخش حداکثر ۳ کارت
     در هر صفحه نشان دهد (تا صفحه شلوغ نشود)."""
 
     def setUp(self):
@@ -834,7 +834,7 @@ class MyErrandsSectionsTests(TestCase):
 
     def test_empty_sections_show_friendly_notes(self):
         r = self.client.get(self.url)
-        self.assertContains(r, 'هنوز معموریتی ثبت نکرده‌اید')
+        self.assertContains(r, 'هنوز مأموریتی ثبت نکرده‌اید')
 
     def test_both_sections_mixed(self):
         """دو بخش هم‌زمان: ۳ در انتظار + ۳ بررسی‌شده در هر کدام حداکثر ۳."""
@@ -849,7 +849,7 @@ class MyErrandsSectionsTests(TestCase):
 
 
 class ErrandAdminTests(TestCase):
-    """پنل ادمین جنگو برای معموریت‌ها — /admin/errands/errand/."""
+    """پنل ادمین جنگو برای مأموریت‌ها — /admin/errands/errand/."""
 
     def setUp(self):
         self.boss = User.objects.create_superuser('boss', 'b@b.com', 'x')

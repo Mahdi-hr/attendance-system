@@ -956,7 +956,7 @@
                     <th>ورود</th>
                     <th>خروج</th>
                     <th>مدت حضور</th>
-                    <th>معموریت</th>
+                    <th>مأموریت</th>
                     <th>جمع ساعت کار</th>
                     <th>دلیل خروج</th>
                 </tr>
@@ -1029,7 +1029,7 @@
                         <!-- مدت حضور -->
                         <td class="work-cell">{{ r.work_text }}</td>
 
-                        <!-- معموریت -->
+                        <!-- مأموریت -->
                         <td class="work-cell errand-cell">
                             {% if r.errand_seconds %}
                                 {{ r.errand_text }}
@@ -1062,7 +1062,7 @@
             <span class="lg"><b class="lg-out">▼</b>خروج</span>
             <span class="lg"><b class="lg-open">◐</b>هنوز در محل</span>
             <span class="lg"><b class="lg-break">⏸</b>استراحت</span>
-            <span class="lg lg-muted">جمع ساعت کار = مدت حضور + مدت معموریت مؤثر</span>
+            <span class="lg lg-muted">جمع ساعت کار = مدت حضور + مدت مأموریت مؤثر</span>
         </div>
         {% else %}
         <div class="empty-print">

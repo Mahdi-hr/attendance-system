@@ -1,4 +1,4 @@
-"""فرم‌های ثبت و بررسی معموریت."""
+"""فرم‌های ثبت و بررسی مأموریت."""
 
 import datetime as dt
 
@@ -17,20 +17,20 @@ BACKDATE_LIMIT_DAYS = 7
 
 
 class ErrandForm(forms.ModelForm):
-    """فرم ثبت معموریت توسط کارمند.
+    """فرم ثبت مأموریت توسط کارمند.
 
     استفاده از JalaliDateTimePickerField برای انتخاب تاریخ/ساعت شمسی.
     """
 
     # بازهٔ زمانی — JalaliDateTimePickerField با پشتیبانی از پیش‌تنظیم‌ها
     start = JalaliDateTimePickerField(
-        label='شروع معموریت',
+        label='شروع مأموریت',
         widget=JalaliDateTimePickerInput(attrs={
             'data-field': 'start',
         }),
     )
     end = JalaliDateTimePickerField(
-        label='پایان معموریت',
+        label='پایان مأموریت',
         widget=JalaliDateTimePickerInput(attrs={
             'data-field': 'end',
         }),
@@ -94,7 +94,7 @@ class ErrandForm(forms.ModelForm):
 
         # ۱) پایان باید بعد از شروع باشد
         if end <= start:
-            self.add_error('end', 'پایان معموریت باید بعد از شروع آن باشد.')
+            self.add_error('end', 'پایان مأموریت باید بعد از شروع آن باشد.')
             return cleaned
 
         # ۲) سقف ۷ روز گذشته
@@ -103,7 +103,7 @@ class ErrandForm(forms.ModelForm):
         if local_start < earliest:
             self.add_error(
                 'start',
-                'ثبت معموریت برای تاریخ‌های قدیمی‌تر از %s روز گذشته مجاز نیست.'
+                'ثبت مأموریت برای تاریخ‌های قدیمی‌تر از %s روز گذشته مجاز نیست.'
                 % BACKDATE_LIMIT_DAYS,
             )
 
@@ -112,8 +112,8 @@ class ErrandForm(forms.ModelForm):
         if timezone.localtime(end).date() > latest:
             self.add_error('end', 'تاریخ پایان بیش از ۳۰ روز در آینده است. احتمالاً اشتباه است.')
 
-        # ۴) همپوشانی با یک درخواست/معموریت فعالِ دیگرِ خودِ این کاربر
-        #    (معموریت ردشده یا لغوشده مانع ثبت تکراری نیست)
+        # ۴) همپوشانی با یک درخواست/مأموریت فعالِ دیگرِ خودِ این کاربر
+        #    (مأموریت ردشده یا لغوشده مانع ثبت تکراری نیست)
         if 'end' not in self.errors and 'start' not in self.errors and self.user:
             clash = (
                 Errand.objects
@@ -128,7 +128,7 @@ class ErrandForm(forms.ModelForm):
                 clash_end = timezone.localtime(clash.end_time)
                 self.add_error(
                     'start',
-                    'این بازه با یک معموریت فعال دیگر همپوشانی دارد '
+                    'این بازه با یک مأموریت فعال دیگر همپوشانی دارد '
                     '(%s تا %s). ابتدا آن را لغو یا اصلاح کنید.'
                     % (
                         fa_digits(clash_start.strftime('%H:%M')),
@@ -166,7 +166,7 @@ class ErrandReviewForm(forms.Form):
 
 
 class ErrandAdminEditForm(ErrandForm):
-    """ویرایش معموریت توسط ادمین.
+    """ویرایش مأموریت توسط ادمین.
 
     مثل فرم کارمند است با دو تفاوت که عمدی‌اند:
 

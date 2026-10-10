@@ -20,9 +20,7 @@ from users.models import (
 )
 from errands.models import Errand
 
-from .diagnostics import fast_checks
-
-IMAGE_EXT = ('.jpg', '.jpeg', '.png')
+from .diagnostics import IMAGE_EXT, fast_checks
 
 
 def _fa(value):

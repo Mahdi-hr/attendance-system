@@ -28,6 +28,9 @@ from users.snapshots import snapshots_root
 
 FA = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
 
+# پسوند فایل‌های عکس لحظه — در dashboard هم از همین‌جا import می‌شود.
+IMAGE_EXT = ('.jpg', '.jpeg', '.png')
+
 
 def _fa(v):
     return str(v).translate(FA)
@@ -370,7 +373,7 @@ def fix_orphan_snapshot_files():
     root_real = os.path.realpath(root)
     for dirpath, _dirs, files in os.walk(root):
         for name in files:
-            if not name.lower().endswith(('.jpg', '.jpeg', '.png')):
+            if not name.lower().endswith(IMAGE_EXT):
                 continue
             full = os.path.join(dirpath, name)
             rel = os.path.relpath(full, root)

@@ -50,12 +50,12 @@ def pair_time_events(events):
 
 
 def _errand_labels(intervals, errands):
-    """ساخت برچسب‌های خوانا برای بازه و دلایل معموریت.
+    """ساخت برچسب‌های خوانا برای بازه و دلایل مأموریت.
 
-    `intervals` بازه‌های **مؤثر** همان روز است (معموریت منهای حضور).
+    `intervals` بازه‌های **مؤثر** همان روز است (مأموریت منهای حضور).
     خروجی:
         range_text : مثل «۰۹:۰۰ تا ۱۲:۳۰» یا «۰۹:۰۰ تا ۱۲:۳۰ و ۱۴:۰۰ تا ۱۷:۰۰»
-        reasons    : لیست دلایل معموریت‌های آن روز برای tooltip
+        reasons    : لیست دلایل مأموریت‌های آن روز برای tooltip
     """
     if not intervals:
         return '', []
@@ -77,7 +77,7 @@ def _errand_labels(intervals, errands):
 
 
 def _errand_note(errands):
-    """یادداشت کوتاه معموریت برای چاپ: «مأموریت: بانک — بایگانی»."""
+    """یادداشت کوتاه مأموریت برای چاپ: «مأموریت: بانک — بایگانی»."""
     if not errands:
         return ''
     labels = []
@@ -103,10 +103,10 @@ def daily_rows(users, date_from=None, date_to=None):
 
     هر ردیف علاوه بر «مدت حضور» (ساعت فیزیکی ورود/خروج) دو چیز دیگر هم دارد:
 
-        errand_seconds : مدت معموریتِ **مؤثر** (تأییدشده، منهای همپوشانی با حضور)
+        errand_seconds : مدت مأموریتِ **مؤثر** (تأییدشده، منهای همپوشانی با حضور)
         total_seconds  : ساعت کار روز = work_seconds + errand_seconds
 
-    قاعده: اجتماعِ (حضور ∪ معموریت) = ساعت کار. چون مدت معموریت از حضور
+    قاعده: اجتماعِ (حضور ∪ مأموریت) = ساعت کار. چون مدت مأموریت از حضور
     فیزیکی کسر می‌شود، هیچ دقیقه‌ای دوبار شمرده نمی‌شود.
 
     Returns a list of dicts ordered by date then username:
@@ -152,7 +152,7 @@ def daily_rows(users, date_from=None, date_to=None):
                 'exit_reason_text': ev.exit_reason_text
             }
 
-    # ---- معموریت‌های تأییدشده، تفکیک‌شده به روز ----
+    # ---- مأموریت‌های تأییدشده، تفکیک‌شده به روز ----
     # فقط تأییدشده‌ها وارد محاسبه می‌شوند؛ درخواست‌های «در انتظار بررسی»
     # هیچ اثری روی گزارش ندارند.
     errand_raw = errand_map(users, date_from, date_to)
@@ -163,7 +163,7 @@ def daily_rows(users, date_from=None, date_to=None):
         by_key.setdefault(key, []).append(ev)
 
     rows = []
-    # کلیدهای کاربرانی که فقط معموریت تأییدشده دارند و هیچ رویداد حضوری
+    # کلیدهای کاربرانی که فقط مأموریت تأییدشده دارند و هیچ رویداد حضوری
     # ثبت نکرده‌اند هم باید در گزارش بیایند.
     for key in errand_raw:
         by_key.setdefault(key, [])
@@ -183,7 +183,7 @@ def daily_rows(users, date_from=None, date_to=None):
         breaks = break_map.get(key, [])
         exit_info = exit_reason_map.get(key, {})
 
-        # معموریت مؤثر = بازهٔ معموریت منهای بازه‌های حضور فیزیکی
+        # مأموریت مؤثر = بازهٔ مأموریت منهای بازه‌های حضور فیزیکی
         raw = errand_raw.get(key, {})
         errand_intervals = raw.get('intervals', [])
         errand_objects = raw.get('errands', [])
@@ -201,7 +201,7 @@ def daily_rows(users, date_from=None, date_to=None):
             'user': user,
             'username': user.username,
             'date': date,
-            # کسی که معموریت تأییدشده دارد، در آن روز «حاضر» شمرده می‌شود
+            # کسی که مأموریت تأییدشده دارد، در آن روز «حاضر» شمرده می‌شود
             # حتی اگر ورود فیزیکی ثبت نکرده باشد.
             'present': bool(events) or bool(errand_intervals)
                       or present_map.get(key, False),
@@ -272,7 +272,7 @@ def daily_rows(users, date_from=None, date_to=None):
 def range_summary(rows):
     """Totals across a list of daily rows.
 
-    مجموع ساعت روی **ساعت کار** حساب می‌شود (حضور + معموریت مؤثر).
+    مجموع ساعت روی **ساعت کار** حساب می‌شود (حضور + مأموریت مؤثر).
 
     Returns (days_present, total_seconds, unique_person_count).
     """
@@ -283,7 +283,7 @@ def range_summary(rows):
 
 
 def errand_summary(rows):
-    """مجموع مدت معموریت در یک لیست ردیف‌ها."""
+    """مجموع مدت مأموریت در یک لیست ردیف‌ها."""
     return sum(r.get('errand_seconds', 0) for r in rows)
 
 

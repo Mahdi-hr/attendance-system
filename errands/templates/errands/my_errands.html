@@ -2,7 +2,7 @@
 {% load static %}
 {% load jalali_filters %}
 
-{% block title %}معموریت‌های من{% endblock %}
+{% block title %}مأموریت‌های من{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -44,7 +44,7 @@
 .st-cancelled::before { content: none; }
 
 /* ============================================================
-   هشدار «در جریان بودن» معموریت
+   هشدار «در جریان بودن» مأموریت
    ============================================================ */
 .live-banner {
     background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.16), rgba(var(--primary-rgb), 0.1));
@@ -152,7 +152,7 @@
 }
 
 /* ============================================================
-   کارت معموریت
+   کارت مأموریت
    ============================================================ */
 .er-card {
     background: var(--glass);
@@ -341,7 +341,7 @@
     <!-- ============ عنوان ============ -->
     <div class="text-center mb-4">
         <h1 class="page-title">
-            <i class="fas fa-briefcase me-2" style="color:var(--primary)"></i>معموریت من
+            <i class="fas fa-briefcase me-2" style="color:var(--primary)"></i>مأموریت من
         </h1>
         <p class="page-subtitle">
             مأموریت‌های بیرونی خود را ثبت کنید. پس از تأیید مدیر، مدت آن به‌عنوان
@@ -349,7 +349,7 @@
         </p>
     </div>
 
-    <!-- ============ معموریت در جریان ============ -->
+    <!-- ============ مأموریت در جریان ============ -->
     {% if current_errand %}
     <div class="live-banner mb-4">
         <span class="live-icon"><i class="fas fa-satellite-dish"></i></span>
@@ -396,7 +396,7 @@
                 <div class="stat-number" style="font-size:1.5rem;padding-top:0.6rem;">
                     <i class="fas fa-clock"></i> {{ approved_text }}
                 </div>
-                <div class="stat-label">مجموع معموریت تأییدشده</div>
+                <div class="stat-label">مجموع مأموریت تأییدشده</div>
             </div>
         </div>
     </div>
@@ -407,7 +407,7 @@
         <div class="col-12 col-lg-5">
             <div class="card-modern form-card">
                 <div class="card-header">
-                    <h5><i class="fas fa-plus-circle me-2" style="color:var(--primary)"></i>ثبت معموریت جدید</h5>
+                    <h5><i class="fas fa-plus-circle me-2" style="color:var(--primary)"></i>ثبت مأموریت جدید</h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" novalidate class="errand-form">
@@ -510,7 +510,7 @@
                         </div>
 
                         <button type="submit" class="btn btn-gradient w-100">
-                            <i class="fas fa-paper-plane me-2"></i>ارسال درخواست معموریت
+                            <i class="fas fa-paper-plane me-2"></i>ارسال درخواست مأموریت
                         </button>
                     </form>
                 </div>
@@ -523,7 +523,7 @@
             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <h5 class="mb-0" style="font-weight:700;">
                     <i class="fas fa-list me-2" style="color:var(--primary)"></i>
-                    معموریت‌های من
+                    مأموریت‌های من
                     <span class="count-badge" style="background:rgba(var(--primary-rgb),0.2);color:var(--primary);">
                         {{ mine_count|fa }}
                     </span>
@@ -538,11 +538,11 @@
                 <div class="card-body empty-state">
                     <div class="empty-icon"><i class="fas fa-briefcase"></i></div>
                     <p style="margin:0;font-weight:600;color:var(--text-primary);font-size:1.05rem;">
-                        هنوز معموریتی ثبت نکرده‌اید
+                        هنوز مأموریتی ثبت نکرده‌اید
                     </p>
                     <p style="margin:6px 0 0;color:var(--text-secondary);font-size:0.9rem;">
                         {% if is_admin_mode %}
-                        کارمندان از بخش «معموریت من» درخواست ثبت می‌کنند؛ اینجا وضعیت همه را می‌بینید.
+                        کارمندان از بخش «مأموریت من» درخواست ثبت می‌کنند؛ اینجا وضعیت همه را می‌بینید.
                         {% else %}
                         از فرم کنار، مأموریت بیرونی خود را ثبت کنید.
                         {% endif %}

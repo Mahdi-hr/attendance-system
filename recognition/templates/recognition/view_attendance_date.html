@@ -753,7 +753,7 @@
                             <th style="width:100px;">ورود</th>
                             <th style="width:100px;">خروج</th>
                             <th style="width:120px;">مدت حضور</th>
-                            <th style="width:160px;">معموریت</th>
+                            <th style="width:160px;">مأموریت</th>
                             <th style="width:130px;">جمع ساعت کار</th>
                             <th>دلیل خروج</th>
                         </tr>
@@ -824,7 +824,7 @@
                                 <span class="work-badge empty">—</span>
                                 {% endif %}
                             </td>
-                            <td data-label="معموریت">
+                            <td data-label="مأموریت">
                                 {% if item.errand_seconds %}
                                 <span class="errand-badge"
                                       title="{{ item.errand_reasons|join:' | ' }}">
@@ -839,7 +839,7 @@
                             </td>
                             <td data-label="جمع ساعت کار">
                                 <span class="work-badge total"
-                                      title="مدت حضور + مدت معموریت تأییدشده">
+                                      title="مدت حضور + مدت مأموریت تأییدشده">
                                     <i class="fas fa-calculator"></i>{{ item.total_text }}
                                 </span>
                             </td>

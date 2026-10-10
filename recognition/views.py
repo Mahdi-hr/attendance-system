@@ -291,14 +291,14 @@ def group_to_rows(rows):
 			clock(r['first_in']) if r['first_in'] else '-',
 			clock(r['last_out']) if r['last_out'] else '-',
 			r['work_text'],
-			r.get('errand_text', '-'),         # ← NEW: مدت معموریت
+			r.get('errand_text', '-'),         # ← NEW: مدت مأموریت
 			r['break_text'] if r['break_text'] != '-' else '-',
 			exit_reason_display,
 		])
 	return out
 
 
-EXPORT_HEADERS = ['ردیف', 'تاریخ', 'کارمند', 'وضعیت', 'ورود و خروج', 'ساعت ورود', 'ساعت خروج', 'مدت حضور', 'مدت معموریت', 'استراحت', 'دلیل خروج']
+EXPORT_HEADERS = ['ردیف', 'تاریخ', 'کارمند', 'وضعیت', 'ورود و خروج', 'ساعت ورود', 'ساعت خروج', 'مدت حضور', 'مدت مأموریت', 'استراحت', 'دلیل خروج']
 EXPORT_WIDTHS = [8, 24, 14, 10, 44, 12, 12, 16, 12, 24, 20]
 
 
@@ -407,7 +407,7 @@ def dashboard(request):
             'is_on_break': is_on_break,
             'break_start': break_start,
             'work_text': format_hours(max(0, work_seconds)),
-            # ---- معموریت ----
+            # ---- مأموریت ----
             'current_errand': errand_services.open_errand_now(user),
             'my_errand_counts': {
                 'pending': my_errands.filter(

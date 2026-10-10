@@ -63,10 +63,10 @@ urlpatterns = [
     path('checkout-errors/', recog_views.view_checkout_errors, name='view-checkout-errors'),
     path('checkout-errors/<int:error_id>/resolve/', recog_views.resolve_checkout_error, name='resolve-checkout-error'),
     path('checkout-errors/<int:error_id>/reopen/', recog_views.reopen_checkout_error, name='reopen-checkout-error'),
-    # ---- معموریت (کارمند) ----
+    # ---- مأموریت (کارمند) ----
     path('errands/', errands_views.my_errands, name='errands-my'),
     path('errands/<int:pk>/cancel/', errands_views.cancel_errand, name='errands-cancel'),
-    # ---- معموریت (ادمین) ----
+    # ---- مأموریت (ادمین) ----
     path('manage/errands/', errands_views.admin_review, name='errands-admin'),
     path('manage/errands/review/<int:pk>/', errands_views.review_errand, name='errands-review'),
     path('manage/errands/bulk/', errands_views.bulk_review, name='errands-bulk'),

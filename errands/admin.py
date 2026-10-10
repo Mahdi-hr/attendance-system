@@ -1,4 +1,4 @@
-"""ادمین جنگو برای «معموریت‌ها» — پنل کامل مدیریت در /admin/errands/errand/.
+"""ادمین جنگو برای «مأموریت‌ها» — پنل کامل مدیریت در /admin/errands/errand/.
 
 امکانات:
   • فیلتر وضعیت/کارمند/بررسی‌کننده + جستجو + سلسله‌مراتب تاریخ
@@ -94,7 +94,7 @@ class ErrandAdmin(admin.ModelAdmin):
             'fields': (('reviewed_by', 'reviewed_at'), 'review_note'),
             'description': (
                 'در رد کردن، «یادداشت ادمین» الزامی است؛ کارمند آن را '
-                'در صفحهٔ «معموریت‌های من» می‌بیند.'
+                'در صفحهٔ «مأموریت‌های من» می‌بیند.'
             ),
         }),
         ('محاسبات و تاریخچه', {
@@ -182,7 +182,7 @@ class ErrandAdmin(admin.ModelAdmin):
         if done:
             messages.success(
                 request,
-                '%d معموریت تأیید شد و از این پس در گزارش‌ها و خروجی‌ها '
+                '%d مأموریت تأیید شد و از این پس در گزارش‌ها و خروجی‌ها '
                 'محاسبه می‌شود.' % done,
             )
         if skipped:
@@ -213,7 +213,7 @@ class ErrandAdmin(admin.ModelAdmin):
         if updated:
             messages.success(
                 request,
-                '%d معموریت به «در انتظار بررسی» برگشت. توجه: موارد '
+                '%d مأموریت به «در انتظار بررسی» برگشت. توجه: موارد '
                 'تأییدشده تا بررسی دوباره روی گزارش‌ها اثر ندارند.' % updated,
             )
         else:
@@ -227,7 +227,7 @@ class ErrandAdmin(admin.ModelAdmin):
             updated_at=timezone.now(),
         )
         if updated:
-            messages.success(request, '%d معموریت لغو شد.' % updated)
+            messages.success(request, '%d مأموریت لغو شد.' % updated)
         else:
             messages.warning(request, 'همهٔ موارد از قبل لغو شده بودند.')
 
@@ -251,7 +251,7 @@ class ErrandAdmin(admin.ModelAdmin):
                 self.reviewed_by_display(errand),
             ])
         book = build_xlsx(
-            sheet_name='معموریت‌ها',
+            sheet_name='مأموریت‌ها',
             headers=[
                 'ردیف', 'بازه', 'مدت', 'کارمند', 'دلیل', 'مقصد',
                 'وضعیت', 'یادداشت بررسی', 'بررسی‌کننده',
@@ -318,7 +318,7 @@ class ErrandAdmin(admin.ModelAdmin):
                 if done:
                     messages.success(
                         request,
-                        '%d معموریت رد شد؛ دلیل برای کارمند نمایش داده '
+                        '%d مأموریت رد شد؛ دلیل برای کارمند نمایش داده '
                         'می‌شود.' % done,
                     )
                 if skipped:
@@ -332,7 +332,7 @@ class ErrandAdmin(admin.ModelAdmin):
 
         context = dict(
             self.admin_site.each_context(request),
-            title='رد گروهی معموریت‌ها',
+            title='رد گروهی مأموریت‌ها',
             rows=rows,
             count=len(rows),
             ids=ids_param,

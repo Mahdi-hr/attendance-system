@@ -38,7 +38,7 @@ def tool_menu():
                  'icon': 'fas fa-door-open'},
                 {'name': 'خطاهای خروج', 'url': '/checkout-errors/',
                  'icon': 'fas fa-exclamation-triangle'},
-                {'name': 'معموریت‌ها', 'url': '/manage/errands/',
+                {'name': 'مأموریت‌ها', 'url': '/manage/errands/',
                  'icon': 'fas fa-route'},
                 {'name': 'عکس‌های لحظه ورود/خروج', 'url': '/manage/snapshots/',
                  'icon': 'fas fa-camera'},
