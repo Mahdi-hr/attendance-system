@@ -1,0 +1,119 @@
+{% extends "adminpanel/tool_base.html" %}
+{% load adminpanel_extras %}
+
+{% block tool_content %}
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-plus-circle me-2"></i>ساخت نسخهٔ پشتیبان</div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create">
+                    <div class="mb-3">
+                        <label class="form-label">{{ label_form.label.label }}</label>
+                        {{ label_form.label }}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-download me-1"></i>ساخت پشتیبان از دیتابیس
+                    </button>
+                    <p class="small text-muted mt-2 mb-0">
+                        حتی وقتی سرویس در حال اجراست امن است (از API رسمی SQLite استفاده می‌شود).
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-upload me-2"></i>بازیابی از فایل آپلودی</div>
+            <div class="card-body">
+                <form method="post" action="{% url 'admin:adminpanel-backup-upload' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ restore_form.file.label }}</label>
+                        {{ restore_form.file }}
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger w-100"
+                            onclick="return confirm('دیتابیس فعلی با فایل آپلودی جایگزین می‌شود. مطمئنید؟');">
+                        <i class="fas fa-undo me-1"></i>بازیابی دیتابیس
+                    </button>
+                    <p class="small text-muted mt-2 mb-0">
+                        حتماً اول یک پشتیبان از وضعیت فعلی بسازید.
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-info-circle me-2"></i>وضعیت فعلی</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5">حجم دیتابیس</dt>
+                    <dd class="col-7">{{ db_size }}</dd>
+                    <dt class="col-5">تعداد پشتیبان</dt>
+                    <dd class="col-7">{{ backups|length|fa }}</dd>
+                    <dt class="col-5">مسیر فایل</dt>
+                    <dd class="col-7"><code dir="ltr" class="small">{{ db_path }}</code></dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-hdd me-2"></i>پشتیبان‌های موجود</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>فایل</th>
+                        <th style="width:130px">حجم</th>
+                        <th style="width:190px">زمان ساخت</th>
+                        <th style="width:280px" class="text-center">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in backups %}
+                    <tr>
+                        <td><code dir="ltr">{{ b.name }}</code></td>
+                        <td>{{ b.size_fa }}</td>
+                        <td>{{ b.mtime|date:'Y/m/d H:i' }}</td>
+                        <td class="text-center">
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="{% url 'admin:adminpanel-backup-download' b.name %}">
+                                <i class="fas fa-download"></i> دانلود
+                            </a>
+                            <form method="post" action="{% url 'admin:adminpanel-backup-restore' b.name %}"
+                                  class="d-inline" onsubmit="return confirm('دیتابیس فعلی با این نسخه جایگزین شود؟');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-undo"></i> بازیابی
+                                </button>
+                            </form>
+                            <form method="post" action="" class="d-inline"
+                                  onsubmit="return confirm('این پشتیبان حذف شود؟');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="name" value="{{ b.name }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i> حذف
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted text-center p-4">هنوز پشتیبانی ساخته نشده است.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

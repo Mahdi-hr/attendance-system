@@ -67,6 +67,10 @@ class ErrandAdmin(admin.ModelAdmin):
     list_per_page = 25
     empty_value_display = '—'
     preserve_filters = True
+    show_full_result_count = False
+    save_on_top = True
+    actions_on_top = True
+    actions_on_bottom = False
     autocomplete_fields = ['user']
     readonly_fields = [
         'jalali_range_display', 'duration_display_col',

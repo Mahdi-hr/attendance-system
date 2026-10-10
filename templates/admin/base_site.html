@@ -1,0 +1,94 @@
+{% extends "admin/base.html" %}
+{% load i18n static jazzmin %}
+
+{# ============================================================
+   پوستهٔ سفارشی پنل ادمین — استایل‌ها و اسکریپت لوکال
+   ============================================================ #}
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'adminpanel/adminpanel.css' %}">
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<link rel="preload" as="font" type="font/woff2" crossorigin href="{% static 'recognition/fonts/webfonts/Vazirmatn-Medium.woff2' %}">
+<meta name="adminpanel-csrf" content="">
+{% endblock %}
+
+{% block extrajs %}{{ block.super }}
+<script src="{% static 'adminpanel/adminpanel.js' %}" defer></script>
+{% endblock %}
+
+{# ============================================================
+   سایدبار: برند + ابزارها + فهرست مدل‌ها
+   ============================================================ #}
+{% block sidebar %}
+{% get_jazzmin_settings request as jazzmin_settings %}
+{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+{% if jazzmin_settings.show_sidebar %}
+    {% get_side_menu as side_menu_list %}
+
+    <aside class="app-sidebar bg-body-secondary shadow {{ jazzmin_ui.sidebar_classes }}" id="jazzy-sidebar" data-bs-theme="dark">
+        <div class="sidebar-brand">
+            <a href="{% url 'admin:index' %}" class="brand-link {{ jazzmin_ui.brand_classes }}" id="jazzy-logo">
+                <img src="{% static jazzmin_settings.site_logo %}" alt="{{ jazzmin_settings.site_header }}" class="{{ jazzmin_settings.site_logo_classes }} brand-image opacity-75 shadow">
+                <span class="brand-text fw-bold">{{ jazzmin_settings.site_brand }}</span>
+            </a>
+        </div>
+
+        <div class="sidebar-wrapper">
+            <div class="user-panel d-flex">
+                <div class="image">
+                    <i class="fas fa-inverse user-profile fa-user-circle"></i>
+                </div>
+                <div class="info">
+                    <a href="{% url 'admin:password_change' %}" class="d-block">{{ request.user }}</a>
+                    <small class="opacity-75">ابرکاربر</small>
+                </div>
+            </div>
+
+            <nav class="mt-2">
+                <ul class="nav sidebar-menu flex-column {{ jazzmin_ui.sidebar_list_classes }}"
+                    data-lte-toggle="treeview" role="navigation"
+                    aria-label="ناوبری پنل مدیریت" data-accordion="false"
+                    id="jazzy-navigation">
+
+                    <li class="nav-item">
+                        <a href="{% url 'admin:index' %}" class="nav-link{% if request.resolver_match.url_name == 'index' %} active{% endif %}">
+                            <i class="nav-icon fas fa-chart-pie"></i>
+                            <p>داشبورد</p>
+                        </a>
+                    </li>
+
+                    {% for group in adminpanel_menu %}
+                        <li class="nav-header ap-nav-header">{{ group.title }}</li>
+                        {% for item in group.items %}
+                            <li class="nav-item">
+                                <a href="{{ item.url }}" class="nav-link ap-nav-link{% if request.path == item.url %} active{% endif %}">
+                                    <i class="nav-icon {{ item.icon }}"></i>
+                                    <p>{{ item.name }}</p>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    {% endfor %}
+
+                    <li class="nav-header ap-nav-header">داده‌ها</li>
+                    {% for app in side_menu_list %}
+                        {% for model in app.models %}
+                            <li class="nav-item">
+                                {% if model.url %}
+                                <a href="{{ model.url }}" class="nav-link ap-nav-link{% if request.path == model.url %} active{% endif %}">
+                                    <i class="nav-icon {{ model.icon }}"></i> <p>{{ model.name }}</p>
+                                </a>
+                                {% else %}
+                                <span class="nav-link disabled ap-nav-link">
+                                    <i class="nav-icon {{ model.icon }}"></i> <p>{{ model.name }}</p>
+                                </span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+    </aside>
+{% endif %}
+{% endblock %}

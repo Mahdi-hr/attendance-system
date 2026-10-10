@@ -1,0 +1,92 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{# صفحهٔ واسط عمل «انتخاب/تغییر دلیل خروج» برای رکوردهای ورود/خروج. #}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">داشبورد</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin:users_time_changelist' %}">ورود و خروج</a></li>
+        <li class="breadcrumb-item active">{{ title }}</li>
+    </ol>
+{% endblock %}
+
+{% block content_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="act_assign_reason">
+        <input type="hidden" name="index" value="0">
+        <input type="hidden" name="apply" value="1">
+        {% for pk in ids %}
+            <input type="hidden" name="_selected_action" value="{{ pk }}">
+        {% endfor %}
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="fas fa-door-open me-1"></i>
+                دلیل خروج برای {{ total }} رکورد انتخاب‌شده
+            </div>
+            <div class="card-body d-flex flex-wrap gap-3 align-items-end">
+                <div class="mb-0" style="min-width:280px">
+                    <label class="form-label" for="id_reason">دلیل خروج</label>
+                    <select name="reason" id="id_reason" class="form-select" dir="rtl">
+                        <option value="">—— بدون دلیل (پاک کردن) ——</option>
+                        {% for r in reasons %}
+                            <option value="{{ r.pk }}">{{ r.title }}{% if not r.is_active %} (غیرفعال){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-0 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check me-1"></i> اعمال روی همه
+                    </button>
+                    <a href="{% url 'admin:users_time_changelist' %}" class="btn btn-outline-secondary">انصراف</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                رکوردهایی که تغییر می‌کنند
+                {% if total > queryset|length %}
+                    <span class="badge bg-secondary">{{ queryset|length }} از {{ total }} نمایش داده می‌شود</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0 table-responsive">
+                <table class="table table-sm table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>کاربر</th>
+                            <th>تاریخ</th>
+                            <th>زمان</th>
+                            <th>نوع</th>
+                            <th>دلیل فعلی</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in queryset %}
+                        <tr>
+                            <td>{{ t.user }}</td>
+                            <td>{{ t.date }}</td>
+                            <td>{{ t.time|date:"H:i" }}</td>
+                            <td>
+                                {% if t.out %}
+                                    <span class="ap-pill ap-pill-error">خروج</span>
+                                {% else %}
+                                    <span class="ap-pill ap-pill-ok">ورود</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ t.exit_reason|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">رکوردی یافت نشد.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -71,6 +71,11 @@ class Present(models.Model):
 	class Meta:
 		verbose_name = 'حضور روزانه'
 		verbose_name_plural = 'حضورهای روزانه'
+		indexes = [
+			# فهرست پنل و گزارش‌ها همیشه «تاریخ + کاربر» هستند.
+			models.Index(fields=['date', 'user'], name='present_date_user_idx'),
+			models.Index(fields=['-date'], name='present_date_desc_idx'),
+		]
 
 	def __str__(self):
 		return '%s - %s' % (self.user.username, self.date)
@@ -86,6 +91,13 @@ class Time(models.Model):
 	class Meta:
 		verbose_name = 'زمان ورود/خروج'
 		verbose_name_plural = 'زمان‌های ورود/خروج'
+		indexes = [
+			# پرکاربردترین کوئری‌ها: «ورودهای یک روز»، «همهٔ رکوردهای یک روز»
+			# و «رکوردهای این کاربر در این بازه».
+			models.Index(fields=['date', 'user', 'out'], name='time_date_user_out_idx'),
+			models.Index(fields=['-date'], name='time_date_desc_idx'),
+			models.Index(fields=['user', '-date'], name='time_user_date_idx'),
+		]
 
 	def __str__(self):
 		return '%s - %s - %s' % (self.user.username, self.date, self.time)
@@ -117,6 +129,10 @@ class CheckOutError(models.Model):
 		ordering = ['-date', '-created_at']
 		verbose_name = 'خطای خروج'
 		verbose_name_plural = 'خطاهای خروج'
+		indexes = [
+			# صف کاری داشبورد: «همهٔ خطاهای در انتظار».
+			models.Index(fields=['status', '-date'], name='cerr_status_date_idx'),
+		]
 
 	def __str__(self):
 		return f'خطای خروج {self.user.username} - {self.date}'
@@ -132,6 +148,10 @@ class Break(models.Model):
 		ordering = ['-break_out']
 		verbose_name = 'استراحت'
 		verbose_name_plural = 'استراحت‌ها'
+		indexes = [
+			models.Index(fields=['-break_out'], name='break_out_desc_idx'),
+			models.Index(fields=['date', 'user'], name='break_date_user_idx'),
+		]
 	
 	def duration_minutes(self):
 		if self.break_out and self.break_in:
@@ -172,6 +192,11 @@ class AttendanceSnapshot(models.Model):
 		ordering = ['-created_at', '-id']
 		verbose_name = 'عکس لحظه ورود/خروج'
 		verbose_name_plural = 'عکس‌های لحظه ورود/خروج'
+		indexes = [
+			# نگهداری «آخرین N عکس هر کاربر» و فهرست کلی پنل.
+			models.Index(fields=['-created_at'], name='snap_created_desc_idx'),
+			models.Index(fields=['user', '-created_at'], name='snap_user_created_idx'),
+		]
 
 	def __str__(self):
 		return '%s - %s - %s' % (

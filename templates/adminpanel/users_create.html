@@ -1,0 +1,121 @@
+{% extends "adminpanel/tool_base.html" %}
+{% load adminpanel_extras %}
+
+{% block tool_content %}
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-user-plus me-2"></i>ساخت یک‌جای کاربران</div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.lines.label }}</label>
+                        {{ form.lines }}
+                        <div class="form-text">{{ form.lines.help_text|safe }}</div>
+                        {% if form.lines.errors %}
+                            <div class="text-danger small">
+                                {% for e in form.lines.errors %}<div>{{ e }}</div>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.default_role.label }}</label>
+                            {{ form.default_role }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.default_password.label }}</label>
+                            {{ form.default_password }}
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                {{ form.make_staff }}
+                                <label class="form-check-label" for="{{ form.make_staff.id_for_label }}">
+                                    {{ form.make_staff.label }}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        {{ form.ensure_face }}
+                        <label class="form-check-label" for="{{ form.ensure_face.id_for_label }}">
+                            {{ form.ensure_face.label }}
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>ساخت کاربران
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-info-circle me-2"></i>راهنما</div>
+            <div class="card-body small">
+                <p><b>قالب هر خط:</b></p>
+                <pre class="bg-body-secondary p-2 rounded" dir="ltr">نام_کاربری,نام,خانوادگی,ایمیل,نقش,رمز</pre>
+                <ul class="mb-2">
+                    <li>فقط <b>نام کاربری</b> الزامی است.</li>
+                    <li>نقش‌ها: <code dir="ltr">user</code> ، <code dir="ltr">admin</code> ، <code dir="ltr">both</code></li>
+                    <li>اگر رمز خالی باشد یک رمز تصادفی ۱۲ رقمی ساخته و همین‌جا نمایش داده می‌شود.</li>
+                    <li>خطوطی که با <code dir="ltr">#</code> شروع شوند نادیده گرفته می‌شوند.</li>
+                    <li>خطای هر ردیف جداگانه گزارش می‌شود و بقیهٔ ردیف‌ها ساخته می‌شوند.</li>
+                </ul>
+                <p class="mb-0 text-muted">
+                    نمونه:<br>
+                    <code dir="ltr">1001,علی,رضایی,ali@example.com,both,</code><br>
+                    <code dir="ltr">1002,سارا,محمدی,,user,</code>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if result %}
+<div class="card mt-3 {% if result.created %}border-success{% else %}border-danger{% endif %}">
+    <div class="card-header"><i class="fas fa-clipboard-check me-2"></i>نتیجهٔ اجرا</div>
+    <div class="card-body">
+        {% if result.created %}
+            <div class="alert alert-success">
+                <b>{{ result.created|length|fa }} کاربر ساخته شد.</b>
+                <span class="small">این رمزها را الان کپی کنید؛ بعداً نمایش داده نمی‌شوند.</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle">
+                    <thead><tr><th>نام کاربری</th><th>رمز عبور</th></tr></thead>
+                    <tbody>
+                        {% for row in result.created %}
+                        <tr>
+                            <td dir="ltr">{{ row.username }}</td>
+                            <td dir="ltr"><code class="selectable">{{ row.password }}</code></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        {% if result.existing %}
+            <div class="alert alert-warning mb-0">
+                از قبل وجود داشت و ساخته نشد:
+                {% for u in result.existing %}<code dir="ltr">{{ u }}</code> {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if result.errors %}
+            <div class="alert alert-danger mt-2 mb-0">
+                {% for e in result.errors %}<div dir="auto">{{ e }}</div>{% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

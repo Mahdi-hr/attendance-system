@@ -63,6 +63,9 @@ SESSION_SAVE_EVERY_REQUEST = False       # Only save when modified
 # Application definition
 # ============================================================
 INSTALLED_APPS = [
+    # باید پیش از jazzmin بیاید تا بازنویسی‌های تمپلیت ادمین (که در
+    # DIRS پایین‌تر تعریف شده‌اند) همیشه اولویت داشته باشند.
+    'adminpanel.apps.AdminPanelConfig',
     'jazzmin',
     'users.apps.UsersConfig',
     'recognition.apps.RecognitionConfig',
@@ -95,10 +98,14 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'attendance_system_facial_recognition.urls'
 
+# `DIRS` بر APP_DIRS مقدم است؛ بازنویسی‌های تمپلیت پنل ادمین در
+# templates/admin/ … قرار دارند و همیشه بر نسخهٔ jazzmin مقدم می‌شوند.
+_PROJECT_TEMPLATES = os.path.join(BASE_DIR, 'templates')
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [_PROJECT_TEMPLATES],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -195,7 +202,7 @@ JAZZMIN_SETTINGS = {
     'site_brand': '<i class="fas fa-user-check"></i> حضور و غیاب',
     'site_logo': 'recognition/img/logo-1.png',
     'site_logo_classes': 'img-circle',
-    'site_icon': None,
+    'site_icon': 'recognition/img/logo-1.png',
     'welcome_sign': 'به پنل مدیریت سامانه حضور و غیاب خوش آمدید',
     'copyright': 'شرکت مهندسی دانش‌بنیان کیان پرداز نقش جهان',
     'search_model': ['users.Time', 'auth.User', 'users.CheckOutError'],
@@ -235,12 +242,16 @@ JAZZMIN_SETTINGS = {
     'icons': {
         'auth.Group': 'fas fa-users-cog',
         'auth.User': 'fas fa-user',
+        'auth.LogEntry': 'fas fa-history',
+        'sessions.Session': 'fas fa-fingerprint',
         'users.Time': 'fas fa-clock',
         'users.Present': 'fas fa-check-circle',
         'users.Break': 'fas fa-coffee',
         'users.CheckOutError': 'fas fa-exclamation-triangle',
         'users.UserProfile': 'fas fa-id-badge',
         'users.ExitReason': 'fas fa-door-open',
+        'users.AttendanceSnapshot': 'fas fa-camera',
+        'errands.Errand': 'fas fa-route',
     },
     'default_icon_parents': 'fas fa-folder',
     'default_icon_children': 'fas fa-circle',
@@ -250,10 +261,14 @@ JAZZMIN_SETTINGS = {
     'changeform_format_overrides': {
         'auth.user': 'collapsible',
         'users.time': 'collapsible',
+        'errands.errand': 'horizontal_tabs',
     },
     'language_chooser': False,
+    # ❗ هیچ‌وقت CDN نمی‌خواهیم؛ فونت گوگل بارگذاری نشود.
     'use_google_fonts_cdn': False,
-    'custom_css': '/static/recognition/css/jazzmin_admin.css',
+    # نکته: jazzmin خودش این مقدار را از `static()` عبور می‌دهد؛ بنابراین
+    # نباید `/static/` جلویش باشد (وگرنه /static/static/… ساخته می‌شود و 404).
+    'custom_css': 'recognition/css/jazzmin_admin.css',
 }
 
 JAZZMIN_UI_TWEAKS = {

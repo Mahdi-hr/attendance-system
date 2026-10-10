@@ -1,0 +1,155 @@
+{% extends "adminpanel/tool_base.html" %}
+{% load adminpanel_extras %}
+
+{% block tool_content %}
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-tools me-2"></i>عملیات ترمیمی</div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.action.label }}</label>
+                        {{ form.action }}
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">{{ form.minutes.label }}</label>
+                            {{ form.minutes }}
+                        </div>
+                        <div class="col-6 d-flex align-items-end">
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-play me-1"></i>اجرا
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <hr>
+                <div class="d-grid gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="/checkout-errors/">
+                        <i class="fas fa-exclamation-triangle"></i> صفحهٔ خطاهای خروج
+                    </a>
+                    <a class="btn btn-sm btn-outline-primary" href="/manage/exit-reasons/">
+                        <i class="fas fa-door-open"></i> دلایل خروج
+                    </a>
+                    <a class="btn btn-sm btn-outline-primary" href="/admin/users/time/">
+                        <i class="fas fa-clock"></i> همهٔ رکوردهای ورود/خروج
+                    </a>
+                </div>
+                {% if pending_errors %}
+                <div class="alert alert-warning mt-3 mb-0 small">
+                    {{ pending_errors|fa }} خطای خروج در انتظار بررسی است.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-day me-2"></i>نمای یک روز — {{ day.jalali }}</span>
+                <form method="get" action="" class="d-flex gap-2">
+                    <input type="date" name="date" value="{{ day.date|date:'Y-m-d' }}" class="form-control form-control-sm">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">نمایش</button>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 text-center mb-3">
+                    <div class="col"><div class="ap-kpi-value">{{ day.in_count|fa }}</div><div class="ap-kpi-label">ورود</div></div>
+                    <div class="col"><div class="ap-kpi-value">{{ day.out_count|fa }}</div><div class="ap-kpi-label">خروج</div></div>
+                    <div class="col"><div class="ap-kpi-value">{{ day.present_count|fa }}</div><div class="ap-kpi-label">حاضر (ردیف حضور)</div></div>
+                    <div class="col"><div class="ap-kpi-value">{{ day.users|length|fa }}</div><div class="ap-kpi-label">کاربر درگیر</div></div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ day.time_url }}">رکوردهای این روز</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ day.present_url }}">حضورهای این روز</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ day.break_url }}">استراحت‌های این روز</a>
+                    <a class="btn btn-sm btn-outline-success" href="/admin/users/time/add/?date={{ day.date|date:'Y-m-d' }}">
+                        <i class="fas fa-plus"></i> افزودن رکورد دستی
+                    </a>
+                </div>
+
+                <div class="table-responsive" style="max-height:380px; overflow:auto">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr><th>کاربر</th><th>زمان</th><th>نوع</th><th>دلیل خروج</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for t in day.times %}
+                            <tr>
+                                <td dir="ltr">{{ t.user.username }}</td>
+                                <td>{{ t.time|clock_fa }}</td>
+                                <td>
+                                    {% if t.out %}
+                                        <span class="ap-pill ap-pill-error">خروج</span>
+                                    {% else %}
+                                        <span class="ap-pill ap-pill-ok">ورود</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ t.exit_reason.title|default:t.exit_reason_text|default:'—' }}</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-secondary" href="/admin/users/time/{{ t.pk }}/change/">ویرایش</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted p-3">رکوردی برای این روز نیست.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-user-check me-2"></i>حضورهای ثبت‌شدهٔ روز</div>
+            <div class="card-body p-0" style="max-height:260px; overflow:auto">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light sticky-top"><tr><th>کاربر</th><th style="width:90px">حاضر</th></tr></thead>
+                    <tbody>
+                        {% for p in day.presents %}
+                        <tr>
+                            <td dir="ltr">{{ p.user.username }}</td>
+                            <td>{% if p.present %}<span class="ap-pill ap-pill-ok">بله</span>{% else %}<span class="ap-pill ap-pill-error">خیر</span>{% endif %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted p-3">ردیفی نیست — از دکمهٔ «بازسازی حضور روزانه» استفاده کنید.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-mug-hot me-2"></i>استراحت‌های روز</div>
+            <div class="card-body p-0" style="max-height:260px; overflow:auto">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light sticky-top"><tr><th>کاربر</th><th>شروع</th><th>پایان</th><th>مدت</th></tr></thead>
+                    <tbody>
+                        {% for b in day.breaks %}
+                        <tr>
+                            <td dir="ltr">{{ b.user.username }}</td>
+                            <td>{{ b.break_out|clock_fa }}</td>
+                            <td>{% if b.break_in %}{{ b.break_in|clock_fa }}{% else %}<span class="ap-pill ap-pill-error">باز</span>{% endif %}</td>
+                            <td>{{ b.duration_display }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted p-3">استراحتی ثبت نشده است.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

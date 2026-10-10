@@ -1,0 +1,327 @@
+/* ============================================================
+   استایل‌های اختصاصی پنل ادمین سامانهٔ حضور و غیاب
+   همه چیز لوکال — بدون هیچ CDN.
+   ============================================================ */
+
+:root {
+    --ap-primary: #4f46e5;
+    --ap-success: #059669;
+    --ap-warning: #d97706;
+    --ap-danger: #dc2626;
+    --ap-info: #0891b2;
+    --ap-muted: #64748b;
+}
+
+/* ---------- سایدبار ---------- */
+#jazzy-sidebar .nav-header.ap-nav-header {
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .4px;
+    color: #8b5cf6;
+    opacity: .95;
+    padding-top: 1.1rem;
+}
+#jazzy-sidebar .nav-link.ap-nav-link {
+    font-size: .86rem;
+    font-weight: 600;
+}
+#jazzy-sidebar .nav-link.ap-nav-link.active {
+    box-shadow: inset -3px 0 0 0 #8b5cf6;
+}
+#jazzy-sidebar .user-panel small {
+    font-size: .68rem;
+    color: #8b5cf6;
+    font-weight: 700;
+}
+
+/* ---------- داشبورد ---------- */
+.ap-hero {
+    background: linear-gradient(120deg, rgba(79, 70, 229, .10), rgba(139, 92, 246, .06));
+    border: 1px solid rgba(139, 92, 246, .25);
+}
+.ap-hero-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(79, 70, 229, .15);
+    color: var(--ap-primary);
+    font-size: 1.2rem;
+}
+
+.ap-kpi-card {
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid rgba(148, 163, 184, .18);
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.ap-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .16);
+    border-color: rgba(139, 92, 246, .5);
+    color: inherit;
+}
+.ap-kpi-value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -.5px;
+}
+.ap-kpi-label {
+    font-size: .76rem;
+    color: var(--ap-muted);
+    font-weight: 600;
+    margin-top: 2px;
+}
+.ap-kpi-icon {
+    font-size: 1.15rem;
+    opacity: .55;
+}
+.ap-kpi-alert {
+    border-color: rgba(220, 38, 38, .55) !important;
+    background: rgba(220, 38, 38, .06);
+}
+.ap-kpi-alert .ap-kpi-value { color: var(--ap-danger); }
+
+.ap-tone-primary .ap-kpi-icon { color: var(--ap-primary); }
+.ap-tone-success .ap-kpi-icon { color: var(--ap-success); }
+.ap-tone-danger  .ap-kpi-icon { color: var(--ap-danger); }
+.ap-tone-warning .ap-kpi-icon { color: var(--ap-warning); }
+.ap-tone-info    .ap-kpi-icon { color: var(--ap-info); }
+.ap-tone-secondary .ap-kpi-icon { color: var(--ap-muted); }
+
+.ap-stat-danger  { border-right: 4px solid var(--ap-danger); }
+.ap-stat-warning { border-right: 4px solid var(--ap-warning); }
+.ap-stat-success { border-right: 4px solid var(--ap-success); }
+
+/* ---------- نمودار میله‌ای ---------- */
+.ap-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 190px;
+    padding-top: 18px;
+}
+.ap-bar-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+}
+.ap-bar {
+    width: 100%;
+    min-height: 3px;
+    border-radius: 5px 5px 2px 2px;
+    background: linear-gradient(180deg, #8b5cf6, #4f46e5);
+    transition: filter .15s ease;
+}
+.ap-bar-wrap:hover .ap-bar { filter: brightness(1.25); }
+.ap-bar-value {
+    position: absolute;
+    top: -16px;
+    font-size: .66rem;
+    font-weight: 700;
+    color: var(--ap-muted);
+}
+.ap-bar-dow { font-size: .62rem; color: var(--ap-muted); margin-top: 3px; }
+.ap-bar-day { font-size: .66rem; font-weight: 700; }
+
+/* ---------- فهرست‌ها ---------- */
+.ap-list { max-height: 320px; overflow: auto; }
+.ap-list-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(148, 163, 184, .12);
+    text-decoration: none;
+    color: inherit;
+    font-size: .84rem;
+}
+a.ap-list-row:hover { background: rgba(139, 92, 246, .08); color: inherit; }
+.ap-list-row:last-child { border-bottom: 0; }
+.ap-list-main { font-weight: 700; flex: 0 0 auto; }
+.ap-list-sub { color: var(--ap-muted); font-size: .76rem; flex: 1 1 auto; }
+.ap-list-row .fas.fa-chevron-left { opacity: .35; font-size: .7rem; }
+.ap-log-row .fas { width: 16px; text-align: center; }
+
+.ap-badge {
+    font-size: .68rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+.ap-badge-in  { background: rgba(5, 150, 105, .16); color: var(--ap-success); }
+.ap-badge-out { background: rgba(220, 38, 38, .16); color: var(--ap-danger); }
+
+/* ---------- برچسب‌ها ---------- */
+.ap-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .74rem;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .3);
+}
+.ap-pill-ok    { background: rgba(5, 150, 105, .14);  color: var(--ap-success); }
+.ap-pill-warn  { background: rgba(217, 119, 6, .14);  color: var(--ap-warning); }
+.ap-pill-error { background: rgba(220, 38, 38, .14);  color: var(--ap-danger); }
+.ap-pill-info  { background: rgba(8, 145, 178, .14);  color: var(--ap-info); }
+
+/* ---------- سلامت سیستم ---------- */
+.ap-check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: .82rem;
+}
+.ap-check-title { flex: 1 1 auto; font-weight: 600; }
+.ap-check-count { font-weight: 800; font-size: .8rem; }
+.ap-status-ok .fas    { color: var(--ap-success); }
+.ap-status-error .fas { color: var(--ap-danger); }
+.ap-status-warn .fas  { color: var(--ap-warning); }
+.ap-status-info .fas  { color: var(--ap-info); }
+
+.ap-check-table td { vertical-align: middle; }
+.ap-row-error { background: rgba(220, 38, 38, .05); }
+.ap-row-warn  { background: rgba(217, 119, 6, .05); }
+
+/* ---------- عکس‌های لحظه ---------- */
+.ap-thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+    gap: 8px;
+}
+.ap-thumb {
+    position: relative;
+    display: block;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, .2);
+    aspect-ratio: 1 / 1;
+    background: #0b1224;
+}
+.ap-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ap-thumb span {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    font-size: .6rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 10px;
+    color: #fff;
+}
+.ap-thumb-in  { background: rgba(5, 150, 105, .9); }
+.ap-thumb-out { background: rgba(220, 38, 38, .9); }
+
+/* ---------- کاشی‌های ابزار ---------- */
+.ap-tool-tile {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 13px;
+    border-radius: 10px;
+    background: rgba(148, 163, 184, .08);
+    border: 1px solid transparent;
+    color: inherit;
+    text-decoration: none;
+    font-size: .83rem;
+    font-weight: 600;
+    height: 100%;
+}
+.ap-tool-tile:hover {
+    background: rgba(139, 92, 246, .14);
+    border-color: rgba(139, 92, 246, .45);
+    color: inherit;
+}
+.ap-tool-tile i { color: var(--ap-primary); width: 18px; text-align: center; }
+
+/* ---------- نوار ابزارها (صفحات ابزار) ---------- */
+.ap-tool-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(148, 163, 184, .18);
+}
+.ap-tool-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: .78rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: inherit;
+    background: rgba(148, 163, 184, .1);
+}
+.ap-tool-tab:hover { background: rgba(139, 92, 246, .16); color: inherit; }
+.ap-tool-tab.active {
+    background: var(--ap-primary);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, .35);
+}
+
+/* ---------- لاگ ---------- */
+.ap-log-view {
+    max-height: 62vh;
+    overflow: auto;
+    padding: 12px 14px;
+    margin: 0;
+    font-size: .76rem;
+    line-height: 1.6;
+    background: transparent;
+    white-space: pre-wrap;
+    word-break: break-word;
+    direction: ltr;
+    text-align: left;
+}
+
+/* ---------- نتیجهٔ SQL ---------- */
+.ap-result-scroll { max-height: 55vh; overflow: auto; }
+.ap-sql-result { font-size: .8rem; }
+.ap-sql-result thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: rgba(79, 70, 229, .12);
+    font-weight: 700;
+    white-space: nowrap;
+}
+.ap-table-row { cursor: pointer; border: 0; width: 100%; background: transparent; text-align: start; }
+.ap-table-row:hover { background: rgba(139, 92, 246, .08); }
+
+/* ---------- جدول‌های عمومی ---------- */
+.table > :not(caption) > * > * { background-color: transparent; }
+.table thead th { font-weight: 700; white-space: nowrap; }
+.card .card-header { font-weight: 700; font-size: .9rem; }
+
+/* ---------- واکنش‌گرایی ---------- */
+@media (max-width: 767.98px) {
+    .ap-kpi-value { font-size: 1.3rem; }
+    .ap-chart { height: 150px; }
+    .ap-bar-value { display: none; }
+    .ap-tool-tabs { gap: 4px; }
+    .ap-tool-tab span { display: none; }
+    .ap-tool-tab { padding: 8px 11px; }
+}
+
+/* چاپ: فقط محتوای اصلی */
+@media print {
+    #jazzy-sidebar, #jazzy-topnav, .app-footer, .ap-tool-tabs { display: none !important; }
+    .app-main { margin: 0 !important; }
+}

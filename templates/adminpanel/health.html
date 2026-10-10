@@ -1,0 +1,125 @@
+{% extends "adminpanel/tool_base.html" %}
+{% load adminpanel_extras %}
+
+{% block tool_content %}
+
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card ap-stat ap-stat-danger h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ errors|fa }}</div>
+                <div class="ap-kpi-label">خطای بحرانی</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card ap-stat ap-stat-warning h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ warns|fa }}</div>
+                <div class="ap-kpi-label">هشدار</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card ap-stat ap-stat-success h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ items|length|fa }}</div>
+                <div class="ap-kpi-label">کل بررسی‌ها</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value" style="font-size:1.1rem">{{ db_size }}</div>
+                <div class="ap-kpi-label">حجم دیتابیس</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+        {% if fixable %}
+        <form method="post" action="" onsubmit="return confirm('همهٔ موارد قابل رفع اجرا شوند؟');">
+            {% csrf_token %}
+            <input type="hidden" name="all" value="1">
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-magic me-1"></i>رفع همهٔ مشکلات ({{ fixable|fa }} مورد)
+            </button>
+        </form>
+        {% endif %}
+        <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+            <i class="fas fa-sync me-1"></i>اجرای دوبارهٔ بررسی‌ها
+        </button>
+        <span class="text-muted small">
+            دیتابیس: <code dir="ltr">{{ db_path }}</code>
+        </span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-list-check me-2"></i>نتیجهٔ بررسی‌ها</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 ap-check-table">
+                <thead>
+                    <tr>
+                        <th style="width:170px">وضعیت</th>
+                        <th>مورد</th>
+                        <th>شرح</th>
+                        <th style="width:80px" class="text-center">تعداد</th>
+                        <th style="width:200px" class="text-center">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr class="ap-row-{{ item.status }}">
+                        <td>
+                            {% if item.status == 'ok' %}
+                                <span class="ap-pill ap-pill-ok"><i class="fas fa-check"></i> سالم</span>
+                            {% elif item.status == 'error' %}
+                                <span class="ap-pill ap-pill-error"><i class="fas fa-times"></i> خطا</span>
+                            {% elif item.status == 'warn' %}
+                                <span class="ap-pill ap-pill-warn"><i class="fas fa-exclamation"></i> هشدار</span>
+                            {% else %}
+                                <span class="ap-pill ap-pill-info"><i class="fas fa-info"></i> اطلاع</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ item.title }}</div>
+                            <small class="text-muted">{{ item.group }}</small>
+                        </td>
+                        <td class="small">
+                            {{ item.detail }}
+                            {% if item.error %}<div class="text-danger" dir="ltr">{{ item.error }}</div>{% endif %}
+                            {% if item.hint %}<div class="text-muted">{{ item.hint }}</div>{% endif %}
+                        </td>
+                        <td class="text-center fw-bold">{{ item.count_fa }}</td>
+                        <td class="text-center">
+                            {% if item.fixable and item.count %}
+                                <form method="post" action="" class="d-inline"
+                                      onsubmit="return confirm('«{{ item.fix_label }}» اجرا شود؟');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="key" value="{{ item.key }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        {{ item.fix_label }}
+                                    </button>
+                                </form>
+                            {% elif item.count and item.key == 'pending_errors' %}
+                                <a class="btn btn-sm btn-outline-primary" href="/admin/users/checkouterror/?status__exact=pending">مشاهده</a>
+                            {% elif item.key == 'users_without_photos' %}
+                                <a class="btn btn-sm btn-outline-primary" href="/add_photos/">گرفتن عکس</a>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

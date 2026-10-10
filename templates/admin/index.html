@@ -1,0 +1,269 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static adminpanel_extras %}
+
+{% block title %}داشبورد مدیریت | سامانهٔ حضور و غیاب{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard ap-dashboard{% endblock %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item active">داشبورد مدیریت</li>
+    </ol>
+{% endblock %}
+
+{% block content_title %}داشبورد مدیریت{% endblock %}
+
+{% block content %}
+<div class="col-12 ap-dash">
+
+    {# ---------- نوار بالا: تاریخ + دسترسی سریع ---------- #}
+    <div class="card mb-3 ap-hero">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="ap-hero-icon"><i class="fas fa-calendar-day"></i></span>
+                    <div>
+                        <div class="fw-bold fs-5">{{ dashboard.today }}</div>
+                        <small class="text-muted">{{ dashboard.dow }} — ساعت {{ dashboard.now_clock }}</small>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'admin:adminpanel-health' %}">
+                        <i class="fas fa-heartbeat"></i> سلامت سیستم
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'admin:adminpanel-attendance' %}">
+                        <i class="fas fa-calendar-check"></i> ترمیم حضور
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'admin:adminpanel-backup' %}">
+                        <i class="fas fa-database"></i> پشتیبان
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'admin:adminpanel-sql' %}">
+                        <i class="fas fa-terminal"></i> SQL
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync"></i> تازه‌سازی
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ---------- نشانگرها ---------- #}
+    <div class="row g-3 mb-3">
+        {% for kpi in dashboard.kpis %}
+        <div class="col-6 col-md-4 col-xl-2 ap-kpi">
+            <a href="{{ kpi.url }}" class="card h-100 ap-kpi-card ap-tone-{{ kpi.tone }}{% if kpi.alert %} ap-kpi-alert{% endif %}">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="ap-kpi-value">{{ kpi.value|fa }}</div>
+                            <div class="ap-kpi-label">{{ kpi.label }}</div>
+                        </div>
+                        <span class="ap-kpi-icon"><i class="{{ kpi.icon }}"></i></span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-3 mb-3">
+        {# ---------- نمودار ۱۴ روز اخیر ---------- #}
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-chart-bar me-2"></i>حضور روزانه — ۱۴ روز اخیر</span>
+                    <small class="text-muted">اوج: {{ dashboard.chart.peak|fa }} نفر</small>
+                </div>
+                <div class="card-body">
+                    {% if dashboard.chart.days %}
+                    <div class="ap-chart" role="img" aria-label="نمودار حضور ۱۴ روز اخیر">
+                        {% for d in dashboard.chart.days %}
+                        <div class="ap-bar-wrap" title="{{ d.label }} — {{ d.value|fa }} نفر">
+                            <div class="ap-bar" style="height: {{ d.pct|default:0 }}%;"></div>
+                            <span class="ap-bar-value">{{ d.value|fa }}</span>
+                            <span class="ap-bar-dow">{{ d.dow }}</span>
+                            <span class="ap-bar-day">{{ d.short }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">هنوز داده‌ای ثبت نشده است.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ---------- سلامت سیستم ---------- #}
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-shield-alt me-2"></i>سلامت سیستم</span>
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'admin:adminpanel-health' %}">بررسی کامل</a>
+                </div>
+                <div class="card-body p-2">
+                    {% for item in dashboard.checks %}
+                    <div class="ap-check-row ap-status-{{ item.status }}">
+                        <i class="fas {% if item.status == 'ok' %}fa-check-circle{% elif item.status == 'error' %}fa-times-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                        <span class="ap-check-title">{{ item.title }}</span>
+                        <span class="ap-check-count">{{ item.count_fa }}</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0 p-2">داده‌ای برای بررسی نیست.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        {# ---------- خطاهای خروج ---------- #}
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-exclamation-triangle text-danger me-2"></i>خطاهای خروج</span>
+                    <a class="btn btn-sm btn-outline-secondary" href="/admin/users/checkouterror/">همه</a>
+                </div>
+                <div class="card-body p-0 ap-list">
+                    {% for e in dashboard.pending_errors %}
+                    <a class="ap-list-row" href="/admin/users/checkouterror/{{ e.pk }}/change/">
+                        <span class="ap-list-main">{{ e.user.username }}</span>
+                        <span class="ap-list-sub">{{ e.date|fa }}</span>
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted p-3 mb-0">موردی در انتظار نیست. 🎉</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# ---------- مأموریت‌های در انتظار ---------- #}
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-route text-warning me-2"></i>مأموریت‌های در انتظار</span>
+                    <a class="btn btn-sm btn-outline-secondary" href="/admin/errands/errand/?status__exact=pending">همه</a>
+                </div>
+                <div class="card-body p-0 ap-list">
+                    {% for e in dashboard.pending_errands %}
+                    <a class="ap-list-row" href="{% url 'errands-review' e.pk %}">
+                        <span class="ap-list-main">{{ e.user.username }}</span>
+                        <span class="ap-list-sub">{{ e.reason|truncatechars:28 }}</span>
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted p-3 mb-0">موردی در انتظار نیست.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# ---------- آخرین رویدادها ---------- #}
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-clock me-2"></i>آخرین ورود/خروج‌ها</span>
+                    <a class="btn btn-sm btn-outline-secondary" href="/admin/users/time/">همه</a>
+                </div>
+                <div class="card-body p-0 ap-list">
+                    {% for t in dashboard.recent_time %}
+                    <a class="ap-list-row" href="/admin/users/time/{{ t.pk }}/change/">
+                        <span class="ap-list-main">{{ t.user.username }}</span>
+                        <span class="ap-list-sub">{{ t.date|fa }} — {{ t.time|clock_fa }}</span>
+                        <span class="ap-badge {% if t.out %}ap-badge-out{% else %}ap-badge-in{% endif %}">
+                            {% if t.out %}خروج{% else %}ورود{% endif %}
+                        </span>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted p-3 mb-0">هنوز رکوردی ثبت نشده است.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        {# ---------- عکس‌های لحظه ---------- #}
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-camera me-2"></i>آخرین عکس‌های لحظه</span>
+                    <a class="btn btn-sm btn-outline-secondary" href="/manage/snapshots/">بازبینی</a>
+                </div>
+                <div class="card-body">
+                    <div class="ap-thumbs">
+                        {% for s in dashboard.snapshots %}
+                        <a class="ap-thumb" href="/manage/snapshots/image/{{ s.pk }}/" target="_blank" rel="noopener"
+                           title="{{ s.user.username }} — {{ s.get_event_display }}">
+                            <img src="/manage/snapshots/image/{{ s.pk }}/" alt="{{ s.user.username }}" loading="lazy">
+                            <span class="{% if s.event == 'in' %}ap-thumb-in{% else %}ap-thumb-out{% endif %}">
+                                {% if s.event == 'in' %}ورود{% else %}خروج{% endif %}
+                            </span>
+                        </a>
+                        {% empty %}
+                        <p class="text-muted mb-0">عکسی ثبت نشده است.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ---------- فعالیت‌های اخیر مدیریتی ---------- #}
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-history me-2"></i>آخرین فعالیت‌های مدیریتی
+                </div>
+                <div class="card-body p-0 ap-list">
+                    {% for entry in dashboard.log %}
+                    <div class="ap-list-row ap-log-row">
+                        <i class="fas {% if entry.is_deletion %}fa-trash text-danger{% elif entry.is_addition %}fa-plus-circle text-success{% else %}fa-edit text-info{% endif %}"></i>
+                        <span class="ap-list-main">{{ entry.object_repr|truncatechars:34 }}</span>
+                        <span class="ap-list-sub">{{ entry.action_time|timesince }} پیش</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted p-3 mb-0">فعالیتی ثبت نشده است.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# ---------- شمارندهٔ جدول‌ها ---------- #}
+        <div class="col-lg-3">
+            <div class="card h-100">
+                <div class="card-header"><i class="fas fa-database me-2"></i>جدول‌ها</div>
+                <div class="card-body p-0 ap-list">
+                    <a class="ap-list-row" href="/admin/auth/user/"><span class="ap-list-main">کاربران</span><span class="ap-list-sub">{{ dashboard.counts.users }}</span></a>
+                    <a class="ap-list-row" href="/admin/users/time/"><span class="ap-list-main">ورود/خروج</span><span class="ap-list-sub">{{ dashboard.counts.time }}</span></a>
+                    <a class="ap-list-row" href="/admin/users/present/"><span class="ap-list-main">حضور روزانه</span><span class="ap-list-sub">{{ dashboard.counts.present }}</span></a>
+                    <a class="ap-list-row" href="/admin/users/break/"><span class="ap-list-main">استراحت‌ها</span><span class="ap-list-sub">{{ dashboard.counts.break }}</span></a>
+                    <a class="ap-list-row" href="/admin/users/checkouterror/"><span class="ap-list-main">خطاهای خروج</span><span class="ap-list-sub">{{ dashboard.counts.errors }}</span></a>
+                    <a class="ap-list-row" href="/admin/errands/errand/"><span class="ap-list-main">مأموریت‌ها</span><span class="ap-list-sub">{{ dashboard.counts.errands }}</span></a>
+                    <a class="ap-list-row" href="/admin/users/attendancesnapshot/"><span class="ap-list-main">عکس‌های لحظه</span><span class="ap-list-sub">{{ dashboard.counts.snapshots }}</span></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ---------- فهرست ابزارها ---------- #}
+    <div class="card">
+        <div class="card-header"><i class="fas fa-toolbox me-2"></i>ابزارها</div>
+        <div class="card-body">
+            <div class="row g-2">
+                {% for group in adminpanel_menu %}
+                    {% for item in group.items %}
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <a href="{{ item.url }}" class="ap-tool-tile">
+                            <i class="{{ item.icon }}"></i>
+                            <span>{{ item.name }}</span>
+                        </a>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

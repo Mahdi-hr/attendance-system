@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static adminpanel_extras %}
+
+{# قالب پایهٔ همهٔ ابزارهای پنل ادمین. #}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">داشبورد</a></li>
+        <li class="breadcrumb-item active">{{ title }}</li>
+    </ol>
+{% endblock %}
+
+{% block content_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="col-12 ap-tool-page">
+    {% include "adminpanel/_tool_tabs.html" %}
+
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'message' %}info{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show mb-2" role="alert">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-ban{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="بستن"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block tool_content %}{% endblock %}
+</div>
+{% endblock %}

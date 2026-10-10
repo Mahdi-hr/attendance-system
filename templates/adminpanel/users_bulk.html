@@ -1,0 +1,171 @@
+{% extends "adminpanel/tool_base.html" %}
+{% load adminpanel_extras %}
+
+{% block tool_content %}
+
+{% if not ids %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    اول کاربران را از
+    <a href="/admin/auth/user/">فهرست کاربران</a>
+    انتخاب و دکمهٔ «عملیات گروهی پیشرفته» را بزنید، یا از فهرست پایین جستجو کنید.
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users-cog me-2"></i>کاربران انتخاب‌شده</span>
+                <span class="ap-pill ap-pill-info">{{ users|length|fa }} نفر</span>
+            </div>
+            <div class="card-body p-0">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>نام کاربری</th>
+                                <th>نام</th>
+                                <th>نقش</th>
+                                <th>وضعیت</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td dir="ltr"><a href="/admin/auth/user/{{ u.pk }}/change/">{{ u.username }}</a></td>
+                                <td>{{ u.first_name }} {{ u.last_name }}</td>
+                                <td>
+                                    {% if u.is_superuser %}
+                                        <span class="ap-pill ap-pill-error">superuser</span>
+                                    {% elif u.profile %}
+                                        <span class="ap-pill ap-pill-info">{{ u.profile.get_role_display }}</span>
+                                    {% else %}
+                                        <span class="ap-pill ap-pill-warn">بدون پروفایل</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if u.is_active %}
+                                        <span class="ap-pill ap-pill-ok">فعال</span>
+                                    {% else %}
+                                        <span class="ap-pill ap-pill-error">غیرفعال</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted p-4 mb-0 text-center">کاربری انتخاب نشده است.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-bolt me-2"></i>انتخاب عملیات</div>
+            <div class="card-body">
+                {% if users %}
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="ids" value="{{ ids }}">
+                    <div class="mb-3">
+                        <label class="form-label">عملیات</label>
+                        <select name="action" id="ap-bulk-action" class="form-select" required>
+                            <option value="">— انتخاب کنید —</option>
+                            <option value="activate">فعال‌سازی حساب‌ها</option>
+                            <option value="deactivate">غیرفعال‌سازی حساب‌ها</option>
+                            <option value="role_user">تغییر نقش به «کاربر عادی»</option>
+                            <option value="role_admin">تغییر نقش به «ادمین»</option>
+                            <option value="role_both">تغییر نقش به «هر دو»</option>
+                            <option value="make_staff">دادن دسترسی پنل مدیریت</option>
+                            <option value="drop_staff">گرفتن دسترسی پنل مدیریت</option>
+                            <option value="make_superuser">تبدیل به superuser</option>
+                            <option value="drop_superuser">حذف superuser</option>
+                            <option value="reset_password">ریست رمز عبور</option>
+                            <option value="sync_profile">همگام‌سازی پروفایل و شناسهٔ چهره</option>
+                            <option value="force_logout">خروج اجباری از همهٔ دستگاه‌ها</option>
+                            <option value="delete">حذف کاربران</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="ap-pw-box" style="display:none">
+                        <label class="form-label">رمز جدید (خالی = تصادفی)</label>
+                        <input type="text" name="password" dir="ltr" class="form-control" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100"
+                            id="ap-bulk-submit"
+                            onclick="return confirm('عملیات روی کاربران انتخاب‌شده اجرا شود؟');">
+                        <i class="fas fa-check me-1"></i>اجرای عملیات
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0">ابتدا کاربران را انتخاب کنید.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if result and result.passwords %}
+        <div class="card mt-3 border-warning">
+            <div class="card-header"><i class="fas fa-key me-2"></i>رمزهای جدید</div>
+            <div class="card-body">
+                <div class="alert alert-warning small">
+                    این رمزها را الان کپی کنید؛ دیگر نمایش داده نمی‌شوند.
+                </div>
+                <table class="table table-sm table-striped mb-0">
+                    <tbody>
+                        {% for row in result.passwords %}
+                        <tr>
+                            <td dir="ltr">{{ row.0 }}</td>
+                            <td dir="ltr"><code>{{ row.1 }}</code></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-search me-2"></i>انتخاب از فهرست همهٔ کاربران</span>
+        <input type="search" id="ap-user-filter" class="form-control form-control-sm" style="max-width:260px"
+               placeholder="جستجوی نام کاربری / نام…">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:340px; overflow:auto">
+            <table class="table table-sm table-hover mb-0" id="ap-user-table">
+                <thead class="table-light sticky-top">
+                    <tr><th style="width:40px"><input type="checkbox" id="ap-check-all"></th><th>نام کاربری</th><th>نام</th></tr>
+                </thead>
+                <tbody>
+                    {% for u in all_users %}
+                    <tr>
+                        <td><input type="checkbox" class="ap-user-check" value="{{ u.pk }}"></td>
+                        <td dir="ltr">{{ u.username }}</td>
+                        <td>{{ u.first_name }} {{ u.last_name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer text-muted small">
+        حداکثر ۳۰۰ کاربر اول نمایش داده می‌شود؛ برای بقیه از فهرست اصلی کاربران استفاده کنید.
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="ap-goto-bulk"
+                data-url="{% url 'admin:adminpanel-users-bulk' %}">
+            رفتن به صفحهٔ عملیات با کاربران تیک‌خورده
+        </button>
+    </div>
+</div>
+
+{% endblock %}

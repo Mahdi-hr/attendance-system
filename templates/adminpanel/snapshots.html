@@ -1,0 +1,137 @@
+{% extends "adminpanel/tool_base.html" %}
+{% load adminpanel_extras %}
+
+{% block tool_content %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card ap-stat h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ face_dirs.photos_fa }}</div>
+                <div class="ap-kpi-label">عکس آموزشی ({{ face_dirs.folders|fa }} پوشه)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card ap-stat {% if orphans.0 %}ap-stat-warning{% else %}ap-stat-success{% endif %} h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ orphans.0|fa }}</div>
+                <div class="ap-kpi-label">فایل بدون رکورد</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card ap-stat {% if missing.0 %}ap-stat-danger{% else %}ap-stat-success{% endif %} h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ missing.0|fa }}</div>
+                <div class="ap-kpi-label">رکورد بدون فایل</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card ap-stat {% if users_without_photos.0 %}ap-stat-warning{% endif %} h-100">
+            <div class="card-body py-3">
+                <div class="ap-kpi-value">{{ users_without_photos.0|fa }}</div>
+                <div class="ap-kpi-label">کارمند بدون عکس چهره</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-broom me-2"></i>پاک‌سازی عکس‌های لحظهٔ ورود/خروج</div>
+            <div class="card-body">
+                <form method="post" action="" class="mb-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="purge">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-5">
+                            <label class="form-label small mb-1">قدیمی‌تر از (روز)</label>
+                            <input type="number" name="days" min="0" max="3650" value="0" class="form-control form-control-sm">
+                            <div class="form-text">۰ = همه</div>
+                        </div>
+                        <div class="col-7">
+                            <button type="submit" class="btn btn-outline-danger w-100"
+                                    onclick="return confirm('عکس‌های انتخاب‌شده حذف شوند؟');">
+                                <i class="fas fa-trash me-1"></i>حذف عکس‌ها
+                            </button>
+                        </div>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">
+                        سقف نگهداری هر کاربر: <b>{{ limit|fa }}</b> عکس.
+                        مسیر: <code dir="ltr" class="small">{{ snapshots_root }}</code>
+                    </p>
+                </form>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="fix_missing">
+                        <button type="submit" class="btn btn-sm btn-outline-warning">رفع رکوردهای بدون فایل</button>
+                    </form>
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="fix_orphans">
+                        <button type="submit" class="btn btn-sm btn-outline-warning">حذف فایل‌های بی‌رکورد</button>
+                    </form>
+                    <a class="btn btn-sm btn-outline-primary" href="/manage/snapshots/">بازبینی تصویری</a>
+                    <a class="btn btn-sm btn-outline-primary" href="/add_photos/">گرفتن عکس چهره</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-folder-tree me-2"></i>پوشه‌های دیتاست چهره</div>
+            <div class="card-body small">
+                <p class="mb-2">مسیر: <code dir="ltr">{{ face_root }}</code></p>
+                <p class="mb-0">
+                    <b>{{ users_without_photos.0|fa }}</b> کارمند فعال عکس چهره ندارند.
+                </p>
+                <p class="text-muted mb-0">{{ users_without_photos.1 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-images me-2"></i>عکس لحظه به تفکیک کاربر</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>کاربر</th>
+                        <th style="width:110px" class="text-center">تعداد عکس</th>
+                        <th style="width:240px" class="text-center">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in per_user %}
+                    <tr>
+                        <td dir="ltr">{{ row.username }}</td>
+                        <td class="text-center">{{ row.n|fa }}</td>
+                        <td class="text-center">
+                            <a class="btn btn-sm btn-outline-primary" href="/manage/snapshots/?username={{ row.username }}">نمایش</a>
+                            <form method="post" action="" class="d-inline"
+                                  onsubmit="return confirm('همهٔ عکس‌های {{ row.username }} حذف شود؟');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="purge_user">
+                                <input type="hidden" name="username" value="{{ row.username }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">حذف همه</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted p-4">عکس لحظه‌ای ثبت نشده است.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

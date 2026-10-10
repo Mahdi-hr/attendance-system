@@ -1,0 +1,13 @@
+{% load i18n %}
+{# نوار ابزارها — در همهٔ صفحات ابزار دیده می‌شود #}
+<div class="ap-tool-tabs mb-3">
+    {% for group in adminpanel_menu %}
+        {% for item in group.items %}
+            {% if forloop.parentloop.counter0 == 1 %}
+                <a href="{{ item.url }}" class="ap-tool-tab{% if request.path == item.url %} active{% endif %}">
+                    <i class="{{ item.icon }}"></i><span>{{ item.name }}</span>
+                </a>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+</div>
