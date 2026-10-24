@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'recognition.apps.RecognitionConfig',
     'errands.apps.ErrandsConfig',
+    'balebot.apps.BalebotConfig',
 
     'crispy_forms',
     'crispy_bootstrap4',
@@ -167,6 +168,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # و عکس جدید جای آن می‌نشیند. از طریق متغیر محیط SNAPSHOT_LIMIT_PER_USER هم
 # قابل تنظیم است.
 SNAPSHOT_LIMIT_PER_USER = int(os.environ.get('SNAPSHOT_LIMIT_PER_USER', '50'))
+
+# ============================================================
+# ربات بله (اپ balebot)
+# ============================================================
+# توکن از @botfather در بله گرفته می‌شود و فقط در .env نگهداری می‌شود.
+BALE_BOT_TOKEN = os.environ.get('BALE_BOT_TOKEN', '')
+BALE_API_BASE = os.environ.get('BALE_API_BASE', 'https://tapi.bale.ai')
+BALE_POLL_TIMEOUT = int(os.environ.get('BALE_POLL_TIMEOUT', '25'))
 
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},

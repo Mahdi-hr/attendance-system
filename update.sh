@@ -587,6 +587,14 @@ if [ "$DO_RESTART" -eq 1 ]; then
         warn "سرویس systemd با نام '$SERVICE_NAME' پیدا نشد — دستی اجرا کن:"
         dim "        ./run_server.sh        # یا run_dev.sh برای توسعه"
     fi
+
+    # ربات بله (اگر نصب و در حال اجرا باشد) هم کد تازه را بارگذاری کند.
+    if pgrep -f "[m]anage.py runbalebot" >/dev/null 2>&1; then
+        pkill -TERM -f "[m]anage.py runbalebot" 2>/dev/null || true
+        sleep 2
+        nohup "$SCRIPT_DIR/run_balebot.sh" >> "$SCRIPT_DIR/balebot.log" 2>&1 &
+        ok "ربات بله هم با کد جدید راه‌اندازی شد."
+    fi
     echo
 fi
 

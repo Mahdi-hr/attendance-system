@@ -1,0 +1,15 @@
+[Unit]
+Description=Attendance System — Bale Bot (long polling)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kian
+WorkingDirectory=/home/kian/Attendance
+EnvironmentFile=-/home/kian/Attendance/.env
+ExecStart=/home/kian/Attendance/run_balebot.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

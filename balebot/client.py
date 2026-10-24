@@ -1,0 +1,112 @@
+"""کلاینت سبک API بازوی بله.
+
+مستندات: https://docs.bale.ai/ — آدرس هر متد:
+    https://tapi.bale.ai/bot<token>/<method>
+
+API بله سازگار با API بات تلگرام است. برای کم‌کردن وابستگی‌ها از
+`urllib` استاندارد پایتون استفاده شده است.
+"""
+
+import json
+import urllib.error
+import urllib.request
+
+from django.conf import settings
+
+
+class BaleError(Exception):
+    """خطای API یا شبکهٔ بله."""
+
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.code = code
+
+
+class BaleClient:
+    """ارتباط با API بله."""
+
+    def __init__(self, token=None, base_url=None):
+        self.token = token or getattr(settings, 'BALE_BOT_TOKEN', '')
+        self.base_url = (
+            base_url or getattr(settings, 'BALE_API_BASE', 'https://tapi.bale.ai')
+        ).rstrip('/')
+        if not self.token:
+            raise BaleError('توکن ربات بله تنظیم نشده است (BALE_BOT_TOKEN).')
+
+    # ------------------------------------------------------------------
+    # فراخوانی عمومی
+    # ------------------------------------------------------------------
+    def call(self, method, http_timeout=40, **params):
+        """یک متد API را صدا می‌زند و `result` را برمی‌گرداند."""
+        url = '%s/bot%s/%s' % (self.base_url, self.token, method)
+        body = json.dumps(params, ensure_ascii=False).encode('utf-8')
+        request = urllib.request.Request(
+            url,
+            data=body,
+            headers={'Content-Type': 'application/json; charset=utf-8'},
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=http_timeout) as response:
+                raw = response.read().decode('utf-8')
+        except urllib.error.HTTPError as exc:
+            raw = exc.read().decode('utf-8', 'replace') or '{}'
+            try:
+                payload = json.loads(raw)
+            except ValueError:
+                payload = {}
+            raise BaleError(
+                payload.get('description') or 'خطای HTTP %s' % exc.code,
+                payload.get('error_code') or exc.code,
+            )
+        except (urllib.error.URLError, OSError) as exc:
+            raise BaleError('خطای شبکه در ارتباط با بله: %s' % exc)
+
+        try:
+            payload = json.loads(raw)
+        except ValueError:
+            raise BaleError('پاسخ نامعتبر از سرور بله دریافت شد.')
+
+        if not payload.get('ok'):
+            raise BaleError(
+                payload.get('description') or 'خطای نامشخص API بله',
+                payload.get('error_code'),
+            )
+        return payload.get('result')
+
+    # ------------------------------------------------------------------
+    # متدهای پرکاربرد
+    # ------------------------------------------------------------------
+    def get_me(self):
+        return self.call('getMe')
+
+    def get_updates(self, offset=0, timeout=25, limit=100):
+        # http_timeout باید از timeout خود API بیشتر باشد.
+        return self.call(
+            'getUpdates',
+            http_timeout=timeout + 15,
+            offset=offset,
+            timeout=timeout,
+            limit=limit,
+        ) or []
+
+    def send_message(self, chat_id, text, reply_markup=None):
+        params = {'chat_id': chat_id, 'text': text}
+        if reply_markup:
+            params['reply_markup'] = reply_markup
+        return self.call('sendMessage', **params)
+
+    def edit_message_text(self, chat_id, message_id, text, reply_markup=None):
+        params = {'chat_id': chat_id, 'message_id': message_id, 'text': text}
+        if reply_markup:
+            params['reply_markup'] = reply_markup
+        return self.call('editMessageText', **params)
+
+    def answer_callback_query(self, callback_query_id, text=None):
+        params = {'callback_query_id': callback_query_id}
+        if text:
+            params['text'] = text
+        return self.call('answerCallbackQuery', **params)
+
+    def delete_message(self, chat_id, message_id):
+        return self.call('deleteMessage', chat_id=chat_id, message_id=message_id)
