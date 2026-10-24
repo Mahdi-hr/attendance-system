@@ -119,10 +119,16 @@ class ErrandAdmin(admin.ModelAdmin):
 
     @admin.display(description='بازه (تهران)', ordering='start_time')
     def jalali_range_display(self, obj):
+        # در صفحهٔ «افزودن» هنوز زمانی ثبت نشده است.
+        if not obj.start_time or not obj.end_time:
+            return '—'
         return jalali_range(obj)
 
     @admin.display(description='مدت', ordering='start_time')
     def duration_display_col(self, obj):
+        # در صفحهٔ «افزودن» هنوز زمانی ثبت نشده است.
+        if not obj.start_time or not obj.end_time:
+            return '—'
         return obj.duration_display()
 
     @admin.display(description='وضعیت', ordering='status')

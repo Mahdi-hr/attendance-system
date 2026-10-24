@@ -466,7 +466,11 @@ def _day_overview(day):
                 .select_related('user').order_by('user__username'))
     breaks = (Break.objects.filter(date=day)
               .select_related('user').order_by('user__username'))
-    users = sorted({t.user for t in times} | {p.user for p in presents})
+    # مدل User قابل مقایسه/مرتب‌سازی نیست؛ بر اساس نام کاربری مرتب می‌کنیم.
+    users = sorted(
+        {t.user for t in times} | {p.user for p in presents},
+        key=lambda u: u.username,
+    )
     return {
         'date': day,
         'jalali': jalali_full(day),

@@ -226,9 +226,9 @@
         this.container.style.position = 'fixed';
         this.container.style.top = (rect.bottom + 6) + 'px';
         this.container.style.left = rect.left + 'px';
-        this.container.style.zIndex = '999999';
+        this.container.style.zIndex = '2147483000';
 
-        // اصلاح خروج از viewport (چپ/راست/پایین)
+        // اصلاح خروج از viewport (چپ/راست/پایین) — هرگز زیر ناوبارِ ثابت نمی‌رود.
         var self = this;
         var adjust = function() {
             if (!self.container) return;
@@ -240,11 +240,26 @@
             }
             self.container.style.left = left + 'px';
 
+            // ارتفاع ناوبارِ ثابت (اگر وجود داشته باشد) + فاصلهٔ امن
+            var nav = document.querySelector('.navbar-custom');
+            var minTop = (nav ? nav.getBoundingClientRect().height : 0) + 8;
+
             var top = rect.bottom + 6;
             if (cRect.height && rect.bottom + 6 + cRect.height > window.innerHeight - 8) {
-                top = Math.max(8, rect.top - cRect.height - 6);
+                top = rect.top - cRect.height - 6;   // باز شدن به سمت بالا
             }
+            top = Math.max(minTop, top);             // پایین‌تر از هدر بماند
             self.container.style.top = top + 'px';
+
+            // اگر جا کم بود، خودِ تقویم اسکرول بخورد تا کامل دیده شود
+            var available = window.innerHeight - top - 8;
+            if (cRect.height > available) {
+                self.container.style.maxHeight = Math.max(160, available) + 'px';
+                self.container.style.overflowY = 'auto';
+            } else {
+                self.container.style.maxHeight = '';
+                self.container.style.overflowY = '';
+            }
         };
         this.render();
         adjust();

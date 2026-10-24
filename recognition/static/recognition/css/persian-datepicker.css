@@ -6,6 +6,11 @@
 /* ---------- Popup ---------- */
 .pdp-container {
     position: fixed;
+    /* بالاتر از ناوبار، مودال‌ها و هر لایهٔ دیگر سایت */
+    z-index: 2147483000 !important;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     width: 324px;
     padding: 14px 14px 12px;
     background:

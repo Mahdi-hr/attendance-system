@@ -5,7 +5,7 @@
 {% block title %}{% if show_report %}گزارش {{ username }}{% else %}گزارش کارمندان{% endif %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}">
+<link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}?v=20261024">
 <style>
     /* =========================================================
        EMPLOYEE CARDS (grid)
@@ -1244,6 +1244,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'recognition/js/persian-datepicker.js' %}"></script>
+<script src="{% static 'recognition/js/persian-datepicker.js' %}?v=20261024"></script>
 <script src="{% static 'recognition/js/report-presets.js' %}"></script>
 {% endblock %}

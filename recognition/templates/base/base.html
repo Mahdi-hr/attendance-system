@@ -27,11 +27,11 @@
     <link rel="stylesheet" href="{% static 'recognition/css/bootstrap.rtl.min.css' %}">
     <link rel="stylesheet" href="{% static 'recognition/css/fontawesome.min.css' %}">
     <!-- تقویم شمسی (تاریخ/ساعت) — سراسری تا همهٔ صفحه‌ها پنجرهٔ استایل‌دار داشته باشند -->
-    <link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}">
+    <link rel="stylesheet" href="{% static 'recognition/css/persian-datepicker.css' %}?v=20261024">
 
     <!-- Performance: Prefetch non-critical JS -->
     <link rel="prefetch" href="{% static 'recognition/js/bootstrap.bundle.min.js' %}">
-    <link rel="prefetch" href="{% static 'recognition/js/persian-datepicker.js' %}">
+    <link rel="prefetch" href="{% static 'recognition/js/persian-datepicker.js' %}?v=20261024">
     <style>
         /* ===== DARK THEME (default) ===== */
         [data-theme="dark"] {
@@ -1447,7 +1447,7 @@
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'errands-my' %}"><i class="fas fa-briefcase me-1"></i>مأموریت</a>
+                        <a class="nav-link" href="{% if can_access_admin %}{% url 'errands-admin' %}{% else %}{% url 'errands-my' %}{% endif %}"><i class="fas fa-briefcase me-1"></i>مأموریت</a>
                     </li>
                     {% endif %}
                 </ul>
