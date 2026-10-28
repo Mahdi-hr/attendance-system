@@ -14,6 +14,7 @@ import datetime as dt
 import logging
 
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.hashers import check_password as check_hash, make_password
 from django.db.models import Q
 from django.utils import timezone
 
@@ -25,17 +26,36 @@ from adminpanel.utils import random_password
 from . import services
 from .client import BaleError
 from .keyboards import (
+    audit_keyboard,
     back_only,
     btn,
+    confirm_keyboard,
     inline,
     main_menu,
+    main_reply_keyboard,
     new_errand_keyboard,
     new_user_role_keyboard,
+    pager,
     role_keyboard,
+    settings_keyboard,
     user_card,
     users_menu,
 )
-from .models import BaleAccount
+from .models import BaleAccount, BotConfig
+
+# دکمه‌های ثابت پایین صفحه ↔ عملیات داخلی
+REPLY_ACTIONS = {
+    '📊 داشبورد': 'adm:today',
+    '⏳ صف تأیید': 'adm:pending',
+    '👥 کاربران': 'adm:users',
+    '📈 گزارش ماه': 'rep:month',
+    '📊 وضعیت امروز': 'status',
+    '📝 ثبت مأموریت': 'err:new',
+    '📋 مأموریت‌های من': 'err:mine',
+    '⚙️ تنظیمات': 'settings',
+    '🏠 منو': 'menu:main',
+}
+
 
 logger = logging.getLogger('balebot')
 User = get_user_model()
@@ -101,9 +121,28 @@ def _handle_message(message, client):
         )
         return
 
+    if not BotConfig.get_solo().bot_enabled:
+        if account.is_linked and services.is_admin_mode(account):
+            _send(
+                account,
+                '⛔ ربات موقتاً غیرفعال است. برای فعال‌سازی از پنل مدیریت استفاده کنید.',
+                client=client,
+            )
+        return
+
+    if not services.rate_limit_ok(account):
+        # ضد اسپم: پیام‌های بیش از حد در یک دقیقه نادیده گرفته می‌شوند.
+        return
+
     text = (message.get('text') or '').strip()
     if text.startswith('/'):
         return _handle_command(account, text, client)
+
+    # دکمه‌های ثابت پایین صفحه
+    action = REPLY_ACTIONS.get(text)
+    if action:
+        _clear(account)
+        return _handle_action(account, action, client)
 
     # در میانهٔ یک گفتگوی چندمرحله‌ای، حتی متن خالی هم باید به اعتبارسنجی
     # همان مرحله برسد (مثلاً «دلیل رد الزامی است»).
@@ -150,6 +189,35 @@ def _handle_command(account, text, client):
         if not account.is_linked:
             return _ask_login(account, client)
         return _toggle_role(account, client, answer_only=False)
+
+    if command == '/settings':
+        if not account.is_linked:
+            return _ask_login(account, client)
+        return _settings_view(account, client)
+
+    if command == '/password':
+        if not account.is_linked:
+            return _ask_login(account, client)
+        return _password_start(account, client)
+
+    if command == '/week':
+        if not account.is_linked:
+            return _ask_login(account, client)
+        return _show_week(account, client)
+
+    if command == '/stats':
+        if not account.is_linked:
+            return _ask_login(account, client)
+        if not _require_admin(account, client):
+            return
+        return _admin_stats(account, client)
+
+    if command == '/audit':
+        if not account.is_linked:
+            return _ask_login(account, client)
+        if not _require_admin(account, client):
+            return
+        return _admin_audit(account, 1, client)
 
     _send(account, '❓ دستور ناشناخته است. /menu را بزنید.', client=client)
 
@@ -257,12 +325,14 @@ def _login_password(account, message, text, client):
     )
     account.save()
 
+    services.audit(user, 'login', 'bale_account', account.pk, 'ورود از ربات بله')
+
     _send(
         account,
         '✅ اتصال با موفقیت انجام شد.\nخوش آمدید %s' % services.user_label(user),
         client=client,
     )
-    _show_main_menu(account, client)
+    _show_main_menu(account, client, with_reply=True)
 
 
 def _logout(account, client):
@@ -283,7 +353,7 @@ def _logout(account, client):
 # منو و نقش
 # ============================================================
 
-def _show_main_menu(account, client):
+def _show_main_menu(account, client, with_reply=False):
     if not account.is_linked:
         return _ask_login(account, client)
 
@@ -299,6 +369,12 @@ def _show_main_menu(account, client):
         services.role_title(account),
         services.today_jalali(),
     )
+    if with_reply:
+        # کیبورد ثابت پایین صفحه (یک‌بار پس از ورود/تغییر نقش)
+        services.safe_send(
+            client, account, text,
+            reply_markup=main_reply_keyboard(admin),
+        )
     _send(account, text, main_menu(account, admin, can_switch), client=client)
 
 
@@ -320,12 +396,16 @@ def _toggle_role(account, client, answer_only=False):
     account.save()
 
     label = 'مدیر' if account.active_role == ROLE_ADMIN else 'کاربر'
+    services.audit(
+        account.django_user, 'role_switch', 'bale_account',
+        account.pk, 'نقش فعال: %s' % label,
+    )
     _send(
         account,
         '🔄 نقش فعال شما به «%s» تغییر کرد.' % label,
         client=client,
     )
-    _show_main_menu(account, client)
+    _show_main_menu(account, client, with_reply=True)
 
 
 # ============================================================
@@ -340,6 +420,150 @@ def _show_status(account, client):
 def _show_month(account, client):
     _clear(account)
     _send(account, services.month_summary_text(account.django_user), back_only(), client=client)
+
+
+def _show_week(account, client):
+    _clear(account)
+    _send(account, services.week_summary_text(account.django_user), back_only(), client=client)
+
+
+def _send_excel(account, client):
+    _clear(account)
+    start, today, label = services.month_bounds()
+    book, filename = services.build_user_report_xlsx(
+        account.django_user, start, today,
+    )
+    mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    try:
+        client.send_document(
+            account.chat_id or account.bale_user_id,
+            filename,
+            book,
+            caption='📥 گزارش ماه %s' % label,
+            mime_type=mime,
+        )
+    except BaleError as exc:
+        return _send(
+            account, '⚠️ ارسال فایل ممکن نشد: %s' % exc,
+            back_only(), client=client,
+        )
+    services.audit(
+        account.django_user, 'report_excel', 'user',
+        account.django_user_id, label,
+    )
+    _send(
+        account,
+        '✅ فایل اکسل گزارش %s ارسال شد.' % label,
+        back_only(),
+        client=client,
+    )
+
+
+# ============================================================
+# تنظیمات و رمز عبور
+# ============================================================
+
+def _settings_view(account, client):
+    _clear(account)
+    _send(
+        account,
+        '⚙️ تنظیمات\n\n'
+        'اعلان‌های دلخواه را روشن/خاموش کنید. تغییرات فوری اعمال می‌شوند.',
+        settings_keyboard(account),
+        client=client,
+    )
+
+
+def _toggle_setting(account, which, client):
+    field_map = {
+        'errand': 'notify_errand',
+        'daily': 'notify_daily',
+        'news': 'notify_news',
+    }
+    field = field_map.get(which)
+    if not field:
+        return
+    setattr(account, field, not getattr(account, field))
+    account.save(update_fields=[field])
+    _settings_view(account, client)
+
+
+def _password_start(account, client):
+    account.state = 'password:current'
+    account.state_data = {}
+    account.save()
+    _send(
+        account,
+        '🔑 تغییر رمز عبور\n\n'
+        'رمز فعلی را بفرستید. پیام رمز بعد از خواندن حذف می‌شود.',
+        inline([[btn('❌ لغو', 'menu:main')]]),
+        client=client,
+    )
+
+
+def _delete_secret(account, message, client):
+    try:
+        client.delete_message(account.chat_id, message.get('message_id'))
+    except BaleError:
+        pass
+
+
+def _password_current(account, message, text, client):
+    _delete_secret(account, message, client)
+    if not account.django_user.check_password(text):
+        _send(
+            account,
+            '❌ رمز فعلی اشتباه است. دوباره بفرستید یا /cancel بزنید.',
+            client=client,
+        )
+        return
+    account.state = 'password:new'
+    account.state_data = {}
+    account.save()
+    _send(
+        account,
+        '🔒 رمز جدید را بفرستید (حداقل ۸ نویسه).',
+        inline([[btn('❌ لغو', 'menu:main')]]),
+        client=client,
+    )
+
+
+def _password_new(account, message, text, client):
+    _delete_secret(account, message, client)
+    if len(text) < 8:
+        _send(account, '⚠️ رمز جدید باید حداقل ۸ نویسه باشد.', client=client)
+        return
+    account.state = 'password:confirm'
+    # فقط هش نگه می‌داریم تا رمز خام در دیتابیس ذخیره نشود.
+    account.state_data = {'hash': make_password(text)}
+    account.save()
+    _send(
+        account,
+        '🔁 برای اطمینان، رمز جدید را دوباره بفرستید.',
+        client=client,
+    )
+
+
+def _password_confirm(account, message, text, client):
+    _delete_secret(account, message, client)
+    stored = (account.state_data or {}).get('hash')
+    if not stored or not check_hash(text, stored):
+        _clear(account)
+        _send(
+            account,
+            '❌ تکرار رمز مطابقت نداشت. از /password دوباره شروع کنید.',
+            back_only(),
+            client=client,
+        )
+        return
+
+    user = account.django_user
+    user.password = stored
+    user.save(update_fields=['password'])
+    _clear(account)
+    services.audit(user, 'password_change', 'user', user.pk)
+    _send(account, '✅ رمز عبور با موفقیت تغییر کرد.', client=client)
+    _show_main_menu(account, client, with_reply=True)
 
 
 # ============================================================
@@ -518,13 +742,11 @@ def _submit_errand(account, client):
     )
 
 
-def _errand_list(account, client):
+def _errand_list(account, client, page=1):
     _clear(account)
-    errands = list(
-        Errand.objects.filter(user=account.django_user)
-        .order_by('-start_time')[:10]
-    )
-    if not errands:
+    qs = Errand.objects.filter(user=account.django_user).order_by('-start_time')
+    total = qs.count()
+    if not total:
         return _send(
             account,
             '📋 هنوز مأموریتی ثبت نکرده‌اید.',
@@ -532,7 +754,18 @@ def _errand_list(account, client):
             client=client,
         )
 
-    _send(account, '📋 ۱۰ مأموریت اخیر شما:', back_only(), client=client)
+    errands, page, pages = services.paginate(qs, page, per_page=5)
+    _send(
+        account,
+        '📋 مأموریت‌های شما — صفحهٔ %s از %s\n(%s مورد)'
+        % (
+            services.fa_digits(page),
+            services.fa_digits(pages),
+            services.fa_digits(total),
+        ),
+        pager('err:mine', page, pages),
+        client=client,
+    )
     for errand in errands:
         markup = None
         if errand.is_pending:
@@ -591,22 +824,27 @@ def _require_admin(account, client):
     return False
 
 
-def _admin_pending(account, client):
+def _admin_pending(account, client, page=1):
     _clear(account)
-    errands = list(
-        Errand.objects.pending().select_related('user').order_by('start_time')[:10]
-    )
-    if not errands:
+    qs = Errand.objects.pending().select_related('user').order_by('start_time')
+    total = qs.count()
+    if not total:
         return _send(
             account, '✅ هیچ درخواست مأموریتی در انتظار بررسی نیست.',
             back_only(), client=client,
         )
 
+    errands, page, pages = services.paginate(qs, page, per_page=5)
+    extra = []
+    if total > 1:
+        extra.append([
+            btn('✅ تأیید همهٔ %s مورد' % services.fa_digits(total), 'adm:approve_all'),
+        ])
     _send(
         account,
-        '⏳ %s درخواست در انتظار بررسی (حداکثر ۱۰ مورد):'
-        % services.fa_digits(len(errands)),
-        back_only(),
+        '⏳ %s درخواست در انتظار — صفحهٔ %s از %s'
+        % (services.fa_digits(total), services.fa_digits(page), services.fa_digits(pages)),
+        pager('adm:pending', page, pages, extra_rows=extra),
         client=client,
     )
     for errand in errands:
@@ -639,6 +877,9 @@ def _approve_errand(account, pk, client):
         )
 
     errand.approve(account.django_user)
+    services.audit(
+        account.django_user, 'errand_approve', 'errand', errand.pk, errand.reason,
+    )
     _send(
         account,
         '✅ تأیید شد:\n👤 %s\n📝 %s'
@@ -704,6 +945,10 @@ def _reject_finish(account, pk, note, client):
             back_only(), client=client,
         )
 
+    services.audit(
+        account.django_user, 'errand_reject', 'errand', errand.pk, note,
+    )
+
     _send(
         account,
         '❌ رد شد:\n👤 %s\n📝 %s\n💬 %s'
@@ -729,22 +974,81 @@ def _admin_today(account, client):
     _send(account, services.admin_today_text(), back_only(), client=client)
 
 
-def _admin_checkout(account, client):
+def _admin_stats(account, client):
     _clear(account)
-    errors = list(
-        CheckOutError.objects.filter(status=CheckOutError.STATUS_PENDING)
-        .select_related('user').order_by('-date')[:10]
+    _send(account, services.bot_stats_text(), back_only(), client=client)
+
+
+def _admin_audit(account, page, client):
+    _clear(account)
+    text, page, pages = services.audit_list_text(page, per_page=8)
+    _send(account, text, audit_keyboard(page, pages), client=client)
+
+
+def _approve_all_start(account, client):
+    count = Errand.objects.pending().count()
+    if not count:
+        return _send(
+            account, '✅ هیچ مأموریتی در انتظار نیست.',
+            back_only(), client=client,
+        )
+    _send(
+        account,
+        '⚠️ همهٔ %s مأموریت در انتظار تأیید شوند؟\n'
+        'این عمل قابل بازگشت نیست (ولی بعداً قابل تغییر وضعیت است).'
+        % services.fa_digits(count),
+        confirm_keyboard('adm:approve_all:yes'),
+        client=client,
     )
-    if not errors:
+
+
+def _approve_all_confirm(account, client):
+    errands = list(Errand.objects.pending().select_related('user'))
+    done = 0
+    for errand in errands:
+        if errand.approve(account.django_user):
+            done += 1
+            services.notify_user(
+                client, errand.user,
+                '✅ مأموریت شما تأیید شد.\n\n'
+                '🕒 %s → %s\n📝 %s'
+                % (
+                    services.dt_label(errand.start_time),
+                    services.fa_digits(services.clock(errand.end_time)),
+                    errand.reason,
+                ),
+            )
+    services.audit(
+        account.django_user, 'errand_approve_all',
+        'errand', '', '%d مورد' % done,
+    )
+    _send(
+        account,
+        '✅ %s مأموریت تأیید شد.' % services.fa_digits(done),
+        back_only(),
+        client=client,
+    )
+
+
+def _admin_checkout(account, client, page=1):
+    _clear(account)
+    qs = (
+        CheckOutError.objects.filter(status=CheckOutError.STATUS_PENDING)
+        .select_related('user').order_by('-date')
+    )
+    total = qs.count()
+    if not total:
         return _send(
             account, '✅ خطای خروج در انتظاری وجود ندارد.',
             back_only(), client=client,
         )
 
+    errors, page, pages = services.paginate(qs, page, per_page=5)
     _send(
         account,
-        '⚠️ %s خطای خروج در انتظار:' % services.fa_digits(len(errors)),
-        back_only(),
+        '⚠️ %s خطای خروج — صفحهٔ %s از %s'
+        % (services.fa_digits(total), services.fa_digits(page), services.fa_digits(pages)),
+        pager('adm:checkout', page, pages),
         client=client,
     )
     for error in errors:
@@ -775,6 +1079,10 @@ def _resolve_checkout(account, pk, client):
     error.resolved_at = timezone.now()
     error.note = ((error.note or '') + '\nرفع از ربات بله').strip()
     error.save(update_fields=['status', 'resolved_by', 'resolved_at', 'note'])
+    services.audit(
+        account.django_user, 'checkout_resolve', 'checkout_error',
+        error.pk, error.user.get_username(),
+    )
     _send(
         account,
         '✅ خطای خروج %s رفع شد.' % services.user_label(error.user),
@@ -880,6 +1188,10 @@ def _reset_password(account, pk, client):
     password = random_password(12)
     user.set_password(password)
     user.save(update_fields=['password'])
+    services.audit(
+        account.django_user, 'user_reset_password', 'user', user.pk,
+        user.get_username(),
+    )
     _send(
         account,
         '🔑 رمز عبور %s به این مقدار تغییر کرد:\n\n'
@@ -918,6 +1230,9 @@ def _set_user_role(account, pk, role, client):
         return _send(account, '⚠️ نقش نامعتبر است.', users_menu(), client=client)
 
     set_role(user, role)
+    services.audit(
+        account.django_user, 'user_set_role', 'user', user.pk, role,
+    )
     _send(
         account,
         '✅ نقش %s به «%s» تغییر کرد.'
@@ -944,6 +1259,10 @@ def _toggle_active(account, pk, client):
 
     user.is_active = not user.is_active
     user.save(update_fields=['is_active'])
+    services.audit(
+        account.django_user, 'user_toggle_active', 'user', user.pk,
+        'فعال' if user.is_active else 'غیرفعال',
+    )
     _send(
         account,
         '%s %s شد.'
@@ -1033,6 +1352,10 @@ def _new_user_create(account, role, client):
     if role in (ROLE_USER, ROLE_ADMIN, ROLE_BOTH):
         set_role(user, role)
 
+    services.audit(
+        account.django_user, 'user_create', 'user', user.pk,
+        'نقش: %s' % role,
+    )
     _clear(account)
     _send(
         account,
@@ -1088,6 +1411,10 @@ def _broadcast_send(account, text, client):
         else:
             failed += 1
 
+    services.audit(
+        account.django_user, 'broadcast', '', '',
+        'ارسال به %d حساب' % sent,
+    )
     _send(
         account,
         '📢 پیام همگانی ارسال شد.\n✅ %s | ⛔ %s'
@@ -1108,6 +1435,13 @@ def _handle_state(account, message, text, client):
         return _login_username(account, text, client)
     if state == 'login_password':
         return _login_password(account, message, text, client)
+
+    if state == 'password:current':
+        return _password_current(account, message, text, client)
+    if state == 'password:new':
+        return _password_new(account, message, text, client)
+    if state == 'password:confirm':
+        return _password_confirm(account, message, text, client)
 
     if not account.is_linked:
         return _ask_login(account, client)
@@ -1199,6 +1533,13 @@ def _handle_state(account, message, text, client):
 # دکمه‌های inline
 # ============================================================
 
+def _page_arg(data, default=1):
+    try:
+        return max(1, int(data.rsplit(':', 1)[1]))
+    except (IndexError, ValueError):
+        return default
+
+
 def _handle_callback(cq, client):
     from_user = cq.get('from') or {}
     if not from_user.get('id'):
@@ -1223,11 +1564,28 @@ def _handle_callback(cq, client):
         )
         return
 
+    if not BotConfig.get_solo().bot_enabled:
+        if account.is_linked and services.is_admin_mode(account):
+            _send(
+                account,
+                '⛔ ربات موقتاً غیرفعال است.',
+                client=client,
+            )
+        return
+
+    if not services.rate_limit_ok(account):
+        return
+
     data = (cq.get('data') or '').strip()
     if not account.is_linked:
         return _ask_login(account, client)
+    return _handle_action(account, data, client)
 
+
+def _handle_action(account, data, client):
     # ---------- عمومی ----------
+    if data in ('', 'noop'):
+        return
     if data in ('menu', 'menu:main', 'back'):
         _clear(account)
         return _show_main_menu(account, client)
@@ -1239,12 +1597,26 @@ def _handle_callback(cq, client):
         return _show_status(account, client)
     if data == 'rep:month':
         return _show_month(account, client)
+    if data == 'rep:week':
+        return _show_week(account, client)
+    if data == 'rep:excel':
+        return _send_excel(account, client)
+
+    # ---------- تنظیمات ----------
+    if data == 'settings':
+        return _settings_view(account, client)
+    if data.startswith('settings:toggle:'):
+        return _toggle_setting(account, data.split(':', 2)[2], client)
+    if data == 'settings:password':
+        return _password_start(account, client)
 
     # ---------- مأموریت کارمند ----------
     if data == 'err:new':
         return _errand_start(account, client)
     if data == 'err:mine':
-        return _errand_list(account, client)
+        return _errand_list(account, client, 1)
+    if data.startswith('err:mine:'):
+        return _errand_list(account, client, _page_arg(data))
     if data.startswith('err:preset:'):
         which = data.split(':', 2)[2]
         if account.state == 'errand:start':
@@ -1289,15 +1661,27 @@ def _handle_callback(cq, client):
         if not _require_admin(account, client):
             return
         if data == 'adm:pending':
-            return _admin_pending(account, client)
+            return _admin_pending(account, client, 1)
+        if data.startswith('adm:pending:'):
+            return _admin_pending(account, client, _page_arg(data))
         if data == 'adm:today':
             return _admin_today(account, client)
         if data == 'adm:checkout':
-            return _admin_checkout(account, client)
+            return _admin_checkout(account, client, 1)
+        if data.startswith('adm:checkout:'):
+            return _admin_checkout(account, client, _page_arg(data))
         if data == 'adm:users':
             return _users_menu(account, client)
         if data == 'adm:broadcast':
             return _broadcast_start(account, client)
+        if data == 'adm:stats':
+            return _admin_stats(account, client)
+        if data.startswith('adm:audit:'):
+            return _admin_audit(account, _page_arg(data), client)
+        if data == 'adm:approve_all':
+            return _approve_all_start(account, client)
+        if data == 'adm:approve_all:yes':
+            return _approve_all_confirm(account, client)
         return
 
     if data.startswith('cerr:resolve:'):

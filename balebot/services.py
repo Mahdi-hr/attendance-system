@@ -333,3 +333,204 @@ def errand_summary_line(errand):
         dt_label(errand.start_time) + ' → ' + fa_digits(clock(errand.end_time)),
         (errand.reason or '—')[:160],
     )
+
+
+# ============================================================
+#  زیرساخت حرفه‌ای: Audit، نرخ پیام، صفحه‌بندی
+# ============================================================
+
+RATE_LIMIT_PER_MINUTE = 30
+
+
+def audit(actor, action, target_type='', target_id='', details=''):
+    """ثبت ردپای اقدام؛ خطای لاگ هرگز عملیات اصلی را نمی‌شکند."""
+    from .models import AuditLog
+    try:
+        AuditLog.objects.create(
+            actor=actor if getattr(actor, 'pk', None) else None,
+            action=action,
+            target_type=target_type or '',
+            target_id=str(target_id or ''),
+            details=(details or '')[:2000],
+        )
+    except Exception:  # pragma: no cover — فقط برای مقاوم‌سازی
+        import logging
+        logging.getLogger('balebot').exception('ثبت AuditLog ناموفق بود')
+
+
+def rate_limit_ok(account):
+    """حداکثر ۳۰ پیام در دقیقه برای هر حساب بله."""
+    now = timezone.now()
+    window = account.rate_window_start
+    if not window or (now - window).total_seconds() > 60:
+        account.rate_window_start = now
+        account.rate_count = 1
+        account.save(update_fields=['rate_window_start', 'rate_count'])
+        return True
+
+    account.rate_count += 1
+    account.save(update_fields=['rate_count'])
+    return account.rate_count <= RATE_LIMIT_PER_MINUTE
+
+
+def paginate(items, page, per_page=5):
+    """صفحه‌بندی سادهٔ لیست‌ها برای دکمه‌های inline."""
+    items = list(items)
+    total = len(items)
+    pages = max(1, (total + per_page - 1) // per_page)
+    try:
+        page = int(page)
+    except (TypeError, ValueError):
+        page = 1
+    page = min(max(page, 1), pages)
+    start = (page - 1) * per_page
+    return items[start:start + per_page], page, pages
+
+
+# ============================================================
+#  گزارش هفتگی و خروجی اکسل
+# ============================================================
+
+def week_bounds():
+    today = timezone.localdate()
+    return today - dt.timedelta(days=6), today
+
+
+def _day_row(user, day):
+    events = list(Time.objects.filter(user=user, date=day).order_by('time'))
+    seconds = _worked_seconds(events)
+    present = Present.objects.filter(user=user, date=day, present=True).exists()
+    first_in = next((ev.time for ev in events if not ev.out), None)
+    last_out = next((ev.time for ev in reversed(events) if ev.out), None)
+    errands = list(
+        Errand.objects.approved().filter(user=user).for_window(day, day)
+    )
+    return {
+        'date': day,
+        'present': present,
+        'first_in': first_in,
+        'last_out': last_out,
+        'seconds': seconds,
+        'errands': errands,
+    }
+
+
+def week_summary_text(user):
+    start, today = week_bounds()
+    lines = ['📅 گزارش ۷ روز اخیر', '']
+    total = 0
+    active_days = 0
+    for offset in range(7):
+        day = start + dt.timedelta(days=offset)
+        row = _day_row(user, day)
+        total += row['seconds']
+        if row['present'] or row['seconds'] or row['errands']:
+            active_days += 1
+        lines.append(
+            '%s\n  %s | %s → %s | %s%s'
+            % (
+                jalali_full(day),
+                '✅ حاضر' if row['present'] else '—',
+                fa_digits(clock(row['first_in'])) if row['first_in'] else '—',
+                fa_digits(clock(row['last_out'])) if row['last_out'] else '—',
+                format_hours(row['seconds']),
+                (' | 🚗 %s مأموریت' % fa_digits(len(row['errands']))) if row['errands'] else '',
+            )
+        )
+    lines += [
+        '',
+        '🗓 روزهای با فعالیت: %s' % fa_digits(active_days),
+        '⏱ مجموع ۷ روز: %s' % format_hours(total),
+    ]
+    return '\n'.join(lines)
+
+
+def build_user_report_xlsx(user, start, end):
+    """خروجی اکسل گزارش روزانهٔ یک کاربر در یک بازه."""
+    from recognition.excel_export import build_xlsx
+
+    rows = []
+    cursor = start
+    total_seconds = 0
+    while cursor <= end:
+        row = _day_row(user, cursor)
+        total_seconds += row['seconds']
+        j = jdatetime.date.fromgregorian(date=cursor)
+        rows.append([
+            j.strftime('%Y/%m/%d'),
+            jalali_full(cursor).split()[0],
+            clock(row['first_in']) if row['first_in'] else '—',
+            clock(row['last_out']) if row['last_out'] else '—',
+            format_hours(row['seconds']),
+            'حاضر' if row['present'] else '—',
+            '، '.join(
+                (e.destination or e.reason or 'مأموریت') for e in row['errands']
+            ) or '—',
+        ])
+        cursor += dt.timedelta(days=1)
+
+    rows.append(['', '', '', '', format_hours(total_seconds), '', ''])
+    book = build_xlsx(
+        sheet_name='گزارش حضور',
+        headers=['تاریخ', 'روز', 'اولین ورود', 'آخرین خروج', 'کارکرد', 'حضور', 'مأموریت'],
+        rows=rows,
+        widths=[14, 16, 14, 14, 22, 12, 34],
+        rtl=True,
+    )
+    filename = 'report-%s-%s.xlsx' % (user.get_username(), end.isoformat())
+    return book, filename
+
+
+# ============================================================
+#  آمار ربات
+# ============================================================
+
+def bot_stats_text():
+    from .models import AuditLog, BaleAccount, BotState
+
+    total = BaleAccount.objects.count()
+    linked = BaleAccount.objects.filter(django_user__isnull=False).count()
+    blocked = BaleAccount.objects.filter(is_blocked=True).count()
+    state = BotState.objects.filter(key='updates').first()
+    pending = Errand.objects.pending().count()
+    errors = CheckOutError.objects.filter(
+        status=CheckOutError.STATUS_PENDING,
+    ).count()
+    audits = AuditLog.objects.count()
+
+    return '\n'.join([
+        '🤖 آمار ربات بله',
+        '',
+        '👥 حساب‌های بله: %s' % fa_digits(total),
+        '🔗 متصل به سامانه: %s' % fa_digits(linked),
+        '⛔ مسدود: %s' % fa_digits(blocked),
+        '📨 آخرین update: %s' % fa_digits(state.last_update_id if state else 0),
+        '⏳ مأموریت در انتظار: %s' % fa_digits(pending),
+        '⚠️ خطای خروج باز: %s' % fa_digits(errors),
+        '📝 رکورد Audit: %s' % fa_digits(audits),
+    ])
+
+
+def audit_list_text(page=1, per_page=10):
+    """آخرین اقدامات، صفحه‌بندی‌شده."""
+    from .models import AuditLog
+
+    qs = AuditLog.objects.select_related('actor').all()
+    items, page, pages = paginate(qs, page, per_page=per_page)
+    lines = ['📝 ردپای اقدامات (صفحهٔ %s از %s)' % (fa_digits(page), fa_digits(pages)), '']
+    if not items:
+        lines.append('هیچ اقدامی ثبت نشده است.')
+    for item in items:
+        actor = item.actor.get_username() if item.actor else 'سیستم'
+        local = timezone.localtime(item.created_at)
+        lines.append(
+            '• %s | %s\n  %s %s\n  %s'
+            % (
+                local.strftime('%m/%d %H:%M'),
+                actor,
+                item.action,
+                ('#%s' % item.target_id) if item.target_id else '',
+                (item.details or '')[:120],
+            )
+        )
+    return '\n'.join(lines), page, pages

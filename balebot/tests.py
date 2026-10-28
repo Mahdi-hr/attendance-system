@@ -17,7 +17,8 @@ from users.models import CheckOutError, Time, UserProfile
 from users.roles import ROLE_ADMIN, ROLE_BOTH, ROLE_USER
 
 from . import handlers
-from .models import BaleAccount
+from .models import AuditLog, BaleAccount, BotConfig
+from .reminders import run_reminders
 
 
 User = get_user_model()
@@ -30,12 +31,21 @@ class FakeClient:
         self.sent = []
         self.answers = []
         self.deleted = []
+        self.documents = []
 
     def send_message(self, chat_id, text, reply_markup=None):
         self.sent.append({
             'chat_id': chat_id, 'text': text, 'markup': reply_markup,
         })
         return {'message_id': len(self.sent)}
+
+    def send_document(self, chat_id, filename, content, caption=None,
+                      mime_type=None):
+        self.documents.append({
+            'chat_id': chat_id, 'filename': filename,
+            'content': content, 'caption': caption,
+        })
+        return {'message_id': len(self.sent) + 1}
 
     def answer_callback_query(self, callback_query_id, text=None):
         self.answers.append((callback_query_id, text))
@@ -338,7 +348,7 @@ class AdminFeatureTests(BotTestBase):
         self.login('boss', uid=2002)
         self._make_pending()
         self.click('adm:pending', uid=2002)
-        self.assertTrue(any('در انتظار بررسی' in t for t in self.bot.texts_to(2002)))
+        self.assertTrue(any('در انتظار' in t for t in self.bot.texts_to(2002)))
 
     def test_resolve_checkout_error(self):
         today = timezone.localdate()
@@ -422,3 +432,247 @@ class ModelTests(BotTestBase):
     def test_account_str(self):
         self.login('emp')
         self.assertIn('emp', str(self.account()))
+
+
+class ProfessionalFeatureTests(BotTestBase):
+    """فاز ۱: Audit، تنظیمات، رمز، صفحه‌بندی، اکسل، آمار و صفحه‌بندی."""
+
+    def test_audit_log_on_login(self):
+        self.login('emp')
+        self.assertTrue(
+            AuditLog.objects.filter(actor=self.emp, action='login').exists()
+        )
+
+    def test_audit_log_on_approve(self):
+        today = timezone.localdate()
+        tz = timezone.get_current_timezone()
+        errand = Errand.objects.create(
+            user=self.emp,
+            start_time=timezone.make_aware(dt.datetime.combine(today, dt.time(9, 0)), tz),
+            end_time=timezone.make_aware(dt.datetime.combine(today, dt.time(10, 0)), tz),
+            reason='برای Audit',
+        )
+        self.login('boss', uid=2002)
+        self.click('err:approve:%d' % errand.pk, uid=2002)
+        self.assertTrue(
+            AuditLog.objects.filter(action='errand_approve', target_id=str(errand.pk)).exists()
+        )
+
+    def test_settings_toggle(self):
+        self.login('emp')
+        self.click('settings')
+        self.assertTrue(self.account().notify_errand)
+
+        self.click('settings:toggle:errand')
+        self.assertFalse(self.account().notify_errand)
+
+        self.click('settings:toggle:errand')
+        self.assertTrue(self.account().notify_errand)
+
+    def test_password_change_flow(self):
+        self.login('emp')
+        self.click('settings:password')
+        self.send('Secret12345')
+        self.send('NewSecret123')
+        self.send('NewSecret123')
+
+        self.emp.refresh_from_db()
+        self.assertTrue(self.emp.check_password('NewSecret123'))
+        self.assertTrue(AuditLog.objects.filter(action='password_change').exists())
+        self.assertGreaterEqual(len(self.bot.deleted), 3)
+
+    def test_password_change_wrong_current(self):
+        self.login('emp')
+        self.click('settings:password')
+        self.send('wrong')
+        self.assertIn('اشتباه', self.bot.last_text)
+        self.emp.refresh_from_db()
+        self.assertTrue(self.emp.check_password('Secret12345'))
+
+    def test_week_report(self):
+        self.login('emp')
+        self.click('rep:week')
+        self.assertIn('۷ روز', self.bot.last_text)
+
+    def test_excel_export(self):
+        self.login('emp')
+        self.click('rep:excel')
+        self.assertEqual(len(self.bot.documents), 1)
+        doc = self.bot.documents[0]
+        self.assertTrue(doc['filename'].endswith('.xlsx'))
+        self.assertTrue(doc['content'].startswith(b'PK'))
+
+    def test_errand_pagination(self):
+        today = timezone.localdate()
+        tz = timezone.get_current_timezone()
+        for hour in range(7):
+            Errand.objects.create(
+                user=self.emp,
+                start_time=timezone.make_aware(
+                    dt.datetime.combine(today, dt.time(8 + hour, 0)), tz),
+                end_time=timezone.make_aware(
+                    dt.datetime.combine(today, dt.time(8 + hour, 30)), tz),
+                reason='مأموریت %d' % hour,
+                status=Errand.STATUS_CANCELLED,
+            )
+        self.login('emp')
+        self.click('err:mine')
+        markups = [m['markup'] for m in self.bot.sent if m['markup']]
+        self.assertTrue(any('err:mine:2' in str(m) for m in markups))
+
+        self.click('err:mine:2')
+        self.assertTrue(any('صفحهٔ ۲' in t for t in self.bot.texts_to(1001)))
+
+    def test_admin_stats(self):
+        self.login('boss', uid=2002)
+        self.click('adm:stats', uid=2002)
+        self.assertIn('آمار ربات', self.bot.last_text)
+
+    def test_admin_audit_view(self):
+        AuditLog.objects.create(actor=self.admin, action='test_action', details='تست')
+        self.login('boss', uid=2002)
+        self.click('adm:audit:1', uid=2002)
+        self.assertIn('ردپای اقدامات', self.bot.last_text)
+
+    def test_approve_all(self):
+        today = timezone.localdate()
+        tz = timezone.get_current_timezone()
+        for i in range(2):
+            Errand.objects.create(
+                user=self.emp,
+                start_time=timezone.make_aware(
+                    dt.datetime.combine(today, dt.time(9 + i, 0)), tz),
+                end_time=timezone.make_aware(
+                    dt.datetime.combine(today, dt.time(9 + i, 30)), tz),
+                reason='گروهی %d' % i,
+            )
+        self.login('boss', uid=2002)
+        self.click('adm:approve_all', uid=2002)
+        self.assertIn('تأیید شوند', self.bot.last_text)
+
+        self.click('adm:approve_all:yes', uid=2002)
+        self.assertEqual(
+            Errand.objects.filter(user=self.emp, status=Errand.STATUS_APPROVED).count(),
+            2,
+        )
+        self.assertTrue(AuditLog.objects.filter(action='errand_approve_all').exists())
+
+    def test_bot_disabled_ignores_messages(self):
+        config = BotConfig.get_solo()
+        config.bot_enabled = False
+        config.save()
+
+        before = len(self.bot.sent)
+        self.login('emp')
+        self.assertEqual(len(self.bot.sent), before)
+
+        config.bot_enabled = True
+        config.save()
+
+    def test_rate_limit(self):
+        self.login('emp')
+        account = self.account()
+        account.rate_window_start = timezone.now()
+        account.rate_count = 30
+        account.save()
+
+        before = len(self.bot.sent)
+        self.send('/menu')
+        self.assertEqual(len(self.bot.sent), before)
+
+    def test_reply_keyboard_action(self):
+        self.login('emp')
+        self.send('📊 وضعیت امروز')
+        self.assertIn('وضعیت امروز', self.bot.last_text)
+
+    def test_admin_reply_keyboard_action(self):
+        self.login('boss', uid=2002)
+        self.send('📊 داشبورد', uid=2002)
+        self.assertIn('داشبورد امروز', self.bot.last_text)
+
+    def test_pending_pagination(self):
+        today = timezone.localdate()
+        tz = timezone.get_current_timezone()
+        for i in range(6):
+            Errand.objects.create(
+                user=self.emp,
+                start_time=timezone.make_aware(
+                    dt.datetime.combine(today, dt.time(9 + i, 0)), tz),
+                end_time=timezone.make_aware(
+                    dt.datetime.combine(today, dt.time(9 + i, 30)), tz),
+                reason='در انتظار %d' % i,
+            )
+        self.login('boss', uid=2002)
+        self.click('adm:pending', uid=2002)
+        markups = [m['markup'] for m in self.bot.sent if m['markup']]
+        self.assertTrue(any('adm:pending:2' in str(m) for m in markups))
+
+        self.click('adm:pending:2', uid=2002)
+        self.assertTrue(any('صفحهٔ ۲' in t for t in self.bot.texts_to(2002)))
+
+
+class ReminderTests(BotTestBase):
+    """یادآورهای خودکار (خروج، مأموریت نزدیک، صف تأیید)."""
+
+    def test_checkout_reminder_once(self):
+        self.login('emp')
+        now = timezone.now()
+        today = timezone.localdate(now)
+        Time.objects.create(
+            user=self.emp, date=today,
+            time=now - dt.timedelta(hours=6), out=False,
+        )
+        config = BotConfig.get_solo()
+        config.work_end_time = (
+            timezone.localtime(now) - dt.timedelta(hours=2)
+        ).time()
+        config.checkout_reminder_after_minutes = 0
+        config.save()
+
+        stats = run_reminders(self.bot, now=now)
+        self.assertEqual(stats['checkout'], 1)
+        self.assertTrue(any('یادآور خروج' in t for t in self.bot.texts_to(1001)))
+
+        stats2 = run_reminders(self.bot, now=now)
+        self.assertEqual(stats2['checkout'], 0)
+
+    def test_upcoming_errand_reminder_once(self):
+        self.login('emp')
+        now = timezone.now()
+        Errand.objects.create(
+            user=self.emp,
+            start_time=now + dt.timedelta(minutes=10),
+            end_time=now + dt.timedelta(hours=1),
+            reason='بانک',
+            status=Errand.STATUS_APPROVED,
+        )
+        config = BotConfig.get_solo()
+        config.upcoming_errand_minutes = 15
+        config.save()
+
+        stats = run_reminders(self.bot, now=now)
+        self.assertEqual(stats['upcoming'], 1)
+        self.assertTrue(any('یادآور مأموریت' in t for t in self.bot.texts_to(1001)))
+
+        stats2 = run_reminders(self.bot, now=now)
+        self.assertEqual(stats2['upcoming'], 0)
+
+    def test_pending_digest_once(self):
+        self.login('boss', uid=2002)
+        now = timezone.now()
+        Errand.objects.create(
+            user=self.emp,
+            start_time=now + dt.timedelta(hours=1),
+            end_time=now + dt.timedelta(hours=2),
+            reason='در انتظار',
+        )
+        config = BotConfig.get_solo()
+        config.pending_digest_time = timezone.localtime(now).time()
+        config.save()
+
+        stats = run_reminders(self.bot, now=now)
+        self.assertEqual(stats['pending'], 1)
+        self.assertTrue(any('یادآور صف تأیید' in t for t in self.bot.texts_to(2002)))
+
+        stats2 = run_reminders(self.bot, now=now)
+        self.assertEqual(stats2['pending'], 0)
