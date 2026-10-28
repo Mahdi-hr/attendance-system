@@ -8,6 +8,7 @@
 """
 import datetime as dt
 import os
+import time
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -30,6 +31,19 @@ FA = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
 
 # پسوند فایل‌های عکس لحظه — در dashboard هم از همین‌جا import می‌شود.
 IMAGE_EXT = ('.jpg', '.jpeg', '.png')
+
+# فایل‌های تازه‌تر از این مدت «یتیم» حساب نمی‌شوند. این محافظ جلوی حذف
+# عکس‌هایی را می‌گیرد که در فاصلهٔ بازیابی/همگام‌سازی دیتابیس هنوز رکوردشان
+# در دیتابیس دیده نمی‌شود.
+ORPHAN_MIN_AGE_SECONDS = 6 * 3600
+
+
+def _file_age_seconds(path):
+    try:
+        return max(0.0, time.time() - os.path.getmtime(path))
+    except OSError:
+        return None
+
 
 
 def _fa(v):
@@ -358,7 +372,11 @@ def check_orphan_snapshot_files():
         for name in files:
             if not name.lower().endswith(IMAGE_EXT):
                 continue
-            rel = os.path.relpath(os.path.join(dirpath, name), root)
+            full = os.path.join(dirpath, name)
+            age = _file_age_seconds(full)
+            if age is not None and age < ORPHAN_MIN_AGE_SECONDS:
+                continue
+            rel = os.path.relpath(full, root)
             if rel not in known:
                 orphans.append(rel)
     return len(orphans), 'فایل عکس بدون رکورد دیتابیس (فضای بیهوده).'
@@ -369,6 +387,15 @@ def fix_orphan_snapshot_files():
     if not os.path.isdir(root):
         return 0, 'پوشه‌ای برای پاک‌سازی نبود.'
     known = set(AttendanceSnapshot.objects.values_list('photo', flat=True))
+
+    # محافظ حیاتی: اگر دیتابیس هیچ رکورد عکسی ندارد (مثلاً در فاصلهٔ بازیابی
+    # یا در تست‌ها)، هر فایلی «یتیم» به نظر می‌رسد. در این حالت هرگز پاک نکن.
+    if AttendanceSnapshot.objects.count() == 0:
+        return 0, (
+            'دیتابیس هیچ رکورد عکسی ندارد؛ برای جلوگیری از حذف اشتباه، '
+            'پاک‌سازی انجام نشد.'
+        )
+
     removed = 0
     root_real = os.path.realpath(root)
     for dirpath, _dirs, files in os.walk(root):
@@ -378,6 +405,10 @@ def fix_orphan_snapshot_files():
             full = os.path.join(dirpath, name)
             rel = os.path.relpath(full, root)
             if rel in known:
+                continue
+            age = _file_age_seconds(full)
+            if age is not None and age < ORPHAN_MIN_AGE_SECONDS:
+                # ممکن است رکوردش هنوز در دیتابیس نیامده باشد؛ دست نزن.
                 continue
             p = os.path.realpath(full)
             if p.startswith(root_real + os.sep) and os.path.isfile(p):

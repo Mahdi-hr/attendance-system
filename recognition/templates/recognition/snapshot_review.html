@@ -928,6 +928,19 @@
 </div>
 
 {% if selected %}
+{% if missing_count %}
+<div class="alert alert-warning d-flex align-items-start gap-2"
+     style="border-radius:14px;border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.1);color:var(--text-primary);">
+    <i class="fas fa-exclamation-triangle mt-1" style="color:#f59e0b;"></i>
+    <div style="font-size:.86rem;line-height:1.8;">
+        {{ missing_count|fa }} از {{ total_count|fa }} رکورد عکسِ این کاربر، فایلشان روی سرور
+        موجود نیست (احتمالاً پس از بازیابی دیتابیس). فقط عکس‌های موجود نمایش
+        داده می‌شوند. برای پاک‌سازی رکوردهای بی‌فایل از
+        <a href="/admin/tools/snapshots/" style="color:var(--primary);">ابزار پاک‌سازی عکس‌ها</a>
+        استفاده کنید.
+    </div>
+</div>
+{% endif %}
 <!-- ============================================================
      SELECTED USER — SNAPSHOTS GRID
      ============================================================ -->

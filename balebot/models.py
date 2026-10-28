@@ -191,3 +191,45 @@ class ReminderLog(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class ScheduledMessage(models.Model):
+    """پیام زمان‌بندی‌شدهٔ مدیر برای ارسال خودکار از ربات."""
+
+    AUDIENCE_ALL = 'all'
+    AUDIENCE_ADMINS = 'admins'
+    AUDIENCE_USERS = 'users'
+    AUDIENCE_USER = 'user'
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_ALL, 'همه'),
+        (AUDIENCE_ADMINS, 'مدیران'),
+        (AUDIENCE_USERS, 'کاربران عادی'),
+        (AUDIENCE_USER, 'یک کاربر خاص'),
+    ]
+
+    text = models.TextField('متن پیام')
+    audience = models.CharField(
+        'مخاطب', max_length=10, choices=AUDIENCE_CHOICES,
+        default=AUDIENCE_ALL,
+    )
+    target_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, verbose_name='کاربر هدف',
+        null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='bale_scheduled_messages',
+    )
+    send_at = models.DateTimeField('زمان ارسال', db_index=True)
+    sent_at = models.DateTimeField('زمان ارسال‌شده', null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, verbose_name='سازنده',
+        null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='bale_scheduled_created',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'پیام زمان‌بندی‌شده'
+        verbose_name_plural = 'پیام‌های زمان‌بندی‌شده'
+        ordering = ['send_at']
+
+    def __str__(self):
+        return '%s — %s' % (self.get_audience_display(), self.send_at)

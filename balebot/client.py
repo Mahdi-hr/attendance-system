@@ -157,3 +157,42 @@ class BaleClient:
             method='POST',
         )
         return self._request(request, http_timeout=60)
+
+    def send_photo(self, chat_id, filename, content, caption=None,
+                   mime_type='image/jpeg', reply_markup=None):
+        """ارسال عکس (برای بازبینی عکس لحظه در ربات)."""
+        boundary = '----BaleBot%s' % uuid.uuid4().hex
+        parts = []
+
+        def _field(name, value):
+            parts.append((
+                '--%s\r\n'
+                'Content-Disposition: form-data; name="%s"\r\n\r\n'
+                '%s\r\n' % (boundary, name, value)
+            ).encode('utf-8'))
+
+        _field('chat_id', str(chat_id))
+        if caption:
+            _field('caption', caption)
+        if reply_markup:
+            _field('reply_markup', json.dumps(reply_markup, ensure_ascii=False))
+
+        parts.append((
+            '--%s\r\n'
+            'Content-Disposition: form-data; name="photo"; filename="%s"\r\n'
+            'Content-Type: %s\r\n\r\n'
+            % (boundary, filename, mime_type)
+        ).encode('utf-8'))
+        parts.append(content)
+        parts.append(('\r\n--%s--\r\n' % boundary).encode('utf-8'))
+
+        url = '%s/bot%s/sendPhoto' % (self.base_url, self.token)
+        request = urllib.request.Request(
+            url,
+            data=b''.join(parts),
+            headers={
+                'Content-Type': 'multipart/form-data; boundary=%s' % boundary,
+            },
+            method='POST',
+        )
+        return self._request(request, http_timeout=60)

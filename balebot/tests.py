@@ -5,6 +5,7 @@
 """
 
 import datetime as dt
+import os
 
 import jdatetime
 from django.contrib.auth import get_user_model
@@ -32,6 +33,7 @@ class FakeClient:
         self.answers = []
         self.deleted = []
         self.documents = []
+        self.photos = []
 
     def send_message(self, chat_id, text, reply_markup=None):
         self.sent.append({
@@ -44,6 +46,15 @@ class FakeClient:
         self.documents.append({
             'chat_id': chat_id, 'filename': filename,
             'content': content, 'caption': caption,
+        })
+        return {'message_id': len(self.sent) + 1}
+
+    def send_photo(self, chat_id, filename, content, caption=None,
+                   mime_type=None, reply_markup=None):
+        self.photos.append({
+            'chat_id': chat_id, 'filename': filename,
+            'content': content, 'caption': caption,
+            'markup': reply_markup,
         })
         return {'message_id': len(self.sent) + 1}
 
@@ -407,6 +418,7 @@ class AdminFeatureTests(BotTestBase):
         self.login('emp', uid=1001)
         self.login('boss', uid=2002)
         self.click('adm:broadcast', uid=2002)
+        self.click('bc:all', uid=2002)
         self.send('جلسهٔ فردا ساعت ۹', uid=2002)
 
         self.assertTrue(any(
@@ -676,3 +688,295 @@ class ReminderTests(BotTestBase):
 
         stats2 = run_reminders(self.bot, now=now)
         self.assertEqual(stats2['pending'], 0)
+
+
+class PhaseThreeTests(BotTestBase):
+    """فاز ۳: پروندهٔ ۳۶۰، اصلاح حضور، گزارش تیمی و پیام هدفمند."""
+
+    def _pending_errand(self, reason='در انتظار'):
+        today = timezone.localdate()
+        tz = timezone.get_current_timezone()
+        return Errand.objects.create(
+            user=self.emp,
+            start_time=timezone.make_aware(
+                dt.datetime.combine(today, dt.time(9, 0)), tz),
+            end_time=timezone.make_aware(
+                dt.datetime.combine(today, dt.time(10, 0)), tz),
+            reason=reason,
+        )
+
+    def test_user_360(self):
+        self.login('boss', uid=2002)
+        self.click('usr:%d' % self.emp.pk, uid=2002)
+        self.assertIn('کارکرد', self.bot.last_text)
+        self.assertIn('مأموریت', self.bot.last_text)
+
+    def test_attendance_correction(self):
+        now = timezone.now()
+        record = Time.objects.create(
+            user=self.emp, date=timezone.localdate(now),
+            time=now, out=False,
+        )
+        self.login('boss', uid=2002)
+        self.click('usr:time:%d' % self.emp.pk, uid=2002)
+        self.click('usr:timeedit:%d' % record.pk, uid=2002)
+        self.send(jalali_today(8, 30), uid=2002)
+
+        record.refresh_from_db()
+        self.assertEqual(
+            timezone.localtime(record.time).strftime('%H:%M'), '08:30',
+        )
+        self.assertTrue(
+            AuditLog.objects.filter(action='attendance_edit').exists()
+        )
+
+    def test_team_report(self):
+        self.login('boss', uid=2002)
+        self.click('adm:report', uid=2002)
+        self.assertIn('گزارش تیمی', self.bot.last_text)
+
+    def test_team_report_excel(self):
+        self.login('boss', uid=2002)
+        self.click('adm:report:excel', uid=2002)
+        self.assertEqual(len(self.bot.documents), 1)
+        self.assertTrue(self.bot.documents[0]['filename'].endswith('.xlsx'))
+
+    def test_analytics(self):
+        self.login('boss', uid=2002)
+        self.click('adm:analytics', uid=2002)
+        self.assertIn('تحلیل ماه', self.bot.last_text)
+
+    def test_targeted_broadcast(self):
+        self.login('emp', uid=1001)
+        self.login('boss', uid=2002)
+        self.click('adm:broadcast', uid=2002)
+        self.click('bc:user', uid=2002)
+        self.send('emp', uid=2002)
+        self.send('فقط برای شما', uid=2002)
+        self.assertTrue(any('فقط برای شما' in t for t in self.bot.texts_to(1001)))
+
+
+class EditErrandTests(BotTestBase):
+    """فاز ۲: ویرایش مأموریت در انتظار و قالب‌های سریع."""
+
+    def _pending_errand(self, reason='قدیمی'):
+        today = timezone.localdate()
+        tz = timezone.get_current_timezone()
+        return Errand.objects.create(
+            user=self.emp,
+            start_time=timezone.make_aware(
+                dt.datetime.combine(today, dt.time(9, 0)), tz),
+            end_time=timezone.make_aware(
+                dt.datetime.combine(today, dt.time(10, 0)), tz),
+            reason=reason,
+        )
+
+    def test_edit_reason(self):
+        errand = self._pending_errand()
+        self.login('emp')
+        self.click('err:edit:%d' % errand.pk)
+        self.click('err:edit:%d:reason' % errand.pk)
+        self.send('دلیل جدید')
+
+        errand.refresh_from_db()
+        self.assertEqual(errand.reason, 'دلیل جدید')
+        self.assertTrue(AuditLog.objects.filter(action='errand_edit').exists())
+
+    def test_edit_end_before_start_rejected(self):
+        errand = self._pending_errand()
+        self.login('emp')
+        self.click('err:edit:%d' % errand.pk)
+        self.click('err:edit:%d:end' % errand.pk)
+        self.send(jalali_today(8, 0))
+
+        errand.refresh_from_db()
+        self.assertEqual(
+            timezone.localtime(errand.end_time).strftime('%H:%M'), '10:00',
+        )
+        self.assertIn('بعد از شروع', self.bot.last_text)
+
+    def test_non_pending_errand_not_editable(self):
+        errand = self._pending_errand()
+        errand.status = Errand.STATUS_APPROVED
+        errand.save(update_fields=['status'])
+        self.login('emp')
+        self.click('err:edit:%d' % errand.pk)
+        self.assertIn('در انتظار', self.bot.last_text)
+
+    def test_quick_reason_template(self):
+        self._pending_errand(reason='بانک')
+        self.login('emp')
+        self.click('err:new')
+        self.send(jalali_today(9))
+        self.send(jalali_today(12))
+        self.click('err:tpl:reason:0')
+        self.assertIn('مقصد', self.bot.last_text)
+
+        self.click('err:skip:destination')
+        self.click('err:skip:contact')
+        created = Errand.objects.filter(user=self.emp).order_by('-pk').first()
+        self.assertEqual(created.reason, 'بانک')
+
+
+class SnapshotBotTests(BotTestBase):
+    """فاز ۴: بازبینی عکس لحظه از داخل ربات."""
+
+    def setUp(self):
+        super().setUp()
+        import shutil
+        import tempfile
+        from django.test import override_settings
+
+        self.tmp = tempfile.mkdtemp(prefix='bale-snap-')
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.override = override_settings(BASE_DIR=self.tmp)
+        self.override.enable()
+        self.addCleanup(self.override.disable)
+
+    def _snap(self, with_file=True):
+        from users.models import AttendanceSnapshot
+        from users.snapshots import snapshots_root
+
+        snap = AttendanceSnapshot.objects.create(
+            user=self.emp, event='in', photo='emp/test.jpg',
+        )
+        if with_file:
+            path = os.path.join(snapshots_root(), snap.photo)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'wb') as fh:
+                fh.write(b'\xff\xd8\xff\xd9')
+        return snap
+
+    def test_view_and_approve_snapshot(self):
+        from users.models import AttendanceSnapshot
+
+        snap = self._snap()
+        self.login('boss', uid=2002)
+        self.click('adm:snapshots', uid=2002)
+        self.click('snap:%d' % snap.pk, uid=2002)
+        self.assertEqual(len(self.bot.photos), 1)
+        self.assertIn('تأیید', str(self.bot.photos[0]['markup']))
+
+        self.click('snap:ok:%d' % snap.pk, uid=2002)
+        snap.refresh_from_db()
+        self.assertEqual(snap.review_status, AttendanceSnapshot.REVIEW_OK)
+        self.assertEqual(snap.reviewed_by, self.admin)
+        self.assertTrue(
+            AuditLog.objects.filter(action='snapshot_review').exists()
+        )
+
+    def test_reject_requires_note(self):
+        from users.models import AttendanceSnapshot
+
+        snap = self._snap()
+        self.login('boss', uid=2002)
+        self.click('snap:no:%d' % snap.pk, uid=2002)
+        self.send('   ', uid=2002)
+        self.assertIn('الزامی', self.bot.last_text)
+
+        self.send('تشخیص اشتباه', uid=2002)
+        snap.refresh_from_db()
+        self.assertEqual(snap.review_status, AttendanceSnapshot.REVIEW_REJECTED)
+        self.assertEqual(snap.review_note, 'تشخیص اشتباه')
+
+    def test_missing_file_is_not_sent(self):
+        snap = self._snap(with_file=False)
+        self.login('boss', uid=2002)
+        self.click('snap:%d' % snap.pk, uid=2002)
+        self.assertEqual(len(self.bot.photos), 0)
+        self.assertIn('موجود نیست', self.bot.last_text)
+
+
+class WebhookTests(BotTestBase):
+    """فاز ۴: وبهوک اختیاری (فقط با سکرت درست)."""
+
+    def test_wrong_secret_forbidden(self):
+        import json
+        from django.test import override_settings
+
+        with override_settings(BALE_WEBHOOK_SECRET='s3cret'):
+            response = self.client.post(
+                '/balebot/webhook/wrong/',
+                data=json.dumps(message('/start')),
+                content_type='application/json',
+            )
+        self.assertEqual(response.status_code, 403)
+
+    def test_valid_webhook_processes_update(self):
+        import json
+        from unittest.mock import patch
+        from django.test import override_settings
+
+        with override_settings(BALE_WEBHOOK_SECRET='s3cret'):
+            with patch('balebot.webhook.BaleClient', return_value=self.bot):
+                response = self.client.post(
+                    '/balebot/webhook/s3cret/',
+                    data=json.dumps(message('/start', uid=7007)),
+                    content_type='application/json',
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            BaleAccount.objects.filter(bale_user_id=7007).exists()
+        )
+
+
+class AnomalyAndScheduleTests(BotTestBase):
+    """فاز ۵: هشدار ناهنجاری + فاز ۳: پیام زمان‌بندی‌شده."""
+
+    def test_anomaly_alert_for_long_open_session(self):
+        self.login('emp', uid=1001)
+        self.login('boss', uid=2002)
+        now = timezone.now()
+        Time.objects.create(
+            user=self.emp,
+            date=timezone.localdate(now - dt.timedelta(days=1)),
+            time=now - dt.timedelta(hours=20),
+            out=False,
+        )
+
+        stats = run_reminders(self.bot, now=now)
+        self.assertEqual(stats['anomalies'], 1)
+        self.assertTrue(any(
+            'هشدار ناهنجاری' in t for t in self.bot.texts_to(2002)
+        ))
+
+        stats2 = run_reminders(self.bot, now=now)
+        self.assertEqual(stats2['anomalies'], 0)
+
+    def test_scheduled_message_is_sent_once(self):
+        from .models import ScheduledMessage
+        from .services import send_scheduled_due
+
+        self.login('emp', uid=1001)
+        msg = ScheduledMessage.objects.create(
+            text='یادآوری آزمایشی',
+            audience='all',
+            send_at=timezone.now() - dt.timedelta(minutes=1),
+        )
+
+        self.assertEqual(send_scheduled_due(self.bot), 1)
+        self.assertTrue(any(
+            'یادآوری آزمایشی' in t for t in self.bot.texts_to(1001)
+        ))
+        msg.refresh_from_db()
+        self.assertIsNotNone(msg.sent_at)
+        self.assertEqual(send_scheduled_due(self.bot), 0)
+
+    def test_schedule_flow_creates_message(self):
+        from .models import ScheduledMessage
+
+        tomorrow = timezone.localdate() + dt.timedelta(days=1)
+        jalali = jdatetime.date.fromgregorian(date=tomorrow).strftime('%Y/%m/%d')
+
+        self.login('boss', uid=2002)
+        self.click('adm:schedule', uid=2002)
+        self.send('جلسهٔ فردا', uid=2002)
+        self.send('%s 09:00' % jalali, uid=2002)
+        self.click('sched:admins', uid=2002)
+
+        msg = ScheduledMessage.objects.first()
+        self.assertIsNotNone(msg)
+        self.assertEqual(msg.text, 'جلسهٔ فردا')
+        self.assertEqual(msg.audience, 'admins')
+        self.assertEqual(msg.created_by, self.admin)

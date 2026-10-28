@@ -263,6 +263,8 @@ def snapshot_review(request):
     username = (request.GET.get('username') or '').strip()
     selected = None
     snapshots = []
+    total_count = 0
+    missing_count = 0
     if username:
         try:
             selected = User.objects.get(username=username)
@@ -270,7 +272,17 @@ def snapshot_review(request):
             messages.warning(request, 'کاربر یافت نشد.')
             selected = None
     if selected:
-        snapshots = AttendanceSnapshot.objects.filter(user=selected).order_by('-created_at', '-id')
+        from .snapshots import abs_path_for
+        qs = (
+            AttendanceSnapshot.objects.filter(user=selected)
+            .order_by('-created_at', '-id')
+        )
+        total_count = qs.count()
+        # فقط رکوردهایی که فایلشان واقعاً روی دیسک هست نمایش داده می‌شوند.
+        # اگر دیتابیس از بکاپ بازیابی شده باشد، ممکن است رکورد بماند ولی فایل
+        # نداشته باشد؛ در این حالت نباید اولین کارت (جدیدترین) عکس شکسته باشد.
+        snapshots = [snap for snap in qs if abs_path_for(snap)]
+        missing_count = total_count - len(snapshots)
 
     users_rows = (
         User.objects.filter(attendance_snapshots__isnull=False)
@@ -283,6 +295,8 @@ def snapshot_review(request):
         'users_rows': users_rows,
         'selected': selected,
         'snapshots': snapshots,
+        'total_count': total_count,
+        'missing_count': missing_count,
         'limit': snapshot_limit(),
     })
 
@@ -301,7 +315,21 @@ def snapshot_image(request, snapshot_id):
         return HttpResponseNotFound('not found')
     path = abs_path_for(snap)
     if not path:
-        return HttpResponseNotFound('not found')
+        # فایل روی سرور نیست (مثلاً پس از بازیابی دیتابیس بدون فایل‌ها).
+        # به‌جای تصویر شکسته، یک جای‌نگهدار خوانا برمی‌گردانیم.
+        from django.http import HttpResponse
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" '
+            'viewBox="0 0 640 480">'
+            '<rect width="100%" height="100%" fill="#0f172a"/>'
+            '<text x="50%" y="46%" fill="#94a3b8" font-size="28" '
+            'text-anchor="middle" font-family="sans-serif">بدون عکس</text>'
+            '<text x="50%" y="56%" fill="#64748b" font-size="17" '
+            'text-anchor="middle" font-family="sans-serif">'
+            'فایل این عکس روی سرور موجود نیست</text>'
+            '</svg>'
+        )
+        return HttpResponse(svg, content_type='image/svg+xml')
     return FileResponse(open(path, 'rb'), content_type='image/jpeg')
 
 

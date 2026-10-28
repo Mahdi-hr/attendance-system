@@ -33,5 +33,5 @@ class Command(BaseCommand):
 
         self.stdout.write(
             'یادآورها — خروج: %(checkout)s | مأموریت نزدیک: %(upcoming)s | '
-            'صف تأیید: %(pending)s' % stats
+            'صف تأیید: %(pending)s | هشدار: %(anomalies)s' % stats
         )

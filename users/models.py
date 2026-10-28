@@ -188,6 +188,26 @@ class AttendanceSnapshot(models.Model):
 	photo = models.CharField(max_length=300)
 	created_at = models.DateTimeField(auto_now_add=True)
 
+	# ---------- بازبینی مدیر ----------
+	REVIEW_PENDING = 'pending'
+	REVIEW_OK = 'ok'
+	REVIEW_REJECTED = 'rejected'
+	REVIEW_CHOICES = [
+		(REVIEW_PENDING, 'در انتظار بازبینی'),
+		(REVIEW_OK, 'تأییدشده'),
+		(REVIEW_REJECTED, 'ردشده'),
+	]
+	review_status = models.CharField(
+		'وضعیت بازبینی', max_length=10, choices=REVIEW_CHOICES,
+		default=REVIEW_PENDING, db_index=True,
+	)
+	reviewed_by = models.ForeignKey(
+		User, null=True, blank=True, on_delete=models.SET_NULL,
+		related_name='reviewed_snapshots', verbose_name='بازبین',
+	)
+	reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='زمان بازبینی')
+	review_note = models.CharField(max_length=300, blank=True, default='', verbose_name='یادداشت بازبینی')
+
 	class Meta:
 		ordering = ['-created_at', '-id']
 		verbose_name = 'عکس لحظه ورود/خروج'

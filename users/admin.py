@@ -620,9 +620,9 @@ class UserProfileAdmin(admin.ModelAdmin):
 # ============================================================
 @admin.register(AttendanceSnapshot)
 class AttendanceSnapshotAdmin(admin.ModelAdmin):
-    list_display = ('thumb', 'user', 'event_badge', 'photo_path',
-                    'created_at')
-    list_filter = ('event', 'created_at')
+    list_display = ('thumb', 'user', 'event_badge', 'review_status',
+                    'photo_path', 'created_at')
+    list_filter = ('event', 'review_status', 'created_at')
     search_fields = ('user__username', 'user__first_name', 'user__last_name',
                      'photo')
     autocomplete_fields = ('user',)

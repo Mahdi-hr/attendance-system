@@ -20,9 +20,11 @@ from recognition import views as recog_views
 from users import views as users_views
 from users import forms as users_forms
 from errands import views as errands_views
+from balebot.webhook import bale_webhook
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('balebot/webhook/<str:secret>/', bale_webhook, name='balebot-webhook'),
     path('', recog_views.home, name='home'),
     path('dashboard/', recog_views.dashboard, name='dashboard'),
     path('train/', recog_views.train, name='train'),

@@ -2,7 +2,9 @@
 
 from django.contrib import admin
 
-from .models import AuditLog, BaleAccount, BotConfig, BotState, ReminderLog
+from .models import (
+    AuditLog, BaleAccount, BotConfig, BotState, ReminderLog, ScheduledMessage,
+)
 
 
 @admin.register(BaleAccount)
@@ -79,3 +81,14 @@ class ReminderLogAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(ScheduledMessage)
+class ScheduledMessageAdmin(admin.ModelAdmin):
+    list_display = (
+        'send_at', 'audience', 'target_user', 'sent_at', 'created_by',
+    )
+    list_filter = ('audience', 'sent_at')
+    search_fields = ('text', 'target_user__username')
+    date_hierarchy = 'send_at'
+    readonly_fields = ('sent_at', 'created_at')

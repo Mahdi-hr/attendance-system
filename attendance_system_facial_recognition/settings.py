@@ -176,6 +176,8 @@ SNAPSHOT_LIMIT_PER_USER = int(os.environ.get('SNAPSHOT_LIMIT_PER_USER', '50'))
 BALE_BOT_TOKEN = os.environ.get('BALE_BOT_TOKEN', '')
 BALE_API_BASE = os.environ.get('BALE_API_BASE', 'https://tapi.bale.ai')
 BALE_POLL_TIMEOUT = int(os.environ.get('BALE_POLL_TIMEOUT', '25'))
+# فقط اگر می‌خواهید به‌جای Long Polling از وبهوک HTTPS استفاده کنید.
+BALE_WEBHOOK_SECRET = os.environ.get('BALE_WEBHOOK_SECRET', '')
 
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},

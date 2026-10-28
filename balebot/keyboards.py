@@ -48,8 +48,11 @@ def main_menu(account, admin, can_switch):
         rows += [
             [btn('📊 داشبورد امروز', 'adm:today'), btn('⏳ در انتظار تأیید', 'adm:pending')],
             [btn('⚠️ خطاهای خروج', 'adm:checkout'), btn('👥 کاربران', 'adm:users')],
-            [btn('📈 گزارش ماه', 'rep:month'), btn('📢 پیام همگانی', 'adm:broadcast')],
-            [btn('🤖 آمار ربات', 'adm:stats'), btn('📝 ردپای اقدامات', 'adm:audit:1')],
+            [btn('📈 گزارش تیمی', 'adm:report'), btn('📢 پیام همگانی', 'adm:broadcast')],
+            [btn('📊 تحلیل ماه', 'adm:analytics'), btn('📈 گزارش ماه من', 'rep:month')],
+            [btn('📸 بازبینی عکس‌ها', 'adm:snapshots'), btn('📢 پیام همگانی', 'adm:broadcast')],
+            [btn('📨 پیام زمان‌بندی', 'adm:schedule'), btn('🤖 آمار ربات', 'adm:stats')],
+            [btn('📝 ردپای اقدامات', 'adm:audit:1')],
             [btn('📊 وضعیت امروز من', 'status')],
         ]
     else:
@@ -101,6 +104,7 @@ def user_card(user):
     return inline([
         [btn('🔑 ریست رمز', 'usr:reset:%d' % user.pk)],
         [btn('🎭 تغییر نقش', 'usr:role:%d' % user.pk)],
+        [btn('🕒 اصلاح رکورد حضور', 'usr:time:%d' % user.pk)],
         [btn('⛔ غیرفعال کن' if user.is_active else '✅ فعال کن', 'usr:toggle:%d' % user.pk)],
         [btn('🏠 منوی اصلی', 'menu:main')],
     ])

@@ -1,14 +1,16 @@
-"""یادآورهای خودکار ربات بله.
+"""یادآورها و هشدارهای خودکار ربات بله.
 
-سه یادآور:
+چهار یادآور:
 ۱) فراموشی خروج — بعد از ساعت پایان کار + مهلت تنظیم‌شده.
 ۲) مأموریت نزدیک — چند دقیقه قبل از شروع مأموریت تأییدشده.
 ۳) صف تأیید — خلاصهٔ روزانه برای مدیران.
+۴) هشدار ناهنجاری — حضور باز بیش از ۱۴ ساعت (فراموشی خروج جدی).
 
 هر یادآور با یک کلید یکتا در `ReminderLog` ثبت می‌شود تا دوبار ارسال نشود.
 """
 
 import datetime as dt
+import itertools
 import logging
 
 from django.utils import timezone
@@ -22,6 +24,8 @@ from . import services
 from .models import BaleAccount, BotConfig, ReminderLog
 
 logger = logging.getLogger('balebot')
+
+LONG_OPEN_HOURS = 14
 
 
 def _first_time(key):
@@ -158,11 +162,63 @@ def _pending_digest(client, config, now, today):
     return sent
 
 
+def _anomaly_digest(client, now, today):
+    """هشدار حضور باز بیش از ۱۴ ساعت (احتمال فراموشی خروج جدی)."""
+    threshold = now - dt.timedelta(hours=LONG_OPEN_HOURS)
+    alerts = []
+
+    accounts = _linked_accounts(django_user__is_active=True)
+    for account in accounts:
+        events = list(
+            Time.objects.filter(
+                user=account.django_user,
+                date__gte=today - dt.timedelta(days=1),
+            ).order_by('date', 'time')
+        )
+        for _day, day_events in itertools.groupby(events, key=lambda ev: ev.date):
+            _sessions, open_time = pair_time_events(list(day_events))
+            if open_time and open_time < threshold:
+                alerts.append((account.django_user, open_time))
+                break
+
+    if not alerts:
+        return 0
+
+    key = 'anomaly:%s' % today.isoformat()
+    if not _first_time(key):
+        return 0
+
+    lines = [
+        '🚨 هشدار ناهنجاری',
+        '',
+        '%s نفر بیش از %s ساعت در حال حضور مانده‌اند و خروج ثبت نکرده‌اند:'
+        % (fa_digits(len(alerts)), fa_digits(LONG_OPEN_HOURS)),
+        '',
+    ]
+    for user, open_time in alerts[:10]:
+        lines.append(
+            '• %s — از %s'
+            % (services.user_label(user), services.dt_label(open_time))
+        )
+
+    text = '\n'.join(lines)
+    sent = 0
+    for account in _linked_accounts(notify_daily=True, django_user__is_active=True):
+        if is_admin_user(account.django_user):
+            ok = services.safe_send(client, account, text)
+            if ok is not None:
+                sent += 1
+    return sent
+
+
 def run_reminders(client, now=None, dry_run=False):
     """اجرای همهٔ یادآورها؛ خروجی: آمار ارسال‌شده‌ها."""
     config = BotConfig.get_solo()
     if not config.bot_enabled or not config.reminders_enabled:
-        return {'checkout': 0, 'upcoming': 0, 'pending': 0, 'skipped': True}
+        return {
+            'checkout': 0, 'upcoming': 0, 'pending': 0,
+            'anomalies': 0, 'skipped': True,
+        }
 
     now = now or timezone.now()
     today = timezone.localdate(now)
@@ -197,6 +253,7 @@ def run_reminders(client, now=None, dry_run=False):
             'checkout': checkout,
             'upcoming': upcoming,
             'pending': Errand.objects.pending().count(),
+            'anomalies': 0,
             'dry_run': True,
         }
 
@@ -204,5 +261,6 @@ def run_reminders(client, now=None, dry_run=False):
         'checkout': _checkout_reminders(client, config, now, today),
         'upcoming': _upcoming_errand_reminders(client, config, now),
         'pending': _pending_digest(client, config, now, today),
+        'anomalies': _anomaly_digest(client, now, today),
     }
     return result

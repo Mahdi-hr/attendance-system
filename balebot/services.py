@@ -534,3 +534,351 @@ def audit_list_text(page=1, per_page=10):
             )
         )
     return '\n'.join(lines), page, pages
+
+
+# ============================================================
+#  فاز ۲: ویرایش مأموریت و قالب‌های سریع
+# ============================================================
+
+def recent_reasons(user, limit=4):
+    """آخرین دلیل‌های یکتای مأموریت‌های کاربر (برای دکمه‌های سریع)."""
+    seen = []
+    for reason in (
+        Errand.objects.filter(user=user).exclude(reason='')
+        .order_by('-created_at').values_list('reason', flat=True)
+    ):
+        reason = (reason or '').strip()
+        if reason and reason not in seen:
+            seen.append(reason)
+        if len(seen) >= limit:
+            break
+    return seen
+
+
+def recent_destinations(user, limit=4):
+    """آخرین مقصدهای یکتای مأموریت‌های کاربر."""
+    seen = []
+    for dest in (
+        Errand.objects.filter(user=user).exclude(destination='')
+        .order_by('-created_at').values_list('destination', flat=True)
+    ):
+        dest = (dest or '').strip()
+        if dest and dest not in seen:
+            seen.append(dest)
+        if len(seen) >= limit:
+            break
+    return seen
+
+
+def errand_payload(errand, **overrides):
+    """payload فرم را از یک مأموریت موجود می‌سازد و فیلدهای دلخواه را عوض می‌کند."""
+    payload = {
+        'start': to_jalali_string(errand.start_time),
+        'end': to_jalali_string(errand.end_time),
+        'reason': errand.reason or '',
+        'destination': errand.destination or '',
+        'contact': errand.contact or '',
+    }
+    payload.update(overrides)
+    return payload
+
+
+def update_errand(errand, payload):
+    """ویرایش مأموریت با همان اعتبارسنجی فرم (نسخهٔ ادمین: بدون سقف ۷ روز)."""
+    from errands.forms import ErrandAdminEditForm
+
+    form = ErrandAdminEditForm(
+        instance=errand, data=payload, user=errand.user,
+    )
+    if not form.is_valid():
+        for errors in form.errors.values():
+            return None, errors[0]
+        return None, 'اطلاعات واردشده معتبر نیست.'
+
+    obj = form.save(commit=False)
+    obj.save()
+    return obj, None
+
+
+# ============================================================
+#  فاز ۳: پروندهٔ ۳۶۰، گزارش تیمی و پیام هدفمند
+# ============================================================
+
+def _month_hours(user, start, today):
+    rows = (
+        Time.objects.filter(user=user, date__gte=start, date__lte=today)
+        .order_by('date', 'time')
+    )
+    total = 0
+    for _day, events in itertools.groupby(rows, key=lambda ev: ev.date):
+        total += _worked_seconds(list(events))
+    return total
+
+
+def user_360_text(user):
+    """پروندهٔ فشردهٔ یک کاربر برای مدیر."""
+    start, today, label = month_bounds()
+    present_days = Present.objects.filter(
+        user=user, date__gte=start, date__lte=today, present=True,
+    ).count()
+    hours = _month_hours(user, start, today)
+    approved = Errand.objects.approved().filter(user=user).for_window(start, today)
+    pending = Errand.objects.pending().filter(user=user).count()
+    snapshots = user.attendance_snapshots.count()
+    last_errand = (
+        Errand.objects.filter(user=user).order_by('-start_time').first()
+    )
+
+    todays = list(Time.objects.filter(user=user, date=today).order_by('time'))
+    first_in = next((ev.time for ev in todays if not ev.out), None)
+    last_out = next((ev.time for ev in reversed(todays) if ev.out), None)
+
+    lines = [
+        '👤 %s' % user_label(user),
+        '🆔 %s' % user.get_username(),
+        '🎭 نقش: %s | %s' % (
+            'سوپرادمین' if user.is_superuser else {
+                ROLE_USER: 'کاربر', ROLE_ADMIN: 'مدیر', ROLE_BOTH: 'کاربر + مدیر',
+            }.get(get_role(user), get_role(user)),
+            '✅ فعال' if user.is_active else '⛔ غیرفعال',
+        ),
+        '📅 آخرین ورود: %s' % (dt_label(user.last_login) if user.last_login else '—'),
+        '',
+        '📊 %s' % label,
+        '✅ حضور: %s روز | ⏱ کارکرد: %s' % (
+            fa_digits(present_days), format_hours(hours),
+        ),
+        '🚗 مأموریت تأییدشده: %s | ⏳ در انتظار: %s' % (
+            fa_digits(approved.count()), fa_digits(pending),
+        ),
+        '📸 عکس لحظه: %s' % fa_digits(snapshots),
+        '',
+        '🕒 امروز: ورود %s | خروج %s' % (
+            fa_digits(clock(first_in)) if first_in else '—',
+            fa_digits(clock(last_out)) if last_out else '—',
+        ),
+    ]
+    if last_errand:
+        lines.append('آخرین مأموریت: %s — %s' % (
+            dt_label(last_errand.start_time), last_errand.reason[:60],
+        ))
+    return '\n'.join(lines)
+
+
+def _user_month_stats(user, start, today):
+    rows = (
+        Time.objects.filter(user=user, date__gte=start, date__lte=today)
+        .order_by('date', 'time')
+    )
+    total = 0
+    late = 0
+    overtime = 0
+    active_days = 0
+    for _day, events in itertools.groupby(rows, key=lambda ev: ev.date):
+        events = list(events)
+        active_days += 1
+        total += _worked_seconds(events)
+        first_in = next((ev.time for ev in events if not ev.out), None)
+        last_out = next((ev.time for ev in reversed(events) if ev.out), None)
+        if first_in and timezone.localtime(first_in).time() > dt.time(9, 0):
+            late += 1
+        if last_out and timezone.localtime(last_out).time() > dt.time(18, 0):
+            overtime += 1
+    present_days = Present.objects.filter(
+        user=user, date__gte=start, date__lte=today, present=True,
+    ).count()
+    approved = Errand.objects.approved().filter(user=user).for_window(start, today)
+    return {
+        'total': total,
+        'late': late,
+        'overtime': overtime,
+        'active_days': active_days,
+        'present_days': present_days,
+        'errand_seconds': sum(e.duration_seconds for e in approved),
+        'errand_count': approved.count(),
+    }
+
+
+def team_report_text():
+    today = timezone.localdate()
+    start, _today, label = month_bounds()
+
+    active_users = list(User.objects.filter(is_active=True).only('id'))
+    active_ids = [u.pk for u in active_users]
+    present_ids = set(
+        Present.objects.filter(
+            date=today, present=True, user_id__in=active_ids,
+        ).values_list('user_id', flat=True)
+    )
+
+    todays = (
+        Time.objects.filter(date=today, user_id__in=active_ids)
+        .order_by('user_id', 'time')
+    )
+    open_count = 0
+    for _user_id, events in itertools.groupby(todays, key=lambda ev: ev.user_id):
+        _sessions, open_time = pair_time_events(list(events))
+        if open_time:
+            open_count += 1
+
+    month_seconds = 0
+    for user in User.objects.filter(is_active=True).only('id'):
+        month_seconds += _month_hours(user, start, today)
+
+    pending = Errand.objects.pending().count()
+    errors = CheckOutError.objects.filter(
+        status=CheckOutError.STATUS_PENDING,
+    ).count()
+    avg = month_seconds // max(len(active_users), 1)
+
+    return '\n'.join([
+        '📊 گزارش تیمی — %s' % today_jalali(),
+        '',
+        '👥 کاربران فعال: %s' % fa_digits(len(active_users)),
+        '✅ حاضر امروز: %s' % fa_digits(len(present_ids)),
+        '⛔ غایب: %s' % fa_digits(max(len(active_users) - len(present_ids), 0)),
+        '🟡 بدون خروج: %s' % fa_digits(open_count),
+        '',
+        '📅 %s' % label,
+        '⏱ مجموع کارکرد: %s' % format_hours(month_seconds),
+        '📈 میانگین هر نفر: %s' % format_hours(avg),
+        '',
+        '⏳ مأموریت در انتظار: %s' % fa_digits(pending),
+        '⚠️ خطای خروج باز: %s' % fa_digits(errors),
+    ])
+
+
+def build_team_report_xlsx(start, end):
+    from recognition.excel_export import build_xlsx
+
+    rows = []
+    for user in User.objects.filter(is_active=True).order_by('username'):
+        stats = _user_month_stats(user, start, end)
+        rows.append([
+            user.get_username(),
+            user_label(user),
+            stats['present_days'],
+            format_hours(stats['total']),
+            stats['late'],
+            stats['overtime'],
+            stats['errand_count'],
+            format_hours(stats['errand_seconds']),
+        ])
+    book = build_xlsx(
+        sheet_name='گزارش تیمی',
+        headers=[
+            'نام کاربری', 'نام', 'روز حضور', 'کارکرد ماه',
+            'تأخیر', 'اضافه‌کاری', 'مأموریت', 'ساعت مأموریت',
+        ],
+        rows=rows,
+        widths=[16, 28, 12, 22, 10, 12, 10, 20],
+        rtl=True,
+    )
+    filename = 'team-report-%s.xlsx' % end.isoformat()
+    return book, filename
+
+
+def send_audience(client, audience, text, target_user=None, exclude_account=None):
+    """ارسال پیام به مخاطب هدفمند. خروجی: (موفق، ناموفق)."""
+    qs = (
+        BaleAccount.objects
+        .filter(is_blocked=False, django_user__isnull=False)
+        .select_related('django_user')
+    )
+    sent = failed = 0
+    for account in qs:
+        if exclude_account is not None and account.pk == exclude_account.pk:
+            continue
+        user = account.django_user
+        if audience == 'admins' and not is_admin_user(user):
+            continue
+        if audience == 'users' and is_admin_user(user):
+            continue
+        if audience == 'user' and (
+            not target_user or user.pk != target_user.pk
+        ):
+            continue
+        if safe_send(client, account, text) is not None:
+            sent += 1
+        else:
+            failed += 1
+    return sent, failed
+
+
+def analytics_text():
+    """تحلیل ماه جاری: تأخیر، اضافه‌کاری و روند."""
+    start, today, label = month_bounds()
+    users = list(User.objects.filter(is_active=True).order_by('username'))
+
+    per_user = []
+    total_seconds = 0
+    late_total = 0
+    overtime_total = 0
+    absent_users = []
+    for user in users:
+        stats = _user_month_stats(user, start, today)
+        total_seconds += stats['total']
+        late_total += stats['late']
+        overtime_total += stats['overtime']
+        if stats['present_days'] == 0 and stats['active_days'] == 0:
+            absent_users.append(user)
+        per_user.append((user, stats))
+
+    per_user.sort(key=lambda item: item[1]['total'], reverse=True)
+    top = per_user[:3]
+    avg = total_seconds // max(len(users), 1)
+
+    lines = [
+        '📈 تحلیل ماه — %s' % label,
+        '',
+        '⏱ مجموع کارکرد: %s' % format_hours(total_seconds),
+        '📈 میانگین هر نفر: %s' % format_hours(avg),
+        '⏰ روزهای تأخیر (ورود بعد از ۰۹:۰۰): %s' % fa_digits(late_total),
+        '🌙 روزهای اضافه‌کاری (خروج بعد از ۱۸:۰۰): %s' % fa_digits(overtime_total),
+        '',
+        '🏆 بیشترین کارکرد:',
+    ]
+    for user, stats in top:
+        lines.append('  • %s — %s' % (user_label(user), format_hours(stats['total'])))
+
+    if absent_users:
+        lines.append('')
+        lines.append('⚠️ بدون هیچ رکورد این ماه:')
+        for user in absent_users[:8]:
+            lines.append('  • %s' % user_label(user))
+
+    return '\n'.join(lines)
+
+
+# ============================================================
+#  پیام‌های زمان‌بندی‌شده
+# ============================================================
+
+def send_scheduled_due(client, now=None):
+    """ارسال پیام‌های زمان‌بندی‌شده‌ای که موعدشان رسیده است."""
+    from .models import ScheduledMessage
+
+    now = now or timezone.now()
+    due = (
+        ScheduledMessage.objects
+        .filter(sent_at__isnull=True, send_at__lte=now)
+        .select_related('target_user')
+    )
+    count = 0
+    for msg in due:
+        if msg.audience == ScheduledMessage.AUDIENCE_USER and not msg.target_user:
+            msg.sent_at = now
+            msg.save(update_fields=['sent_at'])
+            continue
+        sent, failed = send_audience(
+            client,
+            msg.audience,
+            '📢 پیام زمان‌بندی‌شده:\n\n' + msg.text,
+            target_user=msg.target_user,
+        )
+        msg.sent_at = now
+        msg.save(update_fields=['sent_at'])
+        audit(None, 'scheduled_send', 'scheduled', msg.pk,
+              'ارسال: %d | ناموفق: %d' % (sent, failed))
+        count += 1
+    return count

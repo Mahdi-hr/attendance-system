@@ -12,6 +12,7 @@
 
 import datetime as dt
 import logging
+import os
 
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.hashers import check_password as check_hash, make_password
@@ -19,7 +20,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from errands.models import Errand
-from users.models import CheckOutError
+from users.models import AttendanceSnapshot, CheckOutError, Time
 from users.roles import ROLE_ADMIN, ROLE_BOTH, ROLE_USER, get_role, set_role
 from adminpanel.utils import random_password
 
@@ -42,6 +43,8 @@ from .keyboards import (
     users_menu,
 )
 from .models import BaleAccount, BotConfig
+
+from users.snapshots import abs_path_for
 
 # دکمه‌های ثابت پایین صفحه ↔ عملیات داخلی
 REPLY_ACTIONS = {
@@ -645,11 +648,19 @@ def _set_end(account, end, client):
     account.state = 'errand:reason'
     account.save()
 
+    rows = [
+        [btn('💡 ' + reason[:32], 'err:tpl:reason:%d' % index)]
+        for index, reason in enumerate(
+            services.recent_reasons(account.django_user)
+        )
+    ]
+    rows.append([btn('❌ لغو', 'menu:main')])
     _send(
         account,
         '✅ پایان: %s\n\n'
         'دلیل یا موضوع مأموریت را بنویسید (مثلاً: مراجعه به بانک).'
         % services.dt_label(end),
+        inline(rows),
         client=client,
     )
 
@@ -769,7 +780,10 @@ def _errand_list(account, client, page=1):
     for errand in errands:
         markup = None
         if errand.is_pending:
-            markup = inline([[btn('🚫 لغو این مأموریت', 'err:cancel:%d' % errand.pk)]])
+            markup = inline([
+                [btn('✏️ ویرایش', 'err:edit:%d' % errand.pk)],
+                [btn('🚫 لغو این مأموریت', 'err:cancel:%d' % errand.pk)],
+            ])
         _send(
             account,
             '%s\n🕒 %s → %s\n📝 %s\n🚗 %s'
@@ -805,6 +819,167 @@ def _cancel_errand(account, pk, client):
             back_only(),
             client=client,
         )
+
+
+# ============================================================
+# ویرایش مأموریت در انتظار (فاز ۲)
+# ============================================================
+
+EDIT_FIELDS = {
+    'start': 'شروع',
+    'end': 'پایان',
+    'reason': 'دلیل',
+    'destination': 'مقصد',
+    'contact': 'شمارهٔ تماس',
+}
+
+
+def _errand_detail(errand):
+    return (
+        '🕒 %s → %s\n📝 %s\n🚗 %s\n📞 %s'
+        % (
+            services.dt_label(errand.start_time),
+            services.fa_digits(services.clock(errand.end_time)),
+            errand.reason or '—',
+            errand.destination or '—',
+            errand.contact or '—',
+        )
+    )
+
+
+def _editable_errand(account, pk):
+    errand = Errand.objects.filter(pk=pk).select_related('user').first()
+    if not errand:
+        return None, 'مأموریت پیدا نشد.'
+    if errand.user_id != account.django_user_id and not account.django_user.is_superuser:
+        return None, 'این مأموریت متعلق به شما نیست.'
+    if not errand.is_pending:
+        return None, 'فقط مأموریت‌های «در انتظار» قابل ویرایش هستند.'
+    return errand, None
+
+
+def _errand_edit(account, pk, client):
+    errand, error = _editable_errand(account, pk)
+    if error:
+        return _send(account, '⚠️ ' + error, back_only(), client=client)
+
+    _clear(account)
+    _send(
+        account,
+        '✏️ ویرایش مأموریت\n\n%s\n\nکدام بخش را تغییر می‌دهید؟' % _errand_detail(errand),
+        inline([
+            [btn('🕒 شروع', 'err:edit:%d:start' % pk),
+             btn('🕔 پایان', 'err:edit:%d:end' % pk)],
+            [btn('📝 دلیل', 'err:edit:%d:reason' % pk),
+             btn('🚗 مقصد', 'err:edit:%d:destination' % pk)],
+            [btn('📞 تماس', 'err:edit:%d:contact' % pk)],
+            [btn('📋 بازگشت به فهرست', 'err:mine')],
+        ]),
+        client=client,
+    )
+
+
+def _errand_edit_field(account, pk, field, client):
+    errand, error = _editable_errand(account, pk)
+    if error:
+        return _send(account, '⚠️ ' + error, back_only(), client=client)
+
+    label = EDIT_FIELDS.get(field)
+    if not label:
+        return _errand_edit(account, pk, client)
+
+    account.state = 'edit_errand:%d:%s' % (pk, field)
+    account.state_data = {}
+    account.save()
+
+    if field in ('start', 'end'):
+        _send(
+            account,
+            '🕒 %s جدید را بفرستید (مثل «۱۴۰۵/۰۸/۰۶ ۰۹:۰۰»):' % label,
+            inline([[btn('❌ انصراف', 'err:edit:%d' % pk)]]),
+            client=client,
+        )
+    elif field in ('destination', 'contact'):
+        _send(
+            account,
+            '%s جدید را بفرستید (یا خالی کنید):' % label,
+            inline([
+                [btn('⏭ خالی کردن', 'err:editskip:%d:%s' % (pk, field))],
+                [btn('❌ انصراف', 'err:edit:%d' % pk)],
+            ]),
+            client=client,
+        )
+    else:
+        _send(
+            account,
+            '%s جدید را بنویسید:' % label,
+            inline([[btn('❌ انصراف', 'err:edit:%d' % pk)]]),
+            client=client,
+        )
+
+
+def _apply_errand_edit(account, text, client, pk, field):
+    errand, error = _editable_errand(account, pk)
+    if error:
+        _clear(account)
+        return _send(account, '⚠️ ' + error, back_only(), client=client)
+
+    text = (text or '').strip()
+    overrides = {}
+
+    if field in ('start', 'end'):
+        value, parse_error = services.parse_jalali_datetime(text)
+        if parse_error:
+            return _send(
+                account,
+                '⚠️ %s\nمثال: ۱۴۰۵/۰۸/۰۶ ۰۹:۰۰' % parse_error,
+                client=client,
+            )
+        overrides[field] = services.to_jalali_string(value)
+    elif field == 'reason':
+        if not text:
+            return _send(account, '⚠️ دلیل نمی‌تواند خالی باشد.', client=client)
+        overrides['reason'] = text
+    elif field in ('destination', 'contact'):
+        overrides[field] = text
+    else:
+        return _errand_edit(account, pk, client)
+
+    payload = services.errand_payload(errand, **overrides)
+    _obj, save_error = services.update_errand(errand, payload)
+    if save_error:
+        return _send(
+            account,
+            '⚠️ ذخیره نشد: %s\nدوباره بفرستید یا /cancel بزنید.' % save_error,
+            client=client,
+        )
+
+    _clear(account)
+    services.audit(
+        account.django_user, 'errand_edit', 'errand', pk,
+        'فیلد: %s' % field,
+    )
+    _send(
+        account,
+        '✅ تغییر ذخیره شد.\n\n%s' % _errand_detail(errand),
+        inline([
+            [btn('✏️ ادامهٔ ویرایش', 'err:edit:%d' % pk)],
+            [btn('📋 مأموریت‌های من', 'err:mine')],
+        ]),
+        client=client,
+    )
+
+
+def _apply_template(account, which, index, client):
+    user = account.django_user
+    items = (
+        services.recent_reasons(user) if which == 'reason'
+        else services.recent_destinations(user)
+    )
+    if not (0 <= index < len(items)):
+        return
+    # همان مسیر پردازش متن را طی می‌کند تا اعتبارسنجی و مراحل بعدی یکسان بماند.
+    _handle_state(account, {'message_id': None}, items[index], client)
 
 
 # ============================================================
@@ -972,6 +1147,137 @@ def _reject_finish(account, pk, note, client):
 def _admin_today(account, client):
     _clear(account)
     _send(account, services.admin_today_text(), back_only(), client=client)
+
+
+# ---------- بازبینی عکس لحظه (فاز ۴) ----------
+
+def _admin_snapshots(account, client):
+    _clear(account)
+    qs = (
+        AttendanceSnapshot.objects.select_related('user')
+        .order_by('-created_at')[:30]
+    )
+    items = [snap for snap in qs if abs_path_for(snap)][:5]
+    if not items:
+        return _send(
+            account,
+            '📸 عکس لحظه‌ای برای بازبینی موجود نیست.',
+            back_only(),
+            client=client,
+        )
+
+    _send(
+        account,
+        '📸 ۵ عکس آخر برای بازبینی:',
+        back_only(),
+        client=client,
+    )
+    for snap in items:
+        _send(
+            account,
+            '👤 %s\n%s | %s\nوضعیت: %s'
+            % (
+                services.user_label(snap.user),
+                'ورود' if snap.event == AttendanceSnapshot.EVENT_IN else 'خروج',
+                services.dt_label(snap.created_at),
+                snap.get_review_status_display(),
+            ),
+            inline([[btn('🖼 مشاهده و بازبینی', 'snap:%d' % snap.pk)]]),
+            client=client,
+        )
+
+
+def _snapshot_view(account, pk, client):
+    snap = (
+        AttendanceSnapshot.objects.select_related('user')
+        .filter(pk=pk).first()
+    )
+    if not snap:
+        return _send(account, '⚠️ عکس پیدا نشد.', back_only(), client=client)
+
+    path = abs_path_for(snap)
+    if not path:
+        return _send(
+            account,
+            '⚠️ فایل این عکس روی سرور موجود نیست.',
+            back_only(),
+            client=client,
+        )
+    try:
+        content = open(path, 'rb').read()
+    except OSError as exc:
+        return _send(
+            account, '⚠️ خواندن فایل ممکن نشد: %s' % exc,
+            back_only(), client=client,
+        )
+
+    caption = (
+        '👤 %s\n%s | %s\nوضعیت بازبینی: %s'
+        % (
+            services.user_label(snap.user),
+            'ورود' if snap.event == AttendanceSnapshot.EVENT_IN else 'خروج',
+            services.dt_label(snap.created_at),
+            snap.get_review_status_display(),
+        )
+    )
+    markup = inline([
+        [btn('✅ تأیید', 'snap:ok:%d' % snap.pk),
+         btn('❌ رد', 'snap:no:%d' % snap.pk)],
+        [btn('↩️ فهرست عکس‌ها', 'adm:snapshots')],
+    ])
+    try:
+        client.send_photo(
+            account.chat_id or account.bale_user_id,
+            os.path.basename(path),
+            content,
+            caption=caption,
+            mime_type='image/jpeg',
+            reply_markup=markup,
+        )
+    except BaleError as exc:
+        _send(
+            account, '⚠️ ارسال عکس ممکن نشد: %s' % exc,
+            back_only(), client=client,
+        )
+
+
+def _snapshot_review(account, pk, status, client, note=''):
+    snap = (
+        AttendanceSnapshot.objects.select_related('user')
+        .filter(pk=pk).first()
+    )
+    if not snap:
+        return _send(account, '⚠️ عکس پیدا نشد.', back_only(), client=client)
+
+    snap.review_status = status
+    snap.reviewed_by = account.django_user
+    snap.reviewed_at = timezone.now()
+    snap.review_note = (note or '')[:300]
+    snap.save(update_fields=[
+        'review_status', 'reviewed_by', 'reviewed_at', 'review_note',
+    ])
+    services.audit(
+        account.django_user, 'snapshot_review', 'snapshot', pk, status,
+    )
+    _send(
+        account,
+        '✅ بازبینی ثبت شد: %s\n👤 %s'
+        % (snap.get_review_status_display(), services.user_label(snap.user)),
+        back_only(),
+        client=client,
+    )
+
+
+def _snapshot_reject_start(account, pk, client):
+    account.state = 'snap_reject:%d' % pk
+    account.state_data = {'pk': pk}
+    account.save()
+    _send(
+        account,
+        '❌ دلیل رد این عکس را بنویسید:',
+        inline([[btn('❌ لغو', 'adm:snapshots')]]),
+        client=client,
+    )
 
 
 def _admin_stats(account, client):
@@ -1163,19 +1469,110 @@ def _user_card_view(account, pk, client):
         return _send(account, '⚠️ کاربر پیدا نشد.', users_menu(), client=client)
     _send(
         account,
-        '👤 %s\n'
-        '🆔 نام کاربری: %s\n'
-        '🎭 نقش: %s\n'
-        'وضعیت: %s\n'
-        '📅 آخرین ورود: %s'
-        % (
-            services.user_label(user),
-            user.get_username(),
-            _role_label(user),
-            '✅ فعال' if user.is_active else '⛔ غیرفعال',
-            services.dt_label(user.last_login) if user.last_login else '—',
-        ),
+        services.user_360_text(user),
         user_card(user),
+        client=client,
+    )
+
+
+# ---------- اصلاح رکورد حضور (با Audit) ----------
+
+def _user_time_records(account, pk, client):
+    _clear(account)
+    user = User.objects.filter(pk=pk).first()
+    if not user:
+        return _send(account, '⚠️ کاربر پیدا نشد.', users_menu(), client=client)
+
+    records = list(
+        Time.objects.filter(user=user).order_by('-date', '-time')[:5]
+    )
+    if not records:
+        return _send(
+            account,
+            '🕒 برای %s هیچ رکورد ورود/خروجی ثبت نشده است.'
+            % services.user_label(user),
+            inline([[btn('↩️ بازگشت', 'usr:%d' % user.pk)]]),
+            client=client,
+        )
+
+    _send(
+        account,
+        '🕒 آخرین رکوردهای %s\n'
+        '⚠️ اصلاح دستی از ربات انجام می‌شود و در Audit ثبت می‌گردد.'
+        % services.user_label(user),
+        inline([[btn('↩️ بازگشت', 'usr:%d' % user.pk)]]),
+        client=client,
+    )
+    for record in records:
+        _send(
+            account,
+            '%s | %s\n📅 %s — %s'
+            % (
+                'ورود' if not record.out else 'خروج',
+                services.fa_digits(services.clock(record.time)),
+                services.jalali_full(record.date),
+                record.exit_reason_text or (
+                    record.exit_reason.title if record.exit_reason else '—'
+                ),
+            ),
+            inline([[
+                btn('✏️ اصلاح زمان', 'usr:timeedit:%d' % record.pk),
+            ]]),
+            client=client,
+        )
+
+
+def _user_time_edit_start(account, time_id, client):
+    record = Time.objects.filter(pk=time_id).select_related('user').first()
+    if not record:
+        return _send(account, '⚠️ رکورد پیدا نشد.', users_menu(), client=client)
+    account.state = 'time_edit:%d' % time_id
+    account.state_data = {}
+    account.save()
+    _send(
+        account,
+        '🕒 زمان جدید را برای %s (%s) بفرستید:\n'
+        'مثال: ۱۴۰۵/۰۸/۰۶ ۰۹:۰۰'
+        % (
+            services.user_label(record.user),
+            'ورود' if not record.out else 'خروج',
+        ),
+        inline([[btn('❌ انصراف', 'usr:time:%d' % record.user_id)]]),
+        client=client,
+    )
+
+
+def _user_time_edit_apply(account, time_id, text, client):
+    record = Time.objects.filter(pk=time_id).select_related('user').first()
+    if not record:
+        _clear(account)
+        return _send(account, '⚠️ رکورد پیدا نشد.', users_menu(), client=client)
+
+    value, error = services.parse_jalali_datetime(text)
+    if error:
+        return _send(account, '⚠️ %s\nمثال: ۱۴۰۵/۰۸/۰۶ ۰۹:۰۰' % error, client=client)
+
+    old_label = services.dt_label(record.time)
+    record.time = value
+    record.date = timezone.localtime(value).date()
+    record.save(update_fields=['time', 'date'])
+    _clear(account)
+    services.audit(
+        account.django_user, 'attendance_edit', 'time', record.pk,
+        'از %s به %s' % (old_label, services.dt_label(value)),
+    )
+    _send(
+        account,
+        '✅ زمان اصلاح شد.\n\n👤 %s\n🕒 %s → %s'
+        % (
+            services.user_label(record.user),
+            old_label,
+            services.dt_label(value),
+        ),
+        inline([
+            [btn('🕒 رکوردهای دیگر', 'usr:time:%d' % record.user_id)],
+            [btn('👤 پروندهٔ کاربر', 'usr:%d' % record.user_id)],
+        ]),
         client=client,
     )
 
@@ -1379,49 +1776,263 @@ def _new_user_create(account, role, client):
 
 # ---------- پیام همگانی ----------
 
+BROADCAST_LABELS = {
+    'all': 'همه',
+    'admins': 'مدیران',
+    'users': 'کاربران عادی',
+    'user': 'یک کاربر خاص',
+}
+
+
 def _broadcast_start(account, client):
-    account.state = 'broadcast'
-    account.state_data = {}
+    _clear(account)
+    _send(
+        account,
+        '📢 پیام همگانی\n\nمخاطب را انتخاب کنید:',
+        inline([
+            [btn('👥 همه', 'bc:all'), btn('🛡️ مدیران', 'bc:admins')],
+            [btn('👤 کاربران عادی', 'bc:users'), btn('🎯 یک کاربر خاص', 'bc:user')],
+            [btn('❌ لغو', 'menu:main')],
+        ]),
+        client=client,
+    )
+
+
+def _broadcast_audience(account, audience, client):
+    if audience == 'user':
+        account.state = 'broadcast_search'
+        account.state_data = {}
+        account.save()
+        return _send(
+            account,
+            '🎯 نام کاربری کاربر موردنظر را بفرستید:',
+            inline([[btn('❌ لغو', 'menu:main')]]),
+            client=client,
+        )
+    if audience not in ('all', 'admins', 'users'):
+        return
+
+    account.state = 'broadcast:%s' % audience
+    account.state_data = {'audience': audience}
     account.save()
     _send(
         account,
-        '📢 متن پیام همگانی را بنویسید.\n'
-        'پیام برای همهٔ حساب‌های متصل به ربات (به‌جز خودتان) ارسال می‌شود.',
+        '📢 متن پیام برای «%s» را بنویسید:' % BROADCAST_LABELS[audience],
+        inline([[btn('❌ لغو', 'menu:main')]]),
+        client=client,
+    )
+
+
+def _broadcast_search(account, text, client):
+    username = (text or '').strip().lstrip('@')
+    user = User.objects.filter(username__iexact=username).first()
+    if not user:
+        return _send(
+            account,
+            '⚠️ کاربری با نام کاربری «%s» پیدا نشد. دوباره بفرستید.'
+            % username,
+            inline([[btn('❌ لغو', 'menu:main')]]),
+            client=client,
+        )
+
+    account.state = 'broadcast:user:%d' % user.pk
+    account.state_data = {'audience': 'user', 'target_user_id': user.pk}
+    account.save()
+    _send(
+        account,
+        '📢 متن پیام برای %s را بنویسید:' % services.user_label(user),
         inline([[btn('❌ لغو', 'menu:main')]]),
         client=client,
     )
 
 
 def _broadcast_send(account, text, client):
+    data = account.state_data or {}
+    audience = data.get('audience') or 'all'
+    target = None
+    if audience == 'user':
+        target = User.objects.filter(pk=data.get('target_user_id')).first()
+
     _clear(account)
     text = (text or '').strip()
     if not text:
         return _send(account, '⚠️ متن پیام خالی است.', back_only(), client=client)
+    if audience == 'user' and not target:
+        return _send(account, '⚠️ کاربر هدف پیدا نشد.', back_only(), client=client)
 
-    sent = 0
-    failed = 0
-    qs = (
-        BaleAccount.objects
-        .filter(is_blocked=False, django_user__isnull=False)
-        .exclude(pk=account.pk)
+    sent, failed = services.send_audience(
+        client,
+        audience,
+        '📢 پیام از مدیریت:\n\n' + text,
+        target_user=target,
+        exclude_account=account,
     )
-    for target in qs:
-        if services.safe_send(client, target, '📢 پیام از مدیریت:\n\n' + text) is not None:
-            sent += 1
-        else:
-            failed += 1
-
     services.audit(
         account.django_user, 'broadcast', '', '',
-        'ارسال به %d حساب' % sent,
+        'مخاطب: %s | ارسال: %d | ناموفق: %d' % (audience, sent, failed),
     )
     _send(
         account,
-        '📢 پیام همگانی ارسال شد.\n✅ %s | ⛔ %s'
+        '📢 ارسال شد.\n✅ %s | ⛔ %s'
         % (services.fa_digits(sent), services.fa_digits(failed)),
         back_only(),
         client=client,
     )
+
+
+# ---------- گزارش تیمی و تحلیل ----------
+
+def _admin_report(account, client):
+    _clear(account)
+    _send(
+        account,
+        services.team_report_text(),
+        inline([
+            [btn('📥 خروجی اکسل تیمی', 'adm:report:excel')],
+            [btn('🏠 منوی اصلی', 'menu:main')],
+        ]),
+        client=client,
+    )
+
+
+def _admin_report_excel(account, client):
+    _clear(account)
+    start, today, label = services.month_bounds()
+    book, filename = services.build_team_report_xlsx(start, today)
+    mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    try:
+        client.send_document(
+            account.chat_id or account.bale_user_id,
+            filename,
+            book,
+            caption='📥 گزارش تیمی %s' % label,
+            mime_type=mime,
+        )
+    except BaleError as exc:
+        return _send(
+            account, '⚠️ ارسال فایل ممکن نشد: %s' % exc,
+            inline([[btn('🏠 منوی اصلی', 'menu:main')]]),
+            client=client,
+        )
+
+    services.audit(account.django_user, 'team_report_excel', '', '', label)
+    _send(
+        account,
+        '✅ فایل اکسل گزارش تیمی %s ارسال شد.' % label,
+        back_only(),
+        client=client,
+    )
+
+
+def _admin_analytics(account, client):
+    _clear(account)
+    _send(account, services.analytics_text(), back_only(), client=client)
+
+
+# ---------- پیام زمان‌بندی‌شده ----------
+
+def _schedule_start(account, client):
+    account.state = 'schedule:text'
+    account.state_data = {}
+    account.save()
+    _send(
+        account,
+        '📨 پیام زمان‌بندی‌شده\n\nمتن پیام را بنویسید:',
+        inline([[btn('❌ لغو', 'menu:main')]]),
+        client=client,
+    )
+
+
+def _schedule_text(account, text, client):
+    text = (text or '').strip()
+    if not text:
+        return _send(account, '⚠️ متن پیام خالی است.', client=client)
+    account.state = 'schedule:time'
+    account.state_data = {'text': text[:4000]}
+    account.save()
+    _send(
+        account,
+        '⏰ زمان ارسال را به شکل «۱۴۰۵/۰۸/۰۶ ۰۹:۰۰» بفرستید:',
+        inline([[btn('❌ لغو', 'menu:main')]]),
+        client=client,
+    )
+
+
+def _schedule_time(account, text, client):
+    value, error = services.parse_jalali_datetime(text)
+    if error:
+        return _send(
+            account, '⚠️ %s\nمثال: ۱۴۰۵/۰۸/۰۶ ۰۹:۰۰' % error,
+            client=client,
+        )
+    if value <= timezone.now():
+        return _send(
+            account, '⚠️ زمان ارسال باید در آینده باشد. دوباره بفرستید.',
+            client=client,
+        )
+
+    data = dict(account.state_data or {})
+    data['send_at'] = value.isoformat()
+    account.state = 'schedule:audience'
+    account.state_data = data
+    account.save()
+    _send(
+        account,
+        '⏰ زمان: %s\n\n📢 مخاطب را انتخاب کنید:' % services.dt_label(value),
+        inline([
+            [btn('👥 همه', 'sched:all'), btn('🛡️ مدیران', 'sched:admins')],
+            [btn('👤 کاربران عادی', 'sched:users'), btn('🎯 یک کاربر', 'sched:user')],
+            [btn('❌ لغو', 'menu:main')],
+        ]),
+        client=client,
+    )
+
+
+def _schedule_create(account, audience, client, target_user=None):
+    from .models import ScheduledMessage
+
+    data = account.state_data or {}
+    text = data.get('text')
+    send_at_raw = data.get('send_at')
+    if not text or not send_at_raw:
+        _clear(account)
+        return _send(
+            account, '⚠️ اطلاعات پیام ناقص است. دوباره شروع کنید.',
+            back_only(), client=client,
+        )
+    if audience == ScheduledMessage.AUDIENCE_USER and not target_user:
+        return _send(account, '⚠️ کاربر هدف پیدا نشد.', back_only(), client=client)
+
+    msg = ScheduledMessage.objects.create(
+        text=text,
+        audience=audience,
+        target_user=target_user,
+        send_at=dt.datetime.fromisoformat(send_at_raw),
+        created_by=account.django_user,
+    )
+    _clear(account)
+    services.audit(
+        account.django_user, 'scheduled_create', 'scheduled', msg.pk, audience,
+    )
+    _send(
+        account,
+        '✅ پیام برای %s زمان‌بندی شد.\n🕒 %s'
+        % (msg.get_audience_display(), services.dt_label(msg.send_at)),
+        back_only(),
+        client=client,
+    )
+
+
+def _schedule_user(account, username, client):
+    username = (username or '').strip().lstrip('@')
+    user = User.objects.filter(username__iexact=username).first()
+    if not user:
+        return _send(
+            account,
+            '⚠️ کاربری با نام کاربری «%s» پیدا نشد. دوباره بفرستید.' % username,
+            client=client,
+        )
+    _schedule_create(account, 'user', client, target_user=user)
 
 
 # ============================================================
@@ -1469,13 +2080,18 @@ def _handle_state(account, message, text, client):
         account.state_data = {'draft': draft}
         account.state = 'errand:destination'
         account.save()
+        rows = [
+            [btn('💡 ' + dest[:32], 'err:tpl:destination:%d' % index)]
+            for index, dest in enumerate(
+                services.recent_destinations(account.django_user)
+            )
+        ]
+        rows.append([btn('⏭ رد کردن', 'err:skip:destination')])
+        rows.append([btn('❌ لغو', 'menu:main')])
         return _send(
             account,
             '✅ دلیل ثبت شد.\n\nمقصد را بنویسید (اختیاری):',
-            inline([
-                [btn('⏭ رد کردن', 'err:skip:destination')],
-                [btn('❌ لغو', 'menu:main')],
-            ]),
+            inline(rows),
             client=client,
         )
 
@@ -1522,6 +2138,54 @@ def _handle_state(account, message, text, client):
         return _new_user_name(account, text, client)
 
     if state == 'broadcast':
+        return _broadcast_send(account, text, client)
+
+    if state.startswith('edit_errand:'):
+        try:
+            _prefix, pk_raw, field = state.split(':', 2)
+            return _apply_errand_edit(account, text, client, int(pk_raw), field)
+        except (ValueError, TypeError):
+            _clear(account)
+            return _send(
+                account, '⚠️ ویرایش نامعتبر است. دوباره تلاش کنید.',
+                back_only(), client=client,
+            )
+
+    if state.startswith('time_edit:'):
+        try:
+            return _user_time_edit_apply(
+                account, int(state.split(':', 1)[1]), text, client,
+            )
+        except (ValueError, IndexError):
+            _clear(account)
+            return _send(
+                account, '⚠️ رکورد نامعتبر است.', users_menu(), client=client,
+            )
+
+    if state == 'broadcast_search':
+        return _broadcast_search(account, text, client)
+
+    if state == 'schedule:text':
+        return _schedule_text(account, text, client)
+    if state == 'schedule:time':
+        return _schedule_time(account, text, client)
+    if state == 'schedule:user':
+        return _schedule_user(account, text, client)
+
+    if state.startswith('snap_reject:'):
+        try:
+            pk = int(state.split(':', 1)[1])
+        except (IndexError, ValueError):
+            _clear(account)
+            return _send(account, '⚠️ عکس نامعتبر است.', back_only(), client=client)
+        note = (text or '').strip()
+        if not note:
+            return _send(account, '⚠️ دلیل رد الزامی است. دوباره بنویسید.', client=client)
+        return _snapshot_review(
+            account, pk, AttendanceSnapshot.REVIEW_REJECTED, client, note,
+        )
+
+    if state.startswith('broadcast:'):
         return _broadcast_send(account, text, client)
 
     # حالت ناشناخته — پاک‌سازی و بازگشت به منو
@@ -1645,6 +2309,17 @@ def _handle_action(account, data, client):
         return _submit_errand(account, client)
     if data.startswith('err:cancel:'):
         return _cancel_errand(account, int(data.split(':')[2]), client)
+    if data.startswith('err:edit:'):
+        parts = data.split(':')
+        if len(parts) >= 4:
+            return _errand_edit_field(account, int(parts[2]), parts[3], client)
+        return _errand_edit(account, int(parts[2]), client)
+    if data.startswith('err:editskip:'):
+        parts = data.split(':')
+        return _apply_errand_edit(account, '', client, int(parts[2]), parts[3])
+    if data.startswith('err:tpl:'):
+        parts = data.split(':')
+        return _apply_template(account, parts[2], int(parts[3]), client)
 
     # ---------- مدیریت مأموریت ----------
     if data.startswith('err:approve:'):
@@ -1672,10 +2347,20 @@ def _handle_action(account, data, client):
             return _admin_checkout(account, client, _page_arg(data))
         if data == 'adm:users':
             return _users_menu(account, client)
+        if data == 'adm:snapshots':
+            return _admin_snapshots(account, client)
         if data == 'adm:broadcast':
             return _broadcast_start(account, client)
+        if data == 'adm:schedule':
+            return _schedule_start(account, client)
         if data == 'adm:stats':
             return _admin_stats(account, client)
+        if data == 'adm:report':
+            return _admin_report(account, client)
+        if data == 'adm:report:excel':
+            return _admin_report_excel(account, client)
+        if data == 'adm:analytics':
+            return _admin_analytics(account, client)
         if data.startswith('adm:audit:'):
             return _admin_audit(account, _page_arg(data), client)
         if data == 'adm:approve_all':
@@ -1684,10 +2369,45 @@ def _handle_action(account, data, client):
             return _approve_all_confirm(account, client)
         return
 
+    if data.startswith('bc:'):
+        if not _require_admin(account, client):
+            return
+        return _broadcast_audience(account, data.split(':', 1)[1], client)
+
+    if data.startswith('sched:'):
+        if not _require_admin(account, client):
+            return
+        audience = data.split(':', 1)[1]
+        if audience == 'user':
+            account.state = 'schedule:user'
+            account.save()
+            return _send(
+                account,
+                '🎯 نام کاربری کاربر موردنظر را بفرستید:',
+                inline([[btn('❌ لغو', 'menu:main')]]),
+                client=client,
+            )
+        return _schedule_create(account, audience, client)
+
     if data.startswith('cerr:resolve:'):
         if not _require_admin(account, client):
             return
         return _resolve_checkout(account, int(data.split(':')[2]), client)
+
+    # ---------- بازبینی عکس لحظه ----------
+    if data.startswith('snap:'):
+        if not _require_admin(account, client):
+            return
+        parts = data.split(':')
+        if parts[1] == 'ok' and len(parts) >= 3:
+            return _snapshot_review(
+                account, int(parts[2]), AttendanceSnapshot.REVIEW_OK, client,
+            )
+        if parts[1] == 'no' and len(parts) >= 3:
+            return _snapshot_reject_start(account, int(parts[2]), client)
+        if len(parts) >= 2 and parts[1].isdigit():
+            return _snapshot_view(account, int(parts[1]), client)
+        return
 
     # ---------- کاربران ----------
     if data.startswith('usr:'):
@@ -1698,6 +2418,10 @@ def _handle_action(account, data, client):
             return _user_search_start(account, client)
         if data == 'usr:new':
             return _new_user_start(account, client)
+        if parts[1] == 'time' and len(parts) >= 3:
+            return _user_time_records(account, int(parts[2]), client)
+        if parts[1] == 'timeedit' and len(parts) >= 3:
+            return _user_time_edit_start(account, int(parts[2]), client)
         if data == 'usr:newskip:name':
             draft = (account.state_data or {}).get('new_user') or {}
             draft['first_name'] = ''
