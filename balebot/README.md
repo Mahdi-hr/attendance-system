@@ -119,6 +119,7 @@ sudo systemctl enable --now balebot
 */2 * * * * cd /home/kian/Attendance && pgrep -f "[m]anage.py runbalebot" >/dev/null || ./run_balebot.sh >> balebot.log 2>&1
 */5 * * * * cd /home/kian/Attendance && ./run_balebot_reminders.sh >> balebot.log 2>&1
 * * * * * cd /home/kian/Attendance && ./run_balebot_scheduled.sh >> balebot.log 2>&1
+30 2 * * * cd /home/kian/Attendance && ./backup_snapshots.sh >> balebot.log 2>&1
 ```
 
 `run_balebot.sh` از `flock` استفاده می‌کند؛ بنابراین اجرای هم‌زمان دو نسخه
