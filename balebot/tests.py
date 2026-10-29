@@ -34,6 +34,7 @@ class FakeClient:
         self.deleted = []
         self.documents = []
         self.photos = []
+        self.edits = []
 
     def send_message(self, chat_id, text, reply_markup=None):
         self.sent.append({
@@ -64,6 +65,18 @@ class FakeClient:
 
     def delete_message(self, chat_id, message_id):
         self.deleted.append((chat_id, message_id))
+        return True
+
+    def edit_message_text(self, chat_id, message_id, text, reply_markup=None):
+        self.edits.append({
+            'chat_id': chat_id, 'message_id': message_id,
+            'text': text, 'markup': reply_markup,
+        })
+        # مثل رفتار واقعی، متن نهایی در همان جای پیام قرار می‌گیرد.
+        self.sent.append({
+            'chat_id': chat_id, 'text': text, 'markup': reply_markup,
+            'edit': True,
+        })
         return True
 
     @property
@@ -980,3 +993,69 @@ class AnomalyAndScheduleTests(BotTestBase):
         self.assertEqual(msg.text, 'جلسهٔ فردا')
         self.assertEqual(msg.audience, 'admins')
         self.assertEqual(msg.created_by, self.admin)
+
+
+class InlineNavigationTests(BotTestBase):
+    """رابط کاربری فقط inline: دسته‌بندی، ویرایش همان پیام، بدون کیبورد ثابت."""
+
+    def test_no_persistent_keyboard_is_sent_on_login(self):
+        self.login('emp')
+        for message in self.bot.sent:
+            markup = message.get('markup') or {}
+            self.assertNotIn('keyboard', markup)
+
+    def test_main_menu_is_categories_not_dozens_of_buttons(self):
+        self.login('emp')
+        markup = str(self.bot.last_markup)
+        self.assertIn('menu:work', markup)
+        self.assertIn('menu:reports', markup)
+        self.assertIn('menu:settings', markup)
+        # دکمه‌های عملیات مستقیم نباید در منوی اصلی شلوغ شوند.
+        self.assertNotIn('err:new', markup)
+
+    def test_work_menu_has_expected_actions_and_back(self):
+        self.login('emp')
+        self.click('menu:work')
+        text = self.bot.last_text
+        markup = str(self.bot.last_markup)
+        self.assertIn('کارهای من', text)
+        self.assertIn('err:new', markup)
+        self.assertIn('err:mine', markup)
+        self.assertIn('menu:main', markup)
+
+    def test_reports_menu_admin_has_team_and_analytics(self):
+        self.login('boss', uid=2002)
+        self.click('menu:reports', uid=2002)
+        markup = str(self.bot.last_markup)
+        self.assertIn('adm:report', markup)
+        self.assertIn('adm:analytics', markup)
+        self.assertIn('rep:excel', markup)
+
+    def test_admin_hub_has_tools_and_back(self):
+        self.login('boss', uid=2002)
+        self.click('menu:admin', uid=2002)
+        text = self.bot.last_text
+        markup = str(self.bot.last_markup)
+        self.assertIn('مدیریت', text)
+        self.assertIn('adm:pending', markup)
+        self.assertIn('adm:users', markup)
+        self.assertIn('adm:snapshots', markup)
+        self.assertIn('menu:main', markup)
+
+    def test_menu_navigation_edits_the_same_message(self):
+        self.login('boss', uid=2002)
+        self.click('menu:admin', uid=2002)
+        self.assertTrue(self.bot.edits)
+        self.assertIn('مدیریت', self.bot.edits[-1]['text'])
+
+        self.click('menu:main', uid=2002)
+        self.assertIn('منوی اصلی', self.bot.edits[-1]['text'])
+        self.assertEqual(self.bot.edits[-1]['message_id'], 1)
+
+    def test_settings_menu_has_back(self):
+        self.login('emp')
+        self.click('menu:settings')
+        markup = str(self.bot.last_markup)
+        self.assertIn('settings:toggle:errand', markup)
+        self.assertIn('settings:password', markup)
+        self.assertIn('menu:main', markup)

@@ -27,20 +27,25 @@ from adminpanel.utils import random_password
 from . import services
 from .client import BaleError
 from .keyboards import (
+    admin_hub,
     audit_keyboard,
+    back_admin,
     back_only,
+    back_reports,
+    back_work,
     btn,
     confirm_keyboard,
     inline,
     main_menu,
-    main_reply_keyboard,
     new_errand_keyboard,
     new_user_role_keyboard,
     pager,
+    reports_menu,
     role_keyboard,
-    settings_keyboard,
+    settings_menu,
     user_card,
     users_menu,
+    work_menu,
 )
 from .models import BaleAccount, BotConfig
 
@@ -101,6 +106,25 @@ def _clear(account):
 
 def _send(account, text, markup=None, client=None):
     return services.safe_send(client, account, text, reply_markup=markup)
+
+
+def _render(account, text, markup, client, edit_id=None):
+    """منو را در همان پیام ویرایش می‌کند تا گفتگو شلوغ نشود.
+
+    اگر ویرایش ممکن نبود (پیام قدیمی/حذف‌شده)، پیام تازه می‌فرستد.
+    """
+    if edit_id:
+        try:
+            client.edit_message_text(
+                account.chat_id or account.bale_user_id,
+                edit_id,
+                text,
+                reply_markup=markup,
+            )
+            return
+        except BaleError:
+            pass
+    _send(account, text, markup, client=client)
 
 
 # ============================================================
@@ -168,6 +192,12 @@ def _handle_command(account, text, client):
     if command == '/start':
         if account.is_linked:
             _clear(account)
+            _send(
+                account,
+                '⌨️ دکمه‌ها داخل خود پیام هستند؛ از منوی زیر استفاده کنید.',
+                {'remove_keyboard': True},
+                client=client,
+            )
             return _show_main_menu(account, client)
         return _ask_login(account, client)
 
@@ -333,9 +363,10 @@ def _login_password(account, message, text, client):
     _send(
         account,
         '✅ اتصال با موفقیت انجام شد.\nخوش آمدید %s' % services.user_label(user),
+        {'remove_keyboard': True},
         client=client,
     )
-    _show_main_menu(account, client, with_reply=True)
+    _show_main_menu(account, client)
 
 
 def _logout(account, client):
@@ -356,7 +387,7 @@ def _logout(account, client):
 # منو و نقش
 # ============================================================
 
-def _show_main_menu(account, client, with_reply=False):
+def _show_main_menu(account, client, edit_id=None):
     if not account.is_linked:
         return _ask_login(account, client)
 
@@ -366,19 +397,52 @@ def _show_main_menu(account, client, with_reply=False):
         '🏠 منوی اصلی\n\n'
         '👤 %s\n'
         '🎭 نقش فعال: %s\n'
-        '📅 %s'
+        '📅 %s\n\n'
+        'یکی از دسته‌ها را انتخاب کنید:'
     ) % (
         services.user_label(account.django_user),
         services.role_title(account),
         services.today_jalali(),
     )
-    if with_reply:
-        # کیبورد ثابت پایین صفحه (یک‌بار پس از ورود/تغییر نقش)
-        services.safe_send(
-            client, account, text,
-            reply_markup=main_reply_keyboard(admin),
-        )
-    _send(account, text, main_menu(account, admin, can_switch), client=client)
+    _render(account, text, main_menu(account, admin, can_switch), client, edit_id)
+
+
+def _show_work_menu(account, client, edit_id=None):
+    admin = services.is_admin_mode(account)
+    _render(
+        account,
+        '👤 کارهای من\n\nچه کاری انجام دهیم؟',
+        work_menu(admin),
+        client,
+        edit_id,
+    )
+
+
+def _show_reports_menu(account, client, edit_id=None):
+    admin = services.is_admin_mode(account)
+    _render(account, '📈 گزارش‌ها', reports_menu(admin), client, edit_id)
+
+
+def _show_admin_hub(account, client, edit_id=None):
+    if not _require_admin(account, client):
+        return
+    _render(
+        account,
+        '🛡️ مدیریت\n\nیک ابزار را انتخاب کنید:',
+        admin_hub(),
+        client,
+        edit_id,
+    )
+
+
+def _show_settings_menu(account, client, edit_id=None):
+    _render(
+        account,
+        '⚙️ تنظیمات\n\nاعلان‌ها و حساب خود را مدیریت کنید:',
+        settings_menu(account, services.can_switch_role(account)),
+        client,
+        edit_id,
+    )
 
 
 def _toggle_role(account, client, answer_only=False):
@@ -408,7 +472,7 @@ def _toggle_role(account, client, answer_only=False):
         '🔄 نقش فعال شما به «%s» تغییر کرد.' % label,
         client=client,
     )
-    _show_main_menu(account, client, with_reply=True)
+    _show_main_menu(account, client)
 
 
 # ============================================================
@@ -417,17 +481,17 @@ def _toggle_role(account, client, answer_only=False):
 
 def _show_status(account, client):
     _clear(account)
-    _send(account, services.today_status_text(account.django_user), back_only(), client=client)
+    _send(account, services.today_status_text(account.django_user), back_work(), client=client)
 
 
 def _show_month(account, client):
     _clear(account)
-    _send(account, services.month_summary_text(account.django_user), back_only(), client=client)
+    _send(account, services.month_summary_text(account.django_user), back_reports(), client=client)
 
 
 def _show_week(account, client):
     _clear(account)
-    _send(account, services.week_summary_text(account.django_user), back_only(), client=client)
+    _send(account, services.week_summary_text(account.django_user), back_reports(), client=client)
 
 
 def _send_excel(account, client):
@@ -468,13 +532,7 @@ def _send_excel(account, client):
 
 def _settings_view(account, client):
     _clear(account)
-    _send(
-        account,
-        '⚙️ تنظیمات\n\n'
-        'اعلان‌های دلخواه را روشن/خاموش کنید. تغییرات فوری اعمال می‌شوند.',
-        settings_keyboard(account),
-        client=client,
-    )
+    _show_settings_menu(account, client)
 
 
 def _toggle_setting(account, which, client):
@@ -566,7 +624,7 @@ def _password_confirm(account, message, text, client):
     _clear(account)
     services.audit(user, 'password_change', 'user', user.pk)
     _send(account, '✅ رمز عبور با موفقیت تغییر کرد.', client=client)
-    _show_main_menu(account, client, with_reply=True)
+    _show_main_menu(account, client)
 
 
 # ============================================================
@@ -774,7 +832,7 @@ def _errand_list(account, client, page=1):
             services.fa_digits(pages),
             services.fa_digits(total),
         ),
-        pager('err:mine', page, pages),
+        pager('err:mine', page, pages, back='menu:work'),
         client=client,
     )
     for errand in errands:
@@ -1006,7 +1064,7 @@ def _admin_pending(account, client, page=1):
     if not total:
         return _send(
             account, '✅ هیچ درخواست مأموریتی در انتظار بررسی نیست.',
-            back_only(), client=client,
+            back_admin(), client=client,
         )
 
     errands, page, pages = services.paginate(qs, page, per_page=5)
@@ -1019,7 +1077,7 @@ def _admin_pending(account, client, page=1):
         account,
         '⏳ %s درخواست در انتظار — صفحهٔ %s از %s'
         % (services.fa_digits(total), services.fa_digits(page), services.fa_digits(pages)),
-        pager('adm:pending', page, pages, extra_rows=extra),
+        pager('adm:pending', page, pages, back='menu:admin', extra_rows=extra),
         client=client,
     )
     for errand in errands:
@@ -1146,7 +1204,7 @@ def _reject_finish(account, pk, note, client):
 
 def _admin_today(account, client):
     _clear(account)
-    _send(account, services.admin_today_text(), back_only(), client=client)
+    _send(account, services.admin_today_text(), back_admin(), client=client)
 
 
 # ---------- بازبینی عکس لحظه (فاز ۴) ----------
@@ -1162,7 +1220,7 @@ def _admin_snapshots(account, client):
         return _send(
             account,
             '📸 عکس لحظه‌ای برای بازبینی موجود نیست.',
-            back_only(),
+            back_admin(),
             client=client,
         )
 
@@ -1263,7 +1321,7 @@ def _snapshot_review(account, pk, status, client, note=''):
         account,
         '✅ بازبینی ثبت شد: %s\n👤 %s'
         % (snap.get_review_status_display(), services.user_label(snap.user)),
-        back_only(),
+        back_admin(),
         client=client,
     )
 
@@ -1282,7 +1340,7 @@ def _snapshot_reject_start(account, pk, client):
 
 def _admin_stats(account, client):
     _clear(account)
-    _send(account, services.bot_stats_text(), back_only(), client=client)
+    _send(account, services.bot_stats_text(), back_admin(), client=client)
 
 
 def _admin_audit(account, page, client):
@@ -1346,7 +1404,7 @@ def _admin_checkout(account, client, page=1):
     if not total:
         return _send(
             account, '✅ خطای خروج در انتظاری وجود ندارد.',
-            back_only(), client=client,
+            back_admin(), client=client,
         )
 
     errors, page, pages = services.paginate(qs, page, per_page=5)
@@ -1354,7 +1412,7 @@ def _admin_checkout(account, client, page=1):
         account,
         '⚠️ %s خطای خروج — صفحهٔ %s از %s'
         % (services.fa_digits(total), services.fa_digits(page), services.fa_digits(pages)),
-        pager('adm:checkout', page, pages),
+        pager('adm:checkout', page, pages, back='menu:admin'),
         client=client,
     )
     for error in errors:
@@ -1889,7 +1947,7 @@ def _admin_report(account, client):
         services.team_report_text(),
         inline([
             [btn('📥 خروجی اکسل تیمی', 'adm:report:excel')],
-            [btn('🏠 منوی اصلی', 'menu:main')],
+            [btn('📈 گزارش‌ها', 'menu:reports')],
         ]),
         client=client,
     )
@@ -1911,7 +1969,7 @@ def _admin_report_excel(account, client):
     except BaleError as exc:
         return _send(
             account, '⚠️ ارسال فایل ممکن نشد: %s' % exc,
-            inline([[btn('🏠 منوی اصلی', 'menu:main')]]),
+            inline([[btn('📈 گزارش‌ها', 'menu:reports')]]),
             client=client,
         )
 
@@ -1919,14 +1977,14 @@ def _admin_report_excel(account, client):
     _send(
         account,
         '✅ فایل اکسل گزارش تیمی %s ارسال شد.' % label,
-        back_only(),
+        back_reports(),
         client=client,
     )
 
 
 def _admin_analytics(account, client):
     _clear(account)
-    _send(account, services.analytics_text(), back_only(), client=client)
+    _send(account, services.analytics_text(), back_reports(), client=client)
 
 
 # ---------- پیام زمان‌بندی‌شده ----------
@@ -2243,16 +2301,31 @@ def _handle_callback(cq, client):
     data = (cq.get('data') or '').strip()
     if not account.is_linked:
         return _ask_login(account, client)
-    return _handle_action(account, data, client)
+    return _handle_action(
+        account, data, client, edit_id=(message or {}).get('message_id'),
+    )
 
 
-def _handle_action(account, data, client):
-    # ---------- عمومی ----------
+def _handle_action(account, data, client, edit_id=None):
     if data in ('', 'noop'):
         return
+
+    # ---------- ناوبری دسته‌ها ----------
     if data in ('menu', 'menu:main', 'back'):
         _clear(account)
-        return _show_main_menu(account, client)
+        return _show_main_menu(account, client, edit_id)
+    if data in ('menu:work',):
+        _clear(account)
+        return _show_work_menu(account, client, edit_id)
+    if data in ('menu:reports',):
+        _clear(account)
+        return _show_reports_menu(account, client, edit_id)
+    if data in ('menu:admin',):
+        _clear(account)
+        return _show_admin_hub(account, client, edit_id)
+    if data in ('menu:settings', 'settings'):
+        _clear(account)
+        return _show_settings_menu(account, client, edit_id)
     if data == 'role:toggle':
         return _toggle_role(account, client)
     if data == 'logout':
@@ -2267,8 +2340,6 @@ def _handle_action(account, data, client):
         return _send_excel(account, client)
 
     # ---------- تنظیمات ----------
-    if data == 'settings':
-        return _settings_view(account, client)
     if data.startswith('settings:toggle:'):
         return _toggle_setting(account, data.split(':', 2)[2], client)
     if data == 'settings:password':
