@@ -517,45 +517,6 @@
             }
         }
 
-        /* ===== THEME TOGGLE ===== */
-        .theme-toggle {
-            background: rgba(var(--primary-rgb), 0.08);
-            border: 1px solid var(--glass-border);
-            border-radius: 50%;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-primary);
-            font-size: 0.9rem;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s, box-shadow 0.3s;
-            flex-shrink: 0;
-            width: 38px;
-            height: 38px;
-            position: relative;
-            overflow: hidden;
-        }
-        .theme-toggle::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle, rgba(var(--primary-rgb), 0.5), transparent 70%);
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-        .theme-toggle:hover {
-            border-color: var(--primary);
-            background: rgba(var(--primary-rgb), 0.15);
-            transform: rotate(180deg) scale(1.08);
-            box-shadow: 0 0 22px var(--glow);
-        }
-        .theme-toggle:hover::before { opacity: 1; }
-        .theme-toggle i { position: relative; z-index: 1; }
-        .theme-toggle .icon-sun { display: none; }
-        .theme-toggle .icon-moon { display: inline; }
-        [data-theme="light"] .theme-toggle .icon-sun { display: inline; }
-        [data-theme="light"] .theme-toggle .icon-moon { display: none; }
-
         /* ===== THEME PICKER (dropdown) ===== */
         .theme-picker { position: relative; }
         .theme-picker-btn {
@@ -1337,7 +1298,6 @@
             .clock-display #clockTimeMobile { font-size: 0.72rem; }
             .clock-display #clockDate,
             .clock-display #clockDateMobile { font-size: 0.52rem; }
-            .theme-toggle { width: 34px; height: 34px; font-size: 0.82rem; }
             .nav-logo { height: 32px; }
             .brand-logo-wrap { width: 36px; height: 36px; }
             .brand-text strong { font-size: 0.95rem; }
@@ -1359,7 +1319,6 @@
             .clock-display #clockTimeMobile { font-size: 0.66rem; letter-spacing: 0.2px; }
             .clock-display #clockDate,
             .clock-display #clockDateMobile { font-size: 0.46rem; }
-            .theme-toggle { width: 30px; height: 30px; }
             .user-avatar { width: 22px !important; height: 22px !important; font-size: 0.65rem !important; }
             .navbar-custom .navbar-toggler { padding: 5px 8px; }
         }
@@ -1493,10 +1452,6 @@
                         <span id="clockTime">--:--:--</span>
                         <span id="clockDate">--</span>
                     </div>
-                    <button class="theme-toggle" id="themeToggle" title="تغییر تم" aria-label="تغییر تم">
-                        <i class="fas fa-moon icon-moon"></i>
-                        <i class="fas fa-sun icon-sun"></i>
-                    </button>
                     <div class="dropdown theme-picker">
                         <button class="theme-picker-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="انتخاب تم">
                             <i class="fas fa-palette"></i>
@@ -1579,10 +1534,6 @@
                     <span id="clockTimeMobile">--:--:--</span>
                     <span id="clockDateMobile">--</span>
                 </div>
-                <button class="theme-toggle" id="themeToggleMobile" title="تغییر تم" aria-label="تغییر تم">
-                    <i class="fas fa-moon icon-moon"></i>
-                    <i class="fas fa-sun icon-sun"></i>
-                </button>
                 <div class="dropdown theme-picker">
                     <button class="theme-picker-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="انتخاب تم">
                         <i class="fas fa-palette"></i>
@@ -1786,16 +1737,6 @@
         }
 
         applyTheme(localStorage.getItem('theme') || 'dark', false);
-
-        function bindThemeToggle(btn) {
-            if (!btn) return;
-            btn.addEventListener('click', function() {
-                const current = html.getAttribute('data-theme');
-                applyTheme(current === 'light' ? 'dark' : 'light');
-            });
-        }
-        bindThemeToggle(document.getElementById('themeToggle'));
-        bindThemeToggle(document.getElementById('themeToggleMobile'));
 
         document.querySelectorAll('[data-theme-choice]').forEach(function(el) {
             el.addEventListener('click', function() {

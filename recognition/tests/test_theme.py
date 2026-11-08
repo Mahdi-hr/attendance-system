@@ -11,9 +11,10 @@ class ThemePickerTests(TestCase):
         for theme in ('dark', 'light', 'sand', 'ember'):
             self.assertContains(response, 'data-theme-choice="%s"' % theme)
 
-        # انتخاب‌گر کشویی و کیبورد سادهٔ تغییر تم
+        # فقط انتخاب‌گر کشویی؛ سوییچ ماه/خورشید حذف شده است
         self.assertContains(response, 'theme-picker-btn')
-        self.assertContains(response, 'id="themeToggle"')
+        self.assertNotContains(response, 'id="themeToggle"')
+        self.assertNotContains(response, 'theme-toggle')
 
     def test_new_theme_css_variables_exist(self):
         response = self.client.get('/login/')
