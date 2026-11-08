@@ -4,6 +4,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <script>
+        // تم ذخیره‌شده را قبل از رندر اعمال کن تا پرش رنگ (FOUC) نداشته باشیم.
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'light' || t === 'sand' || t === 'ember' || t === 'dark') {
+                    document.documentElement.setAttribute('data-theme', t);
+                }
+            } catch (e) {}
+        })();
+    </script>
     <title>{% block title %}سامانه حضور و غیاب{% endblock %}</title>
 
     <!-- Performance: DNS Prefetch & Preconnect for local resources -->
@@ -97,6 +108,72 @@
             --aurora-1: rgba(129, 140, 248, 0.35);
             --aurora-2: rgba(192, 132, 252, 0.3);
             --aurora-3: rgba(34, 211, 238, 0.25);
+        }
+
+        /* ===== CARAMEL / SAND THEME (light text) ===== */
+        [data-theme="sand"] {
+            --primary: #C76A2E;
+            --primary-rgb: 199,106,46;
+            --secondary: #6B4F3D;
+            --accent: #F5D7A7;
+            --accent-rgb: 245,215,167;
+            --success: #8fae6a;
+            --warning: #F5D7A7;
+            --danger: #d9534f;
+            --bg-body: #241a13;
+            --bg-body-2: #3a2a1f;
+            --bg-card: #3b2a1f;
+            --bg-card-solid: #3b2a1f;
+            --text-primary: #F5D7A7;
+            --text-secondary: #d9b98f;
+            --text-muted: #b08e68;
+            --glass: rgba(59, 42, 31, 0.62);
+            --glass-strong: rgba(36, 26, 19, 0.84);
+            --glass-border: rgba(245, 215, 167, 0.18);
+            --glass-border-hover: rgba(199, 106, 46, 0.55);
+            --form-bg: rgba(36, 26, 19, 0.72);
+            --dropdown-bg: #2b2018;
+            --table-hover: rgba(199, 106, 46, 0.14);
+            --table-head: rgba(245, 215, 167, 0.12);
+            --shadow: rgba(0,0,0,0.62);
+            --glow: rgba(199, 106, 46, 0.55);
+            --aurora-1: rgba(199, 106, 46, 0.34);
+            --aurora-2: rgba(245, 215, 167, 0.2);
+            --aurora-3: rgba(107, 79, 61, 0.5);
+            --header-h: 70px;
+        }
+
+        /* ===== EMBER THEME (black / dark green / deep red) ===== */
+        [data-theme="ember"] {
+            --primary: #A3121B;
+            --primary-rgb: 163,18,27;
+            --secondary: #061A14;
+            --accent: #e0525c;
+            --accent-rgb: 224,82,92;
+            --success: #2f7d5a;
+            --warning: #d9a441;
+            --danger: #e0525c;
+            --bg-body: #0b0b0b;
+            --bg-body-2: #061A14;
+            --bg-card: #171717;
+            --bg-card-solid: #171717;
+            --text-primary: #f6f6f6;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --glass: rgba(23, 23, 23, 0.68);
+            --glass-strong: rgba(6, 26, 20, 0.86);
+            --glass-border: rgba(163, 18, 27, 0.26);
+            --glass-border-hover: rgba(163, 18, 27, 0.65);
+            --form-bg: rgba(6, 26, 20, 0.7);
+            --dropdown-bg: #111111;
+            --table-hover: rgba(163, 18, 27, 0.14);
+            --table-head: rgba(163, 18, 27, 0.2);
+            --shadow: rgba(0,0,0,0.72);
+            --glow: rgba(163, 18, 27, 0.6);
+            --aurora-1: rgba(163, 18, 27, 0.3);
+            --aurora-2: rgba(6, 26, 20, 0.85);
+            --aurora-3: rgba(163, 18, 27, 0.16);
+            --header-h: 70px;
         }
 
         * { box-sizing: border-box; }
@@ -478,6 +555,86 @@
         .theme-toggle .icon-moon { display: inline; }
         [data-theme="light"] .theme-toggle .icon-sun { display: inline; }
         [data-theme="light"] .theme-toggle .icon-moon { display: none; }
+
+        /* ===== THEME PICKER (dropdown) ===== */
+        .theme-picker { position: relative; }
+        .theme-picker-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(var(--primary-rgb), 0.08);
+            border: 1px solid var(--glass-border);
+            border-radius: 999px;
+            padding: 8px 13px;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: border-color .3s, background .3s, box-shadow .3s, transform .3s;
+        }
+        .theme-picker-btn:hover,
+        .theme-picker-btn[aria-expanded="true"] {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.16);
+            box-shadow: 0 0 18px var(--glow);
+        }
+        .theme-picker-btn .fa-palette { color: var(--primary); font-size: .88rem; }
+        .theme-picker-btn .theme-caret { font-size: .6rem; opacity: .65; }
+        .theme-picker-label { line-height: 1; }
+        .theme-picker-menu {
+            min-width: 195px;
+            padding: 6px;
+            margin-top: 8px !important;
+            background: var(--dropdown-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            box-shadow: 0 18px 44px -14px var(--shadow);
+        }
+        .theme-picker-menu .theme-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: .84rem;
+            font-weight: 600;
+            font-family: inherit;
+            text-align: right;
+            cursor: pointer;
+            transition: background .2s, color .2s;
+        }
+        .theme-picker-menu .theme-option:hover {
+            background: rgba(var(--primary-rgb), 0.14);
+            color: var(--text-primary);
+        }
+        .theme-picker-menu .theme-option.active {
+            background: rgba(var(--primary-rgb), 0.18);
+        }
+        .theme-swatch {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 2px 6px rgba(0,0,0,.25);
+        }
+        .theme-check {
+            margin-right: auto;
+            font-size: .72rem;
+            color: var(--accent);
+            opacity: 0;
+        }
+        .theme-option.active .theme-check { opacity: 1; }
+
+        @media (max-width: 991.98px) {
+            .theme-picker-label { display: none; }
+            .theme-picker-btn { padding: 8px 10px; gap: 6px; }
+        }
 
         /* ===== CLOCK ===== */
         .clock-display {
@@ -1340,6 +1497,43 @@
                         <i class="fas fa-moon icon-moon"></i>
                         <i class="fas fa-sun icon-sun"></i>
                     </button>
+                    <div class="dropdown theme-picker">
+                        <button class="theme-picker-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="انتخاب تم">
+                            <i class="fas fa-palette"></i>
+                            <span class="theme-picker-label">تاریک</span>
+                            <i class="fas fa-chevron-down theme-caret"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end theme-picker-menu">
+                            <li>
+                                <button type="button" class="dropdown-item theme-option" data-theme-choice="dark">
+                                    <span class="theme-swatch" style="background:linear-gradient(135deg,#818cf8,#22d3ee)"></span>
+                                    <span>تاریک</span>
+                                    <i class="fas fa-check theme-check"></i>
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="dropdown-item theme-option" data-theme-choice="light">
+                                    <span class="theme-swatch" style="background:linear-gradient(135deg,#eef1f8,#4f46e5)"></span>
+                                    <span>روشن</span>
+                                    <i class="fas fa-check theme-check"></i>
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="dropdown-item theme-option" data-theme-choice="sand">
+                                    <span class="theme-swatch" style="background:linear-gradient(135deg,#6B4F3D,#C76A2E)"></span>
+                                    <span>کاراملی</span>
+                                    <i class="fas fa-check theme-check"></i>
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="dropdown-item theme-option" data-theme-choice="ember">
+                                    <span class="theme-swatch" style="background:linear-gradient(135deg,#171717,#A3121B)"></span>
+                                    <span>شب‌سرخ</span>
+                                    <i class="fas fa-check theme-check"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                     {% if user.is_authenticated and user_role == 'both' %}
                     {% if can_access_admin %}
                     <a href="{% url 'admin-mode-off' %}" class="btn btn-outline-glass btn-mode-switch" title="خروج از حالت ادمین">
@@ -1389,6 +1583,43 @@
                     <i class="fas fa-moon icon-moon"></i>
                     <i class="fas fa-sun icon-sun"></i>
                 </button>
+                <div class="dropdown theme-picker">
+                    <button class="theme-picker-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="انتخاب تم">
+                        <i class="fas fa-palette"></i>
+                        <span class="theme-picker-label">تاریک</span>
+                        <i class="fas fa-chevron-down theme-caret"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end theme-picker-menu">
+                        <li>
+                            <button type="button" class="dropdown-item theme-option" data-theme-choice="dark">
+                                <span class="theme-swatch" style="background:linear-gradient(135deg,#818cf8,#22d3ee)"></span>
+                                <span>تاریک</span>
+                                <i class="fas fa-check theme-check"></i>
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item theme-option" data-theme-choice="light">
+                                <span class="theme-swatch" style="background:linear-gradient(135deg,#eef1f8,#4f46e5)"></span>
+                                <span>روشن</span>
+                                <i class="fas fa-check theme-check"></i>
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item theme-option" data-theme-choice="sand">
+                                <span class="theme-swatch" style="background:linear-gradient(135deg,#6B4F3D,#C76A2E)"></span>
+                                <span>کاراملی</span>
+                                <i class="fas fa-check theme-check"></i>
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item theme-option" data-theme-choice="ember">
+                                <span class="theme-swatch" style="background:linear-gradient(135deg,#171717,#A3121B)"></span>
+                                <span>شب‌سرخ</span>
+                                <i class="fas fa-check theme-check"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
                 {% if user.is_authenticated and user_role == 'both' %}
                 {% if can_access_admin %}
                 <a href="{% url 'admin-mode-off' %}" class="btn btn-outline-glass btn-mode-switch" title="خروج از حالت ادمین">
@@ -1532,22 +1763,50 @@
             document.fonts.ready.then(syncHeaderHeight);
         }
 
-        // ===== Theme toggle =====
+        // ===== Theme manager (4 themes) =====
         const html = document.documentElement;
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        html.setAttribute('data-theme', savedTheme);
+        const THEMES = {
+            dark: 'تاریک',
+            light: 'روشن',
+            sand: 'کاراملی',
+            ember: 'شب‌سرخ',
+        };
+
+        function applyTheme(theme, persist) {
+            if (!THEMES[theme]) theme = 'dark';
+            html.setAttribute('data-theme', theme);
+            if (persist !== false) localStorage.setItem('theme', theme);
+
+            document.querySelectorAll('.theme-picker-label').forEach(function(el) {
+                el.textContent = THEMES[theme];
+            });
+            document.querySelectorAll('.theme-option').forEach(function(el) {
+                el.classList.toggle('active', el.dataset.themeChoice === theme);
+            });
+        }
+
+        applyTheme(localStorage.getItem('theme') || 'dark', false);
 
         function bindThemeToggle(btn) {
             if (!btn) return;
             btn.addEventListener('click', function() {
                 const current = html.getAttribute('data-theme');
-                const next = current === 'dark' ? 'light' : 'dark';
-                html.setAttribute('data-theme', next);
-                localStorage.setItem('theme', next);
+                applyTheme(current === 'light' ? 'dark' : 'light');
             });
         }
         bindThemeToggle(document.getElementById('themeToggle'));
         bindThemeToggle(document.getElementById('themeToggleMobile'));
+
+        document.querySelectorAll('[data-theme-choice]').forEach(function(el) {
+            el.addEventListener('click', function() {
+                applyTheme(this.dataset.themeChoice);
+                const dropdown = this.closest('.dropdown');
+                if (dropdown && window.bootstrap) {
+                    const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+                    if (toggle) bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+                }
+            });
+        });
 
         // ===== Clock — server-synced =====
         const clockTargets = [
