@@ -9,11 +9,7 @@ from django.utils import timezone
 
 from recognition.forms import JalaliDatePickerField, JalaliDateTimePickerField, JalaliDateTimePickerInput
 
-from .models import Errand
-
-
-# چند روز قبل‌تر از امروز مجاز است؟ (امروز + N روز گذشته)
-BACKDATE_LIMIT_DAYS = 7
+from .models import Errand, ErrandSettings
 
 
 class ErrandForm(forms.ModelForm):
@@ -81,9 +77,13 @@ class ErrandForm(forms.ModelForm):
             )
         return value
 
+    def _backdate_limit(self):
+        """محدودیت روزهای گذشته — قابل تنظیم توسط ادمین از پنل جنگو."""
+        return ErrandSettings.load().backdate_limit_days
+
     def _earliest_allowed(self):
         today = timezone.localdate()
-        return today - dt.timedelta(days=BACKDATE_LIMIT_DAYS)
+        return today - dt.timedelta(days=self._backdate_limit())
 
     def save(self, commit=True):
         """نگاشت «start/end» (فیلدهای فرم) به start_time/end_time مدل.
@@ -117,14 +117,15 @@ class ErrandForm(forms.ModelForm):
             self.add_error('end', 'پایان مأموریت باید بعد از شروع آن باشد.')
             return cleaned
 
-        # ۲) سقف ۷ روز گذشته
+        # ۲) سقف روزهای گذشته (قابل تنظیم در پنل ادمین)
         earliest = self._earliest_allowed()
         local_start = timezone.localtime(start).date()
         if local_start < earliest:
+            limit_days = max((timezone.localdate() - earliest).days, 0)
             self.add_error(
                 'start',
                 'ثبت مأموریت برای تاریخ‌های قدیمی‌تر از %s روز گذشته مجاز نیست.'
-                % BACKDATE_LIMIT_DAYS,
+                % limit_days,
             )
 
         # ۳) سقف ۳۰ روز آینده (جلوگیری از اشتباه تایپی مثل سال)

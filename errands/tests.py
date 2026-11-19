@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from errands.forms import ErrandForm
-from errands.models import Errand
+from errands.models import Errand, ErrandSettings
 from errands.services import (
     effective_seconds,
     merge_intervals,
@@ -367,6 +367,37 @@ class ErrandFormTests(TestCase):
         form = self.make_form(
             jal_text(recent, 8, 0), jal_text(recent, 16, 0))
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_backdate_limit_is_configurable(self):
+        settings_obj = ErrandSettings.load()
+        settings_obj.backdate_limit_days = 10
+        settings_obj.save()
+
+        allowed = self.today - dt.timedelta(days=9)
+        form = self.make_form(
+            jal_text(allowed, 8, 0), jal_text(allowed, 16, 0))
+        self.assertTrue(form.is_valid(), form.errors)
+
+        rejected = self.today - dt.timedelta(days=11)
+        form = self.make_form(
+            jal_text(rejected, 8, 0), jal_text(rejected, 16, 0))
+        self.assertFalse(form.is_valid())
+        self.assertIn('start', form.errors)
+
+    def test_zero_backdate_limit_allows_only_today(self):
+        settings_obj = ErrandSettings.load()
+        settings_obj.backdate_limit_days = 0
+        settings_obj.save()
+
+        form = self.make_form(
+            jal_text(self.today, 8, 0), jal_text(self.today, 16, 0))
+        self.assertTrue(form.is_valid(), form.errors)
+
+        yesterday = self.today - dt.timedelta(days=1)
+        form = self.make_form(
+            jal_text(yesterday, 8, 0), jal_text(yesterday, 16, 0))
+        self.assertFalse(form.is_valid())
+        self.assertIn('start', form.errors)
 
     def test_far_future_end_rejected(self):
         far = self.today + dt.timedelta(days=45)
@@ -907,6 +938,24 @@ class ErrandAdminTests(TestCase):
         })
         self.assertIn(r.status_code, (200, 302))
         return r
+
+    # ---------- تنظیمات مأموریت ----------
+
+    def test_settings_changelist_redirects_to_singleton(self):
+        obj = ErrandSettings.load()
+        r = self.client.get(reverse('admin:errands_errandsettings_changelist'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(str(obj.pk), r['Location'])
+
+    def test_admin_can_change_backdate_limit(self):
+        obj = ErrandSettings.load()
+        r = self.client.post(
+            reverse('admin:errands_errandsettings_change', args=[obj.pk]),
+            {'backdate_limit_days': '14'},
+        )
+        self.assertEqual(r.status_code, 302)
+        obj.refresh_from_db()
+        self.assertEqual(obj.backdate_limit_days, 14)
 
     # ---------- فهرست و فیلترها ----------
 

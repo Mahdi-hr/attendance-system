@@ -20,7 +20,7 @@ from recognition.excel_export import build_xlsx
 from recognition.reports import clock, jalali_full
 from recognition.views import XLSX_CONTENT_TYPE
 
-from .models import Errand
+from .models import Errand, ErrandSettings
 
 # رنگ/آیکون هر وضعیت برای نشان‌های رنگی
 STATUS_STYLES = {
@@ -47,6 +47,43 @@ def jalali_range(errand):
         clock(errand.start_time),
         clock(errand.end_time),
     )
+
+
+@admin.register(ErrandSettings)
+class ErrandSettingsAdmin(admin.ModelAdmin):
+    """تنظیمات تک‌رکوردی مأموریت؛ ادمین مستقیم وارد صفحهٔ ویرایش می‌شود."""
+
+    fieldsets = [
+        ('محدودیت ثبت در گذشته', {
+            'fields': ('backdate_limit_days', 'updated_at_display'),
+            'description': (
+                'این تعداد روز، هم در سایت و هم در ربات بله اعمال می‌شود. '
+                'برای مثال اگر ۷ باشد، امروز و ۷ روز قبل قابل ثبت است.'
+            ),
+        }),
+    ]
+    readonly_fields = ('updated_at_display',)
+    list_display = ('backdate_limit_days', 'updated_at_display')
+    save_on_top = True
+
+    @admin.display(description='آخرین ویرایش')
+    def updated_at_display(self, obj):
+        if not obj or not obj.updated_at:
+            return '—'
+        return timezone.localtime(obj.updated_at).strftime('%Y/%m/%d %H:%M')
+
+    def changelist_view(self, request, extra_context=None):
+        obj = ErrandSettings.load()
+        return HttpResponseRedirect(reverse(
+            '%s:errands_errandsettings_change' % self.admin_site.name,
+            args=[obj.pk],
+        ))
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Errand)

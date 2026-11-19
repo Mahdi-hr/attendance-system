@@ -44,6 +44,8 @@ def tool_menu():
                  'icon': 'fas fa-diagram-project'},
                 {'name': 'مدیریت پروژه‌ها', 'url': '/worklog/projects/',
                  'icon': 'fas fa-gear'},
+                {'name': 'تنظیمات مأموریت', 'url': r('errands_errandsettings_changelist'),
+                 'icon': 'fas fa-sliders-h'},
                 {'name': 'عکس‌های لحظه ورود/خروج', 'url': '/manage/snapshots/',
                  'icon': 'fas fa-camera'},
             ],

@@ -28,7 +28,7 @@ from users.roles import can_access_admin
 
 from . import services
 from .forms import ErrandAdminEditForm, ErrandFilterForm, ErrandForm, ErrandReviewForm
-from .models import Errand
+from .models import Errand, ErrandSettings
 
 PER_PAGE = 25
 MY_PER_PAGE = 3  # «مأموریت‌های من»: حداکثر ۳ درخواست اخیر در هر صفحه از هر بخش
@@ -129,6 +129,7 @@ def my_errands(request):
         for iv in services.split_interval_by_day(e.start_time, e.end_time)
     )
     current = services.open_errand_now(user)
+    backdate_limit = ErrandSettings.load().backdate_limit_days
 
     return render(request, 'errands/my_errands.html', {
         'form': errand_form,
@@ -138,8 +139,8 @@ def my_errands(request):
         'counts': counts,
         'approved_text': format_hours(approved_seconds),
         'current_errand': current,
-        'earliest_date': timezone.localdate() - dt.timedelta(days=7),
-        'backdate_limit': 7,
+        'earliest_date': timezone.localdate() - dt.timedelta(days=backdate_limit),
+        'backdate_limit': backdate_limit,
         'is_admin_mode': is_admin_mode,
     })
 

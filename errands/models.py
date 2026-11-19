@@ -291,3 +291,37 @@ class Errand(models.Model):
         self.reviewed_at = timezone.now()
         self.save(update_fields=['status', 'reviewed_at', 'updated_at'])
         return True
+
+class ErrandSettings(models.Model):
+    """تنظیمات سراسری مأموریت (تک‌رکوردی).
+
+    ادمین از پنل جنگو می‌تواند تعداد روزهای مجاز برای ثبت مأموریت در
+    گذشته را تغییر دهد؛ تغییر بلافاصله در فرم سایت و ربات اعمال می‌شود.
+    """
+
+    backdate_limit_days = models.PositiveSmallIntegerField(
+        'حداکثر روز گذشته',
+        default=7,
+        help_text=(
+            'کارمند می‌تواند برای امروز و این تعداد روز قبل مأموریت ثبت '
+            'کند. صفر یعنی فقط امروز.'
+        ),
+    )
+    updated_at = models.DateTimeField('آخرین ویرایش', auto_now=True)
+
+    class Meta:
+        verbose_name = 'تنظیمات مأموریت'
+        verbose_name_plural = 'تنظیمات مأموریت'
+
+    def __str__(self):
+        return 'حداکثر %s روز گذشته' % self.backdate_limit_days
+
+    def save(self, *args, **kwargs):
+        # همیشه یک رکورد؛ ادمین فقط همان را ویرایش می‌کند.
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
