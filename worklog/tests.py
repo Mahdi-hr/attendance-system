@@ -280,6 +280,9 @@ class ViewTests(WorklogTestBase):
         self.assertContains(response, 'wl-m-card')
         self.assertNotContains(response, '<table class="wl-table')
         self.assertContains(response, 'name="%s"' % self.kp1)
+        # فقط پروژه‌های دارای ساعت نمایش داده می‌شوند، نه همهٔ پروژه‌ها.
+        self.assertNotContains(response, 'name="%s"' % 'p%d_1' % self.p2.pk)
+        self.assertContains(response, 'class="wl-m-add"')
 
     def test_mobile_ua_gets_mobile_view(self):
         self.client.force_login(self.emp)

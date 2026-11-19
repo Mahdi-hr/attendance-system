@@ -214,6 +214,36 @@
         font-variant-numeric: tabular-nums;
     }
     .wl-m-foot strong.over { color: var(--danger); }
+    .wl-m-add {
+        display: flex; align-items: center; gap: .4rem;
+        margin-top: .55rem; padding-top: .55rem;
+        border-top: 1px dashed var(--glass-border);
+    }
+    .wl-m-add-select {
+        flex: 1; min-width: 0;
+        background: var(--form-bg); color: var(--text-primary);
+        border: 1px dashed var(--glass-border); border-radius: 10px;
+        padding: .45rem .55rem; font-size: .8rem; font-family: inherit;
+    }
+    .wl-m-add-select:focus { outline: none; border-color: var(--primary); }
+    .wl-m-add-hours {
+        width: 62px; padding: .42rem .35rem; text-align: center;
+        background: var(--form-bg); color: var(--text-primary);
+        border: 1px solid var(--glass-border); border-radius: 10px;
+        font-size: .8rem; font-family: inherit;
+        -moz-appearance: textfield;
+    }
+    .wl-m-add-hours::-webkit-outer-spin-button,
+    .wl-m-add-hours::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .wl-m-add-hours:focus { outline: none; border-color: var(--primary); }
+    .wl-m-add-btn {
+        padding: .42rem .7rem; border-radius: 10px; cursor: pointer;
+        border: 1px solid rgba(var(--primary-rgb), .35);
+        background: rgba(var(--primary-rgb), .12);
+        color: var(--primary); font-size: .78rem; font-weight: 700;
+        font-family: inherit; white-space: nowrap;
+    }
+    .wl-m-add-btn:hover { background: rgba(var(--primary-rgb), .2); }
 
     @media (max-width: 768px) {
         .wl-hero h1 { font-size: 1.2rem; }
@@ -430,10 +460,74 @@
         }
     }
 
-    document.querySelectorAll('.wl-input').forEach(function (el) {
+    function bindInput(el) {
         el.addEventListener('input', function () {
             recalcDay(this.dataset.day);
             recalcTotals();
+        });
+    }
+    document.querySelectorAll('.wl-input').forEach(bindInput);
+
+    // نمای موبایل: فقط پروژه‌های دارای ساعت نمایش داده می‌شوند؛
+    // افزودن پروژهٔ جدید با یک انتخابگر کوچک انجام می‌شود.
+    document.querySelectorAll('.wl-m-add').forEach(function (wrap) {
+        var select = wrap.querySelector('.wl-m-add-select');
+        var hours = wrap.querySelector('.wl-m-add-hours');
+        var button = wrap.querySelector('.wl-m-add-btn');
+        if (!select || !hours || !button) return;
+
+        if (select.options.length <= 1) {
+            wrap.style.display = 'none';
+            return;
+        }
+
+        button.addEventListener('click', function () {
+            var option = select.options[select.selectedIndex];
+            if (!option || !option.value) {
+                select.focus();
+                return;
+            }
+            var card = wrap.closest('.wl-m-card');
+            var list = card ? card.querySelector('.wl-m-projects') : null;
+            if (!list) return;
+
+            var day = wrap.dataset.day;
+            var kind = option.dataset.kind;
+            var row = document.createElement('div');
+            row.className = 'wl-m-project';
+
+            var label = document.createElement('label');
+            label.textContent = option.textContent;
+
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.01';
+            input.min = '0';
+            input.max = '24';
+            input.inputMode = 'decimal';
+            input.className = 'wl-input' + (kind === 'other' ? ' wl-other-input' : '');
+            input.name = (kind === 'other')
+                ? 'other_' + day
+                : 'p' + option.value + '_' + day;
+            input.dataset.day = day;
+            input.value = hours.value.trim();
+            input.setAttribute('aria-label', option.textContent + ' روز ' + day);
+            bindInput(input);
+
+            row.appendChild(label);
+            row.appendChild(input);
+
+            var companyRow = card.querySelector('.wl-m-company-row');
+            if (companyRow) list.insertBefore(row, companyRow);
+            else list.appendChild(row);
+
+            option.remove();
+            hours.value = '';
+            if (select.options.length <= 1) wrap.style.display = 'none';
+            else select.selectedIndex = 0;
+            recalcDay(day);
+            recalcTotals();
+            input.focus();
         });
     });
 

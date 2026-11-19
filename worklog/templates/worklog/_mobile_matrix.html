@@ -27,43 +27,43 @@
 
     <div class="wl-m-projects">
         {% for row in matrix.projects %}
-        <div class="wl-m-project">
-            <label>{{ row.project.name }}</label>
             {% for cell in row.cells %}
-            {% if cell.day == day.day %}
+            {% if cell.day == day.day and cell.value %}
+            <div class="wl-m-project" data-project-row="{{ row.project.id }}">
+                <label>{{ row.project.name }}</label>
                 {% if editable %}
                 <input type="number"
                        name="p{{ row.project.id }}_{{ cell.day }}"
-                       value="{% if cell.value %}{{ cell.value|floatformat:2 }}{% endif %}"
+                       value="{{ cell.value|floatformat:2 }}"
                        step="0.01" min="0" max="24"
                        class="wl-input" data-day="{{ cell.day }}"
                        inputmode="decimal"
                        aria-label="{{ row.project.name }} روز {{ cell.day }}">
                 {% else %}
-                <span class="wl-val">{% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}</span>
+                <span class="wl-val">{{ cell.value|floatformat:2|fa }}</span>
                 {% endif %}
+            </div>
             {% endif %}
             {% endfor %}
-        </div>
         {% endfor %}
 
-        <div class="wl-m-project">
-            <label>سایر</label>
-            {% for cell in matrix.other_cells %}
-            {% if cell.day == day.day %}
-                {% if editable %}
-                <input type="number" name="other_{{ cell.day }}"
-                       value="{% if cell.value %}{{ cell.value|floatformat:2 }}{% endif %}"
-                       step="0.01" min="0" max="24"
-                       class="wl-input wl-other-input" data-day="{{ cell.day }}"
-                       inputmode="decimal"
-                       aria-label="سایر روز {{ cell.day }}">
-                {% else %}
-                <span class="wl-val">{% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}</span>
-                {% endif %}
+        {% for cell in matrix.other_cells %}
+        {% if cell.day == day.day and cell.value %}
+        <div class="wl-m-project wl-m-other-row">
+            <label>سایر{% if matrix.other_title %} — {{ matrix.other_title }}{% endif %}</label>
+            {% if editable %}
+            <input type="number" name="other_{{ cell.day }}"
+                   value="{{ cell.value|floatformat:2 }}"
+                   step="0.01" min="0" max="24"
+                   class="wl-input wl-other-input" data-day="{{ cell.day }}"
+                   inputmode="decimal"
+                   aria-label="سایر روز {{ cell.day }}">
+            {% else %}
+            <span class="wl-val">{{ cell.value|floatformat:2|fa }}</span>
             {% endif %}
-            {% endfor %}
         </div>
+        {% endif %}
+        {% endfor %}
 
         {% if day.errand %}
         <div class="wl-m-project wl-m-company-row">
@@ -72,6 +72,31 @@
         </div>
         {% endif %}
     </div>
+
+    {% if editable %}
+    <div class="wl-m-add" data-day="{{ day.day }}">
+        <select class="wl-m-add-select" aria-label="افزودن پروژه به روز {{ day.day }}">
+            <option value="">+ افزودن پروژه</option>
+            {% for row in matrix.projects %}
+                {% for cell in row.cells %}
+                {% if cell.day == day.day and not cell.value %}
+                <option value="{{ row.project.id }}" data-kind="project">{{ row.project.name }}</option>
+                {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% for cell in matrix.other_cells %}
+            {% if cell.day == day.day and not cell.value %}
+            <option value="other" data-kind="other">سایر</option>
+            {% endif %}
+            {% endfor %}
+        </select>
+        <input type="number" class="wl-m-add-hours"
+               step="0.01" min="0" max="24"
+               inputmode="decimal" placeholder="ساعت"
+               aria-label="ساعت پروژهٔ جدید روز {{ day.day }}">
+        <button type="button" class="wl-m-add-btn">افزودن</button>
+    </div>
+    {% endif %}
 
     <div class="wl-m-foot">
         <span>جمع کل: <strong class="wl-day-alloc" data-day="{{ day.day }}">{{ day.allocated|floatformat:2|fa }}</strong></span>
