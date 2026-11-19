@@ -763,6 +763,36 @@ def _preset_end(account, which, client):
     _set_end(account, end, client)
 
 
+def _ask_destination(account, client, warning=None):
+    """درخواست مقصد؛ برای مأموریت شرکتی الزامی و همراه لیست انتخاب."""
+    draft = (account.state_data or {}).get('draft') or {}
+    company = draft.get('work_mode') == 'company'
+    options = services.destination_options(account.django_user, limit=10)
+
+    rows = []
+    for index in range(0, len(options), 2):
+        pair = options[index:index + 2]
+        rows.append([
+            btn('📍 ' + name[:26], 'err:tpl:destination:%d' % (index + offset))
+            for offset, name in enumerate(pair)
+        ])
+    if not company:
+        rows.append([btn('⏭ رد کردن', 'err:skip:destination')])
+    rows.append([btn('❌ لغو', 'menu:main')])
+
+    text = '✅ دلیل ثبت شد.\n\n'
+    if warning:
+        text += warning + '\n\n'
+    if company:
+        text += (
+            'مقصد مأموریت شرکتی را از دکمه‌های زیر انتخاب کنید '
+            'یا نام آن را بنویسید.\n(الزامی)'
+        )
+    else:
+        text += 'مقصد را بنویسید (اختیاری):'
+    return _send(account, text, inline(rows), client=client)
+
+
 def _submit_errand(account, client):
     draft = (account.state_data or {}).get('draft') or {}
     try:
@@ -986,15 +1016,30 @@ def _errand_edit_field(account, pk, field, client):
             client=client,
         )
     elif field in ('destination', 'contact'):
-        _send(
-            account,
-            '%s جدید را بفرستید (یا خالی کنید):' % label,
-            inline([
-                [btn('⏭ خالی کردن', 'err:editskip:%d:%s' % (pk, field))],
-                [btn('❌ انصراف', 'err:edit:%d' % pk)],
-            ]),
-            client=client,
-        )
+        rows = []
+        if field == 'destination':
+            options = services.destination_options(
+                account.django_user, limit=10,
+            )
+            for index in range(0, len(options), 2):
+                pair = options[index:index + 2]
+                rows.append([
+                    btn('📍 ' + name[:26],
+                        'err:tpl:destination:%d' % (index + offset))
+                    for offset, name in enumerate(pair)
+                ])
+        if not (field == 'destination' and errand.is_company):
+            rows.append([
+                btn('⏭ خالی کردن', 'err:editskip:%d:%s' % (pk, field)),
+            ])
+        rows.append([btn('❌ انصراف', 'err:edit:%d' % pk)])
+
+        prompt = '%s جدید را بفرستید' % label
+        if field == 'destination' and errand.is_company:
+            prompt += ' (الزامی — از دکمه‌ها انتخاب یا نام آن را بنویسید):'
+        else:
+            prompt += ' (یا خالی کنید):'
+        _send(account, prompt, inline(rows), client=client)
     else:
         _send(
             account,
@@ -1060,7 +1105,7 @@ def _apply_template(account, which, index, client):
     user = account.django_user
     items = (
         services.recent_reasons(user) if which == 'reason'
-        else services.recent_destinations(user)
+        else services.destination_options(user, limit=10)
     )
     if not (0 <= index < len(items)):
         return
@@ -2170,26 +2215,18 @@ def _handle_state(account, message, text, client):
         account.state_data = {'draft': draft}
         account.state = 'errand:destination'
         account.save()
-        rows = [
-            [btn('💡 ' + dest[:32], 'err:tpl:destination:%d' % index)]
-            for index, dest in enumerate(
-                services.recent_destinations(account.django_user)
-            )
-        ]
-        rows.append([btn('⏭ رد کردن', 'err:skip:destination')])
-        rows.append([btn('❌ لغو', 'menu:main')])
-        return _send(
-            account,
-            '✅ دلیل ثبت شد.\n\nمقصد را بنویسید (اختیاری):',
-            inline(rows),
-            client=client,
-        )
+        return _ask_destination(account, client)
 
     if state == 'errand:destination':
         destination = text.strip()
         if len(destination) > 200:
             return _send(account, '⚠️ مقصد حداکثر ۲۰۰ نویسه است.', client=client)
         draft = dict((account.state_data or {}).get('draft') or {})
+        if not destination and draft.get('work_mode') == 'company':
+            return _ask_destination(
+                account, client,
+                warning='⚠️ برای مأموریت شرکتی، انتخاب یا نوشتن مقصد الزامی است.',
+            )
         draft['destination'] = destination
         account.state_data = {'draft': draft}
         account.state = 'errand:contact'
@@ -2396,6 +2433,13 @@ def _handle_action(account, data, client, edit_id=None):
     if data.startswith('err:skip:'):
         field = data.split(':', 2)[2]
         draft = dict((account.state_data or {}).get('draft') or {})
+        if field == 'destination' and draft.get('work_mode') == 'company':
+            account.state = 'errand:destination'
+            account.save()
+            return _ask_destination(
+                account, client,
+                warning='⚠️ برای مأموریت شرکتی، مقصد الزامی است.',
+            )
         draft[field] = ''
         account.state_data = {'draft': draft}
         if field == 'destination':

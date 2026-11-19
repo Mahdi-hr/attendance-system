@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from errands.forms import ErrandForm
-from errands.models import Errand, ErrandSettings
+from errands.models import Errand, ErrandDestination, ErrandSettings
 from errands.services import (
     effective_seconds,
     merge_intervals,
@@ -448,16 +448,32 @@ class ErrandFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('work_mode', form.errors)
 
-    def test_company_mode_is_saved(self):
+    def test_company_mode_requires_destination(self):
         form = self.make_form(
             jal_text(self.today, 8, 0), jal_text(self.today, 16, 0),
             work_mode='company',
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('destination', form.errors)
+
+    def test_company_mode_is_saved(self):
+        form = self.make_form(
+            jal_text(self.today, 8, 0), jal_text(self.today, 16, 0),
+            work_mode='company', destination='بانک ملت',
         )
         self.assertTrue(form.is_valid(), form.errors)
         obj = form.save(commit=False)
         obj.user = self.user
         obj.save()
         self.assertEqual(obj.work_mode, 'company')
+        self.assertEqual(obj.destination, 'بانک ملت')
+
+    def test_remote_mode_destination_stays_optional(self):
+        form = self.make_form(
+            jal_text(self.today, 8, 0), jal_text(self.today, 16, 0),
+            work_mode='remote',
+        )
+        self.assertTrue(form.is_valid(), form.errors)
 
 
 class EmployeeErrandViewTests(TestCase):
@@ -496,6 +512,20 @@ class EmployeeErrandViewTests(TestCase):
         for preset in ('today', 'week', 'currentMonth'):
             self.assertContains(r, 'data-errand-preset="%s"' % preset)
         self.assertContains(r, 'ثبت مأموریت جدید')
+
+    def test_active_destination_appears_in_datalist(self):
+        ErrandDestination.objects.create(name='بانک ملت')
+        self.login(self.employee)
+        r = self.client.get(self.url)
+        self.assertContains(r, '<option value="بانک ملت">')
+
+    def test_company_post_requires_destination(self):
+        self.login(self.employee)
+        r = self.client.post(self.url, self.valid_post(
+            work_mode='company', destination=''))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'مقصد')
+        self.assertEqual(Errand.objects.count(), 0)
 
     def test_employee_creates_pending_errand(self):
         self.login(self.employee)
@@ -940,6 +970,16 @@ class ErrandAdminTests(TestCase):
         return r
 
     # ---------- تنظیمات مأموریت ----------
+
+    def test_admin_can_add_destination(self):
+        r = self.client.post(
+            reverse('admin:errands_erranddestination_add'),
+            {'name': 'بانک ملت', 'is_active': 'on', 'sort_order': '1'},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(
+            ErrandDestination.objects.filter(name='بانک ملت').exists()
+        )
 
     def test_settings_changelist_redirects_to_singleton(self):
         obj = ErrandSettings.load()

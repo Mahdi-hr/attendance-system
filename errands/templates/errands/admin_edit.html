@@ -214,6 +214,11 @@
                                     مقصد
                                 </label>
                                 {{ form.destination }}
+                                <datalist id="errand-destinations">
+                                    {% for destination in destination_options %}
+                                    <option value="{{ destination }}"></option>
+                                    {% endfor %}
+                                </datalist>
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label" for="{{ form.contact.id_for_label }}">

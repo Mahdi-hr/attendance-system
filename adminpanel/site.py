@@ -46,6 +46,8 @@ def tool_menu():
                  'icon': 'fas fa-gear'},
                 {'name': 'تنظیمات مأموریت', 'url': r('errands_errandsettings_changelist'),
                  'icon': 'fas fa-sliders-h'},
+                {'name': 'مقصدهای مأموریت', 'url': r('errands_erranddestination_changelist'),
+                 'icon': 'fas fa-map-marker-alt'},
                 {'name': 'عکس‌های لحظه ورود/خروج', 'url': '/manage/snapshots/',
                  'icon': 'fas fa-camera'},
             ],

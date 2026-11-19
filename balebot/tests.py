@@ -13,7 +13,7 @@ from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 
-from errands.models import Errand
+from errands.models import Errand, ErrandDestination
 from users.models import CheckOutError, Time, UserProfile
 from users.roles import ROLE_ADMIN, ROLE_BOTH, ROLE_USER
 
@@ -273,6 +273,27 @@ class EmployeeFeatureTests(BotTestBase):
         errand = Errand.objects.get(user=self.emp, reason='مراجعه به بانک')
         self.assertEqual(errand.status, Errand.STATUS_PENDING)
         self.assertIn('ثبت شد', self.bot.last_text)
+
+    def test_company_errand_requires_and_uses_destination(self):
+        ErrandDestination.objects.create(name='بانک ملت')
+        self.login('emp')
+        self.click('err:new')
+        self.click('err:mode:company')
+        self.send(jalali_today(9))
+        self.send(jalali_today(12))
+        self.send('مراجعه به بانک')
+
+        # برای شرکتی، مقصد الزامی است و دکمهٔ «رد کردن» نباید مسیر را باز کند.
+        self.assertIn('الزامی', self.bot.last_text)
+        self.click('err:skip:destination')
+        self.assertIn('الزامی', self.bot.last_text)
+
+        self.click('err:tpl:destination:0')
+        self.click('err:skip:contact')
+
+        errand = Errand.objects.get(user=self.emp, reason='مراجعه به بانک')
+        self.assertEqual(errand.work_mode, Errand.MODE_COMPANY)
+        self.assertEqual(errand.destination, 'بانک ملت')
 
     def test_errand_end_before_start_is_rejected(self):
         self.login('emp')

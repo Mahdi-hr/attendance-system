@@ -116,6 +116,41 @@ def errand_split_map(user, year, month, attendance):
     return result
 
 
+def company_errand_map(user, year, month, attendance):
+    """نقشهٔ تاریخ → {مقصد: ثانیهٔ مؤثر} برای مأموریت‌های شرکتی.
+
+    برای نمایش مقصد در عنوان فعالیت (وب) و ساخت ردیف‌های تفکیک‌شده در
+    اکسل استفاده می‌شود. ساعت مؤثر هر مقصد جداگانه محاسبه می‌شود تا با
+    حضور فیزیکی دوبار شمرده نشود.
+    """
+    start, end, _count = month_bounds(year, month)
+    sessions_by_day = {
+        date: row.get('sessions', [])
+        for date, row in attendance.items()
+    }
+    buckets = defaultdict(lambda: defaultdict(list))
+    errands = (
+        Errand.objects.approved()
+        .filter(user=user, work_mode=Errand.MODE_COMPANY)
+        .for_window(start, end)
+    )
+    for errand in errands:
+        destination = (errand.destination or '').strip() or 'بدون مقصد'
+        for date, seg_start, seg_end in split_interval_by_day(
+            errand.start_time, errand.end_time,
+        ):
+            buckets[date][destination].append((seg_start, seg_end))
+
+    result = {}
+    for date, per_destination in buckets.items():
+        sessions = sessions_by_day.get(date, [])
+        result[date] = {
+            destination: effective_seconds(intervals, sessions)
+            for destination, intervals in per_destination.items()
+        }
+    return result
+
+
 def allowed_hours_for(attendance, split, date):
     """ساعت قابل تخصیص به پروژه = حضور فیزیکی + مأموریت ریموت."""
     physical = allocatable_hours_for(attendance, date)
@@ -170,6 +205,19 @@ def month_matrix(user, year, month, projects=None):
     days = month_days(year, month)
     attendance = attendance_map(user, year, month)
     split = errand_split_map(user, year, month, attendance)
+    company_map = company_errand_map(user, year, month, attendance)
+    errand_destinations = sorted({
+        destination
+        for per_destination in company_map.values()
+        for destination in per_destination
+    })
+    if errand_destinations:
+        shown = '، '.join(errand_destinations[:2])
+        if len(errand_destinations) > 2:
+            shown += '…'
+        errand_label = 'مأموریت شرکتی — %s' % shown
+    else:
+        errand_label = 'مأموریت شرکتی (تأییدشده)'
 
     logs = (
         WorkLog.objects
@@ -263,6 +311,8 @@ def month_matrix(user, year, month, projects=None):
         'other_total': other_total,
         'errand_cells': errand_cells,
         'errand_total': errand_total,
+        'errand_label': errand_label,
+        'errand_destinations': errand_destinations,
         'total_worked': total_worked,
         'total_allocatable': total_allocatable,
         'total_errand': total_errand,
@@ -441,25 +491,41 @@ def report_data(user, year, month):
         else:
             other_rows.append(row)
 
-    # ردیف مأموریتِ شرکتی تأییدشده — خودکار و غیرقابل ویرایش.
-    errand_values = []
-    for day in range(1, 32):
-        if day <= days_in_month:
-            date = jdatetime.date(year, month, day).togregorian()
-            company_seconds = split.get(date, (0, 0))[1]
-            value = _hours_from_seconds(company_seconds)
-        else:
-            value = Decimal('0')
-        errand_values.append(value)
-    errand_total = sum(errand_values, Decimal('0'))
+    # ردیف‌های مأموریت شرکتی تأییدشده — به تفکیک مقصد (خودکار).
+    # در وب یک ردیف جمع می‌ماند تا جدول شلوغ نشود، ولی اکسل مقصد هر
+    # مأموریت را جدا نشان می‌دهد.
+    company_map = company_errand_map(user, year, month, attendance)
+    by_destination = {}
+    for date, per_destination in company_map.items():
+        day = jdatetime.date.fromgregorian(date=date).day
+        for destination, seconds in per_destination.items():
+            values = by_destination.setdefault(
+                destination, [Decimal('0')] * 31,
+            )
+            values[day - 1] += _hours_from_seconds(seconds)
 
     rows = list(project_rows)
-    rows.append({
-        'title': 'مأموریت شرکتی (تأییدشده)',
-        'values': errand_values,
-        'total': errand_total,
-        'auto': True,
-    })
+    if by_destination:
+        for destination in sorted(by_destination):
+            values = by_destination[destination]
+            title = (
+                'مأموریت شرکتی — %s' % destination
+                if destination != 'بدون مقصد'
+                else 'مأموریت شرکتی (بدون مقصد)'
+            )
+            rows.append({
+                'title': title,
+                'values': values,
+                'total': sum(values, Decimal('0')),
+                'auto': True,
+            })
+    else:
+        rows.append({
+            'title': 'مأموریت شرکتی (تأییدشده)',
+            'values': [Decimal('0')] * 31,
+            'total': Decimal('0'),
+            'auto': True,
+        })
     rows.extend(other_rows)
 
     total_by_day = []
@@ -468,6 +534,10 @@ def report_data(user, year, month):
             (row['values'][day - 1] for row in rows), Decimal('0'),
         ))
     grand_total = sum((row['total'] for row in rows), Decimal('0'))
+    errand_total = sum(
+        (row['total'] for row in rows if row.get('auto')),
+        Decimal('0'),
+    )
 
     return {
         'user': user,

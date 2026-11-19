@@ -28,10 +28,19 @@ from users.roles import can_access_admin
 
 from . import services
 from .forms import ErrandAdminEditForm, ErrandFilterForm, ErrandForm, ErrandReviewForm
-from .models import Errand, ErrandSettings
+from .models import Errand, ErrandDestination, ErrandSettings
 
 PER_PAGE = 25
 MY_PER_PAGE = 3  # «مأموریت‌های من»: حداکثر ۳ درخواست اخیر در هر صفحه از هر بخش
+
+
+def _destination_options():
+    """مقصدهای فعال برای datalist فرم (قابل مدیریت در پنل ادمین)."""
+    return list(
+        ErrandDestination.objects.filter(is_active=True)
+        .order_by('sort_order', 'name')
+        .values_list('name', flat=True)
+    )
 
 
 def _jalali_input(value):
@@ -141,6 +150,7 @@ def my_errands(request):
         'current_errand': current,
         'earliest_date': timezone.localdate() - dt.timedelta(days=backdate_limit),
         'backdate_limit': backdate_limit,
+        'destination_options': _destination_options(),
         'is_admin_mode': is_admin_mode,
     })
 
@@ -275,6 +285,7 @@ def admin_edit(request, pk):
         'errand': errand,
         'start_value': _jalali_input(errand.start_time),
         'end_value': _jalali_input(errand.end_time),
+        'destination_options': _destination_options(),
     })
 
 

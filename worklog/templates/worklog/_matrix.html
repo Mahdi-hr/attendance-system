@@ -36,8 +36,9 @@
             {% endfor %}
 
             <tr class="wl-errand-row">
-                <td class="wl-sticky wl-title-col">
-                    <i class="fas fa-route me-1"></i>مأموریت شرکتی (تأییدشده)
+                <td class="wl-sticky wl-title-col"
+                    {% if matrix.errand_destinations %}title="{{ matrix.errand_destinations|join:'، ' }}"{% endif %}>
+                    <i class="fas fa-route me-1"></i>{{ matrix.errand_label }}
                     <span class="wl-auto-badge">خودکار</span>
                 </td>
                 {% for cell in matrix.errand_cells %}

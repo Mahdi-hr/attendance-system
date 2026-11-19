@@ -16,6 +16,7 @@
 import datetime as dt
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -128,7 +129,9 @@ class Errand(models.Model):
         blank=True,
         default='',
         verbose_name='مقصد',
-        help_text='اختیاری — مثلاً: بانک ملت، شعبهٔ مرکزی',
+        help_text=(
+            'برای مأموریت شرکتی الزامی است؛ مثلاً: بانک ملت، شعبهٔ مرکزی'
+        ),
     )
     contact = models.CharField(
         max_length=100,
@@ -193,6 +196,21 @@ class Errand(models.Model):
             timezone.localtime(self.start_time).strftime('%Y-%m-%d %H:%M'),
             timezone.localtime(self.end_time).strftime('%H:%M'),
         )
+
+    def clean(self):
+        """برای مأموریت شرکتی، مقصد اجباری است.
+
+        این اعتبارسنجی در فرم سایت، ربات و پنل ادمین (همه از ModelForm
+        استفاده می‌کنند) اعمال می‌شود.
+        """
+        super().clean()
+        if (
+            self.work_mode == self.MODE_COMPANY
+            and not (self.destination or '').strip()
+        ):
+            raise ValidationError({
+                'destination': 'برای مأموریت شرکتی، انتخاب یا نوشتن مقصد الزامی است.',
+            })
 
     # ---------- محاسبات کمکی ----------
 
@@ -325,3 +343,24 @@ class ErrandSettings(models.Model):
     def load(cls):
         obj, _created = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class ErrandDestination(models.Model):
+    """مقصدهای پیش‌فرض مأموریت که ادمین مدیریت می‌کند.
+
+    کارمند در فرم و ربات می‌تواند یکی را انتخاب کند یا نام جدیدی بنویسد؛
+    ادمین از پنل جنگو موارد جدید را اضافه/غیرفعال می‌کند.
+    """
+
+    name = models.CharField('نام مقصد', max_length=200, unique=True)
+    is_active = models.BooleanField('فعال', default=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField('ترتیب نمایش', default=0)
+    created_at = models.DateTimeField('زمان ایجاد', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'مقصد مأموریت'
+        verbose_name_plural = 'مقصدهای مأموریت'
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name

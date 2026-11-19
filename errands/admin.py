@@ -20,7 +20,7 @@ from recognition.excel_export import build_xlsx
 from recognition.reports import clock, jalali_full
 from recognition.views import XLSX_CONTENT_TYPE
 
-from .models import Errand, ErrandSettings
+from .models import Errand, ErrandDestination, ErrandSettings
 
 # رنگ/آیکون هر وضعیت برای نشان‌های رنگی
 STATUS_STYLES = {
@@ -47,6 +47,30 @@ def jalali_range(errand):
         clock(errand.start_time),
         clock(errand.end_time),
     )
+
+
+@admin.register(ErrandDestination)
+class ErrandDestinationAdmin(admin.ModelAdmin):
+    """مدیریت مقصدهای پیش‌فرض مأموریت‌های شرکتی."""
+
+    list_display = ('name', 'is_active', 'sort_order', 'created_at')
+    list_editable = ('is_active', 'sort_order')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    ordering = ('sort_order', 'name')
+    list_per_page = 50
+    save_on_top = True
+    actions = ('activate_selected', 'deactivate_selected')
+
+    @admin.action(description='فعال کردن مقصدهای انتخاب‌شده')
+    def activate_selected(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, '%d مقصد فعال شد.' % updated, messages.SUCCESS)
+
+    @admin.action(description='غیرفعال کردن مقصدهای انتخاب‌شده')
+    def deactivate_selected(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, '%d مقصد غیرفعال شد.' % updated, messages.SUCCESS)
 
 
 @admin.register(ErrandSettings)

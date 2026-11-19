@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from errands.forms import ErrandForm
-from errands.models import Errand
+from errands.models import Errand, ErrandDestination
 from errands.services import open_errand_now
 from recognition.forms import JalaliDateTimePickerField
 from recognition.reports import (
@@ -570,6 +570,19 @@ def recent_destinations(user, limit=4):
         if len(seen) >= limit:
             break
     return seen
+
+
+def destination_options(user, limit=10):
+    """مقصدهای فعال (مدیریت ادمین) + مقصدهای اخیر همان کاربر."""
+    names = list(
+        ErrandDestination.objects.filter(is_active=True)
+        .order_by('sort_order', 'name')
+        .values_list('name', flat=True)
+    )
+    for dest in recent_destinations(user, limit=limit):
+        if dest not in names:
+            names.append(dest)
+    return names[:limit]
 
 
 def errand_payload(errand, **overrides):

@@ -145,7 +145,7 @@ class ErrandWorklogTests(WorklogTestBase):
     """مأموریت تأییدشده خودکار در گزارش می‌آید و کاربر دخالتی ندارد."""
 
     def _add_errand(self, status, work_mode=Errand.MODE_REMOTE,
-                    start_hour=17, end_hour=19):
+                    start_hour=17, end_hour=19, destination=''):
         tz = timezone.get_current_timezone()
         return Errand.objects.create(
             user=self.emp,
@@ -158,10 +158,14 @@ class ErrandWorklogTests(WorklogTestBase):
             reason='مأموریت تست',
             status=status,
             work_mode=work_mode,
+            destination=destination,
         )
 
     def test_approved_errand_is_automatic(self):
-        self._add_errand(Errand.STATUS_APPROVED, Errand.MODE_COMPANY)
+        self._add_errand(
+            Errand.STATUS_APPROVED, Errand.MODE_COMPANY,
+            destination='بانک ملت',
+        )
 
         matrix = services.month_matrix(
             self.emp, self.year, self.month, [self.p1],
@@ -171,6 +175,8 @@ class ErrandWorklogTests(WorklogTestBase):
         self.assertEqual(day['allocatable'], Decimal('8.00'))
         self.assertEqual(day['errand'], Decimal('2.00'))
         self.assertEqual(matrix['errand_total'], Decimal('2.00'))
+        self.assertEqual(matrix['errand_label'], 'مأموریت شرکتی — بانک ملت')
+        self.assertEqual(matrix['errand_destinations'], ['بانک ملت'])
 
         # کاربر فقط ۸ ساعت حضور فیزیکی را می‌تواند بین پروژه‌ها تقسیم کند.
         ok, errors = services.save_allocations(
@@ -193,6 +199,7 @@ class ErrandWorklogTests(WorklogTestBase):
 
         data = services.report_data(self.emp, self.year, self.month)
         auto = next(row for row in data['rows'] if row.get('auto'))
+        self.assertEqual(auto['title'], 'مأموریت شرکتی — بانک ملت')
         self.assertEqual(auto['values'][0], Decimal('2.00'))
         self.assertEqual(data['grand_total'], Decimal('10.00'))
 
@@ -235,7 +242,10 @@ class ErrandWorklogTests(WorklogTestBase):
         self.assertEqual(auto['total'], Decimal('0.00'))
 
     def test_excel_contains_automatic_errand_row(self):
-        self._add_errand(Errand.STATUS_APPROVED, Errand.MODE_COMPANY)
+        self._add_errand(
+            Errand.STATUS_APPROVED, Errand.MODE_COMPANY,
+            destination='بانک ملت',
+        )
         services.save_allocations(
             self.emp, self.year, self.month, [self.p1],
             self._data(**{self.kp1: '8'}),
@@ -249,7 +259,7 @@ class ErrandWorklogTests(WorklogTestBase):
         auto_row = None
         total_row = None
         for row in range(6, ws.max_row + 1):
-            if ws.cell(row=row, column=2).value == 'مأموریت شرکتی (تأییدشده)':
+            if ws.cell(row=row, column=2).value == 'مأموریت شرکتی — بانک ملت':
                 auto_row = row
             if ws.cell(row=row, column=1).value == 'جمع':
                 total_row = row
@@ -257,6 +267,41 @@ class ErrandWorklogTests(WorklogTestBase):
         self.assertIsNotNone(total_row)
         self.assertEqual(ws.cell(row=auto_row, column=3).value, 2.0)
         self.assertEqual(ws.cell(row=total_row, column=34).value, 10.0)
+
+    def test_excel_splits_company_errands_by_destination(self):
+        self._add_errand(
+            Errand.STATUS_APPROVED, Errand.MODE_COMPANY,
+            start_hour=17, end_hour=19, destination='بانک ملت',
+        )
+        self._add_errand(
+            Errand.STATUS_APPROVED, Errand.MODE_COMPANY,
+            start_hour=19, end_hour=20, destination='دادگاه',
+        )
+        services.save_allocations(
+            self.emp, self.year, self.month, [self.p1],
+            self._data(**{self.kp1: '8'}),
+        )
+        content, _filename = build_worklog_xlsx(
+            self.emp, self.year, self.month,
+        )
+        wb = load_workbook(BytesIO(content))
+        ws = wb.active
+
+        bank_row = court_row = total_row = None
+        for row in range(6, ws.max_row + 1):
+            title = ws.cell(row=row, column=2).value
+            if title == 'مأموریت شرکتی — بانک ملت':
+                bank_row = row
+            if title == 'مأموریت شرکتی — دادگاه':
+                court_row = row
+            if ws.cell(row=row, column=1).value == 'جمع':
+                total_row = row
+        self.assertIsNotNone(bank_row)
+        self.assertIsNotNone(court_row)
+        self.assertIsNotNone(total_row)
+        self.assertEqual(ws.cell(row=bank_row, column=3).value, 2.0)
+        self.assertEqual(ws.cell(row=court_row, column=3).value, 1.0)
+        self.assertEqual(ws.cell(row=total_row, column=34).value, 11.0)
 
 
 class ViewTests(WorklogTestBase):

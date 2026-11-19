@@ -49,7 +49,9 @@ class ErrandForm(forms.ModelForm):
             }),
             'destination': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'اختیاری — مثلاً: بانک ملت، شعبهٔ مرکزی',
+                'list': 'errand-destinations',
+                'autocomplete': 'off',
+                'placeholder': 'انتخاب از لیست یا نوشتن مقصد جدید',
             }),
             'contact': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -191,8 +193,8 @@ class ErrandAdminEditForm(ErrandForm):
 
     مثل فرم کارمند است با دو تفاوت که عمدی‌اند:
 
-      ۱) محدودیت «۷ روز گذشته» اعمال نمی‌شود — ادمین باید بتواند رکورد قدیمی
-         را هم اصلاح کند.
+      ۱) محدودیت روزهای گذشته (که در تنظیمات مأموریت قابل تغییر است) اعمال
+         نمی‌شود — ادمین باید بتواند رکورد قدیمی را هم اصلاح کند.
       ۲) همپوشانی با درخواست‌های فعال دیگر مجاز است، چون ادمین دارد همان
          رکورد موجود را اصلاح می‌کند و مالکش تغییری نمی‌کند.
     """

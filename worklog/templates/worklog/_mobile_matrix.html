@@ -66,8 +66,9 @@
         {% endfor %}
 
         {% if day.errand %}
-        <div class="wl-m-project wl-m-company-row">
-            <label>مأموریت شرکتی (خودکار)</label>
+        <div class="wl-m-project wl-m-company-row"
+             {% if matrix.errand_destinations %}title="{{ matrix.errand_destinations|join:'، ' }}"{% endif %}>
+            <label>{{ matrix.errand_label }}</label>
             <span class="wl-val">{{ day.errand|floatformat:2|fa }}</span>
         </div>
         {% endif %}
