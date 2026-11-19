@@ -90,6 +90,21 @@ class Errand(models.Model):
         (STATUS_CANCELLED, 'لغوشده توسط کارمند'),
     ]
 
+    # ---------- نوع مأموریت ----------
+    MODE_REMOTE = 'remote'
+    MODE_COMPANY = 'company'
+    MODE_CHOICES = [
+        (MODE_REMOTE, 'ریموت'),
+        (MODE_COMPANY, 'شرکتی'),
+    ]
+    work_mode = models.CharField(
+        'نوع مأموریت',
+        max_length=10,
+        choices=MODE_CHOICES,
+        default=MODE_REMOTE,
+        db_index=True,
+    )
+
     # ---------- چه کسی و کِی ----------
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -202,6 +217,18 @@ class Errand(models.Model):
     @property
     def is_pending(self):
         return self.status == self.STATUS_PENDING
+
+    @property
+    def is_remote(self):
+        return self.work_mode == self.MODE_REMOTE
+
+    @property
+    def is_company(self):
+        return self.work_mode == self.MODE_COMPANY
+
+    @property
+    def mode_label(self):
+        return 'ریموت' if self.is_remote else 'شرکتی'
 
     @property
     def is_approved(self):

@@ -1,0 +1,86 @@
+{% load jalali_filters %}
+
+{% if editable %}
+<div class="wl-m-other">
+    <label for="wl-other-title">عنوان «سایر»</label>
+    <input type="text" id="wl-other-title" name="other_title"
+           value="{{ matrix.other_title }}"
+           placeholder="مثلاً پشتیبانی شبکه"
+           class="wl-other-title">
+</div>
+{% elif matrix.other_title %}
+<div class="wl-m-other-readonly">سایر: {{ matrix.other_title }}</div>
+{% endif %}
+
+{% for day in matrix.days %}
+{% if day.worked or day.allocatable or day.errand or day.manual_allocated %}
+<div class="wl-m-card" data-day="{{ day.day }}">
+    <div class="wl-m-head">
+        <div class="wl-m-day">
+            <strong>روز {{ day.day|fa }}</strong>
+            <span>{{ day.weekday }}</span>
+        </div>
+        <div class="wl-m-badges">
+            <span>کار: {{ day.worked|floatformat:2|fa }}</span>
+        </div>
+    </div>
+
+    <div class="wl-m-projects">
+        {% for row in matrix.projects %}
+        <div class="wl-m-project">
+            <label>{{ row.project.name }}</label>
+            {% for cell in row.cells %}
+            {% if cell.day == day.day %}
+                {% if editable %}
+                <input type="number"
+                       name="p{{ row.project.id }}_{{ cell.day }}"
+                       value="{% if cell.value %}{{ cell.value|floatformat:2 }}{% endif %}"
+                       step="0.01" min="0" max="24"
+                       class="wl-input" data-day="{{ cell.day }}"
+                       inputmode="decimal"
+                       aria-label="{{ row.project.name }} روز {{ cell.day }}">
+                {% else %}
+                <span class="wl-val">{% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}</span>
+                {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <div class="wl-m-project">
+            <label>سایر</label>
+            {% for cell in matrix.other_cells %}
+            {% if cell.day == day.day %}
+                {% if editable %}
+                <input type="number" name="other_{{ cell.day }}"
+                       value="{% if cell.value %}{{ cell.value|floatformat:2 }}{% endif %}"
+                       step="0.01" min="0" max="24"
+                       class="wl-input wl-other-input" data-day="{{ cell.day }}"
+                       inputmode="decimal"
+                       aria-label="سایر روز {{ cell.day }}">
+                {% else %}
+                <span class="wl-val">{% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}</span>
+                {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if day.errand %}
+        <div class="wl-m-project wl-m-company-row">
+            <label>مأموریت شرکتی (خودکار)</label>
+            <span class="wl-val">{{ day.errand|floatformat:2|fa }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="wl-m-foot">
+        <span>جمع کل: <strong class="wl-day-alloc" data-day="{{ day.day }}">{{ day.allocated|floatformat:2|fa }}</strong></span>
+        <span>باقی‌مانده: <strong class="wl-day-remain {% if day.remaining < 0 %}over{% endif %}" data-day="{{ day.day }}">{{ day.remaining|floatformat:2|fa }}</strong></span>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not matrix.total_worked and not matrix.total_allocated %}
+<div class="wl-empty">برای این ماه ساعت کاری ثبت نشده است.</div>
+{% endif %}

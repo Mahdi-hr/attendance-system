@@ -150,6 +150,24 @@
 
                         <div class="mb-3">
                             <label class="form-label">
+                                <i class="fas fa-house-laptop me-1" style="color:var(--primary)"></i>
+                                نوع مأموریت
+                            </label>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                {% for radio in form.work_mode %}
+                                <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--glass-border);border-radius:12px;background:var(--form-bg);cursor:pointer;font-size:.85rem;">
+                                    {{ radio.tag }}
+                                    <span>{{ radio.choice_label }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% for e in form.work_mode.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
                                 <i class="fas fa-clock me-1" style="color:var(--primary)"></i>
                                 بازهٔ مأموریت
                             </label>
@@ -176,11 +194,6 @@
                             {% for e in form.end.errors %}
                             <div class="invalid-feedback d-block">{{ e }}</div>
                             {% endfor %}
-                            <div class="form-hint">
-                                <i class="fas fa-info-circle"></i>
-                                <span>مأموریت بین دو روز (مثلاً ۱۷ دیروز تا ۰۴ امروز) مجاز است و
-                                به‌درستی بین دو روز تقسیم می‌شود.</span>
-                            </div>
                         </div>
 
                         <div class="mb-3">

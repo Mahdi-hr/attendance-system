@@ -53,8 +53,8 @@ def jalali_range(errand):
 class ErrandAdmin(admin.ModelAdmin):
     list_display = [
         'pk', 'employee', 'jalali_range_display', 'duration_display_col',
-        'status_badge', 'reason_short', 'destination', 'reviewed_by_display',
-        'reviewed_at_display', 'quick_review_link',
+        'status_badge', 'work_mode_badge', 'reason_short', 'destination',
+        'reviewed_by_display', 'reviewed_at_display', 'quick_review_link',
     ]
     list_filter = ['status', 'user', 'reviewed_by']
     search_fields = [
@@ -80,14 +80,10 @@ class ErrandAdmin(admin.ModelAdmin):
     fieldsets = [
         ('مأموریت', {
             'fields': (
-                ('user', 'status'),
+                ('user', 'status', 'work_mode'),
                 ('start_time', 'end_time'),
                 'reason',
                 ('destination', 'contact'),
-            ),
-            'description': (
-                'بازهٔ زمانی به وقت تهران ثبت می‌شود. مأموریت شبانه '
-                '(عبور از نیمه‌شب) هم پشتیبانی می‌شود.'
             ),
         }),
         ('بررسی', {
@@ -142,6 +138,24 @@ class ErrandAdmin(admin.ModelAdmin):
             'box-shadow:inset 0 0 0 1px rgba({},0.4);">'
             '<i class="fas {}"></i>{}</span>',
             rgb, rgb, rgb, icon, obj.get_status_display(),
+        )
+
+    @admin.display(description='نوع', ordering='work_mode')
+    def work_mode_badge(self, obj):
+        if obj.is_remote:
+            return format_html(
+                '<span style="display:inline-flex;align-items:center;gap:5px;'
+                'padding:3px 9px;border-radius:11px;font-size:0.76rem;'
+                'font-weight:700;background:rgba(34,211,238,0.14);'
+                'color:#0891b2;">'
+                '<i class="fas fa-house-laptop"></i>ریموت</span>'
+            )
+        return format_html(
+            '<span style="display:inline-flex;align-items:center;gap:5px;'
+            'padding:3px 9px;border-radius:11px;font-size:0.76rem;'
+            'font-weight:700;background:rgba(245,158,11,0.14);'
+            'color:#b45309;">'
+            '<i class="fas fa-building"></i>شرکتی</span>'
         )
 
     @admin.display(description='دلیل', ordering='reason')

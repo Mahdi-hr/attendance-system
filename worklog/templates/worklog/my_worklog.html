@@ -130,6 +130,15 @@
     .wl-worked-row td { background: rgba(148,163,184,.08); color: var(--text-secondary); font-weight: 700; }
     .wl-worked-row .wl-title-col { background: var(--bg-card-solid); }
     .wl-alloc-row td { font-weight: 800; color: var(--text-primary); }
+    .wl-total-row td { background: rgba(var(--primary-rgb), .08); font-weight: 800; color: var(--text-primary); }
+    .wl-allocatable-row td { background: rgba(148,163,184,.07); color: var(--text-secondary); font-weight: 700; }
+    .wl-errand-row td { background: rgba(245,158,11,.12); font-weight: 700; }
+    .wl-errand-row .wl-title-col { background: var(--bg-card-solid); }
+    .wl-auto-badge {
+        display: inline-block; margin-right: 6px; padding: 1px 7px;
+        border-radius: 999px; background: rgba(245,158,11,.22);
+        color: #b45309; font-size: .6rem; font-weight: 800;
+    }
     .wl-remain-row td { color: var(--success); font-weight: 700; }
     .wl-alloc-row td.over, .wl-remain-row td.over {
         color: var(--danger) !important; background: rgba(239,68,68,.12);
@@ -148,10 +157,70 @@
     }
     .wl-empty a { color: var(--primary); }
 
+    /* ---- نمای موبایل (کارت‌های روزانه) ---- */
+    .wl-m-other {
+        display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 14px; padding: .7rem .9rem; margin-bottom: .8rem;
+        backdrop-filter: blur(18px);
+    }
+    .wl-m-other label { margin: 0; font-size: .8rem; color: var(--text-secondary); }
+    .wl-m-other .wl-other-title { flex: 1; min-width: 160px; }
+    .wl-m-other-readonly {
+        font-size: .82rem; color: var(--text-secondary);
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 12px; padding: .6rem .85rem; margin-bottom: .8rem;
+    }
+    .wl-m-card {
+        background: var(--glass); border: 1px solid var(--glass-border);
+        border-radius: 16px; padding: .75rem .9rem; margin-bottom: .75rem;
+        backdrop-filter: blur(18px);
+    }
+    .wl-m-head {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: .5rem; flex-wrap: wrap; margin-bottom: .45rem;
+    }
+    .wl-m-day strong { font-size: .95rem; color: var(--text-primary); }
+    .wl-m-day span { color: var(--text-muted); font-size: .72rem; margin-right: 6px; }
+    .wl-m-badges { display: flex; gap: .4rem; flex-wrap: wrap; font-size: .72rem; }
+    .wl-m-badges span {
+        background: rgba(var(--primary-rgb), .1); color: var(--text-secondary);
+        border-radius: 999px; padding: 2px 9px;
+    }
+    .wl-m-projects { display: flex; flex-direction: column; }
+    .wl-m-project {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: .75rem; padding: .42rem 0;
+        border-bottom: 1px dashed var(--glass-border);
+    }
+    .wl-m-project:last-child { border-bottom: 0; }
+    .wl-m-project label {
+        margin: 0; font-size: .83rem; color: var(--text-primary);
+        flex: 1; min-width: 0; overflow-wrap: anywhere;
+    }
+    .wl-m-project .wl-input { width: 84px; padding: 6px 4px; font-size: .82rem; }
+    .wl-m-company-row {
+        color: #b45309; font-weight: 700;
+        background: rgba(245,158,11,.1); border-radius: 10px;
+        padding: .5rem .55rem; margin-top: .3rem; border-bottom: 0;
+    }
+    .wl-m-foot {
+        display: flex; justify-content: space-between; gap: .5rem;
+        flex-wrap: wrap; margin-top: .55rem;
+        font-size: .78rem; color: var(--text-secondary);
+    }
+    .wl-m-foot strong {
+        color: var(--text-primary); font-size: .86rem;
+        font-variant-numeric: tabular-nums;
+    }
+    .wl-m-foot strong.over { color: var(--danger); }
+
     @media (max-width: 768px) {
         .wl-hero h1 { font-size: 1.2rem; }
         .wl-table { min-width: 980px; }
         .wl-table .wl-title-col { min-width: 120px; max-width: 140px; }
+        .wl-actions { width: 100%; }
+        .wl-actions .btn { flex: 1; justify-content: center; }
     }
 </style>
 {% endblock %}
@@ -171,6 +240,14 @@
             <a href="{% url 'worklog:my-export' %}?year={{ year }}&month={{ month }}"
                class="btn btn-gradient">
                 <i class="fas fa-file-excel me-1"></i>خروجی اکسل
+            </a>
+            <a href="?year={{ year }}&month={{ month }}&view={% if is_mobile %}desktop{% else %}mobile{% endif %}"
+               class="btn btn-outline-glass">
+                {% if is_mobile %}
+                <i class="fas fa-desktop me-1"></i>نمای دسکتاپ
+                {% else %}
+                <i class="fas fa-mobile-screen-button me-1"></i>نمای موبایل
+                {% endif %}
             </a>
             {% if is_admin %}
             <a href="{% url 'worklog:admin-list' %}?year={{ year }}&month={{ month }}"
@@ -199,13 +276,23 @@
             <strong>{{ matrix.total_worked|floatformat:2|fa }}</strong>
         </div>
         <div class="wl-stat">
-            <span>جمع تخصیص به پروژه‌ها</span>
+            <span>مأموریت شرکتی (خودکار)</span>
+            <strong>{{ matrix.total_errand|floatformat:2|fa }}</strong>
+        </div>
+        <div class="wl-stat">
+            <span>جمع تخصیص (پروژه + مأموریت شرکتی)</span>
             <strong id="wl-total-allocated">{{ matrix.total_allocated|floatformat:2|fa }}</strong>
         </div>
         <div class="wl-stat {% if matrix.total_remaining < 0 %}danger{% endif %}">
             <span>باقی‌مانده</span>
             <strong id="wl-total-remaining">{{ matrix.total_remaining|floatformat:2|fa }}</strong>
         </div>
+    </div>
+
+    <div class="wl-notice warn" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);">
+        <i class="fas fa-route me-1" style="color:#f59e0b;"></i>
+        مأموریت‌های <strong>شرکتی</strong> خودکار ثبت می‌شوند؛
+        مأموریت‌های <strong>ریموت</strong> را روی پروژه‌ها تقسیم کنید.
     </div>
 
     {% if not editable %}
@@ -228,7 +315,11 @@
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
         <input type="hidden" name="month" value="{{ month }}">
+        {% if is_mobile %}
+        {% include 'worklog/_mobile_matrix.html' %}
+        {% else %}
         {% include 'worklog/_matrix.html' %}
+        {% endif %}
 
         {% if editable %}
         <div class="wl-submitbar">
@@ -241,7 +332,7 @@
                 <i class="fas fa-check me-1"></i>ثبت نهایی ماه
             </button>
             <span class="wl-hint">
-                جمع ساعت هر روز نمی‌تواند از «ساعت کار سیستم» بیشتر شود.
+                جمع ساعت هر روز نمی‌تواند از ساعت کار مجاز روز بیشتر شود.
             </span>
         </div>
         {% endif %}
@@ -262,14 +353,21 @@
 </div>
 
 {{ worked_json|json_script:"wl-worked" }}
+{{ allocatable_json|json_script:"wl-allocatable" }}
+{{ errand_json|json_script:"wl-errand" }}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
     var workedEl = document.getElementById('wl-worked');
-    if (!workedEl) return;
+    var allocatableEl = document.getElementById('wl-allocatable');
+    var errandEl = document.getElementById('wl-errand');
+    if (!workedEl || !allocatableEl || !errandEl) return;
+
     var worked = JSON.parse(workedEl.textContent);
+    var allocatable = JSON.parse(allocatableEl.textContent);
+    var errand = JSON.parse(errandEl.textContent);
     var form = document.getElementById('wlForm');
 
     function fa(value) {
@@ -280,6 +378,13 @@
     function fmt(value) {
         return fa(Number(value).toFixed(2));
     }
+    function sumObject(obj) {
+        var total = 0;
+        Object.keys(obj).forEach(function (key) {
+            total += Number(obj[key]) || 0;
+        });
+        return total;
+    }
     function daySum(day) {
         var sum = 0;
         document.querySelectorAll('.wl-input[data-day="' + day + '"]').forEach(function (el) {
@@ -289,31 +394,39 @@
         return sum;
     }
     function recalcTotals() {
-        var total = 0;
+        var totalManual = 0;
         document.querySelectorAll('.wl-input').forEach(function (el) {
             var v = parseFloat(el.value);
-            if (!isNaN(v)) total += v;
+            if (!isNaN(v)) totalManual += v;
         });
-        var workedTotal = 0;
-        Object.keys(worked).forEach(function (key) { workedTotal += Number(worked[key]) || 0; });
+        var totalErrand = sumObject(errand);
+        var totalWorked = sumObject(worked);
+        var totalAllocated = totalManual + totalErrand;
 
         var allocEl = document.getElementById('wl-total-allocated');
         var remainEl = document.getElementById('wl-total-remaining');
-        if (allocEl) allocEl.textContent = fmt(total);
-        if (remainEl) remainEl.textContent = fmt(workedTotal - total);
+        if (allocEl) allocEl.textContent = fmt(totalAllocated);
+        if (remainEl) remainEl.textContent = fmt(totalWorked - totalAllocated);
     }
     function recalcDay(day) {
-        var sum = daySum(day);
+        var manual = daySum(day);
+        var allocatableDay = Number(allocatable[day]) || 0;
+        var errandDay = Number(errand[day]) || 0;
         var workedDay = Number(worked[day]) || 0;
+        var total = manual + errandDay;
+
+        var manualCell = document.querySelector('.wl-day-manual[data-day="' + day + '"]');
         var allocCell = document.querySelector('.wl-day-alloc[data-day="' + day + '"]');
         var remainCell = document.querySelector('.wl-day-remain[data-day="' + day + '"]');
-        if (allocCell) {
-            allocCell.textContent = fmt(sum);
-            allocCell.classList.toggle('over', sum > workedDay + 0.01);
+
+        if (manualCell) {
+            manualCell.textContent = fmt(manual);
+            manualCell.classList.toggle('over', manual > allocatableDay + 0.01);
         }
+        if (allocCell) allocCell.textContent = fmt(total);
         if (remainCell) {
-            remainCell.textContent = fmt(workedDay - sum);
-            remainCell.classList.toggle('over', sum > workedDay + 0.01);
+            remainCell.textContent = fmt(workedDay - total);
+            remainCell.classList.toggle('over', (workedDay - total) < -0.01);
         }
     }
 
@@ -327,18 +440,21 @@
     if (form) {
         form.addEventListener('submit', function (event) {
             var overDays = [];
-            Object.keys(worked).forEach(function (day) {
-                if (daySum(day) > (Number(worked[day]) || 0) + 0.01) {
+            Object.keys(allocatable).forEach(function (day) {
+                if (daySum(day) > (Number(allocatable[day]) || 0) + 0.01) {
                     overDays.push(day);
                 }
             });
             if (overDays.length) {
                 event.preventDefault();
-                alert('جمع تخصیص این روزها از ساعت کار سیستم بیشتر است: ' +
+                alert('جمع پروژه‌های این روزها از ساعت کار مجاز بیشتر است: ' +
                       overDays.join('، '));
             }
         });
     }
+
+    Object.keys(worked).forEach(function (day) { recalcDay(day); });
+    recalcTotals();
 })();
 </script>
 {% endblock %}

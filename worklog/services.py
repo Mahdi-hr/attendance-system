@@ -1,6 +1,7 @@
 """منطق ثبت کارکرد پروژه‌ها و ساخت دادهٔ گزارش/اکسل."""
 
 import datetime as dt
+from collections import defaultdict
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import jdatetime
@@ -8,6 +9,8 @@ from django.contrib.auth import get_user_model
 from django.db import models, transaction
 from django.utils import timezone
 
+from errands.models import Errand
+from errands.services import effective_seconds, split_interval_by_day
 from recognition.reports import daily_rows
 
 from .models import Project, WorkLog, WorkLogMonth
@@ -75,22 +78,98 @@ def attendance_map(user, year, month):
     return {row['date']: row for row in rows}
 
 
+def errand_split_map(user, year, month, attendance):
+    """ساعت مؤثر مأموریت‌های تأییدشده به تفکیک ریموت و شرکتی.
+
+    فقط مأموریت‌های تأییدشده حساب می‌شوند. ساعت مؤثر = بازهٔ مأموریت منهای
+    بازه‌های حضور فیزیکی، تا با ساعت حضور دوبار شمرده نشود.
+
+    خروجی: {date: (remote_seconds, company_seconds)}
+    """
+    start, end, _count = month_bounds(year, month)
+    sessions_by_day = {
+        date: row.get('sessions', [])
+        for date, row in attendance.items()
+    }
+
+    remote = defaultdict(list)
+    company = defaultdict(list)
+    errands = (
+        Errand.objects.approved()
+        .filter(user=user)
+        .for_window(start, end)
+    )
+    for errand in errands:
+        bucket = remote if errand.work_mode == Errand.MODE_REMOTE else company
+        for date, seg_start, seg_end in split_interval_by_day(
+            errand.start_time, errand.end_time,
+        ):
+            bucket[date].append((seg_start, seg_end))
+
+    result = {}
+    for date in set(remote) | set(company) | set(sessions_by_day):
+        sessions = sessions_by_day.get(date, [])
+        result[date] = (
+            effective_seconds(remote.get(date, []), sessions),
+            effective_seconds(company.get(date, []), sessions),
+        )
+    return result
+
+
+def allowed_hours_for(attendance, split, date):
+    """ساعت قابل تخصیص به پروژه = حضور فیزیکی + مأموریت ریموت."""
+    physical = allocatable_hours_for(attendance, date)
+    remote_seconds = split.get(date, (0, 0))[0]
+    return physical + _hours_from_seconds(remote_seconds)
+
+
 def _hours_from_seconds(seconds):
     return quantize(Decimal(seconds or 0) / Decimal(3600))
 
 
 def worked_hours_for(attendance, date):
+    """کل ساعت کار روز = حضور فیزیکی + مأموریت (ریموت و شرکتی)."""
     row = attendance.get(date)
     if not row:
         return Decimal('0.00')
     return _hours_from_seconds(row.get('total_seconds'))
 
 
+def allocatable_hours_for(attendance, date):
+    """ساعت قابل تخصیص به پروژه‌ها = حضور فیزیکی (بدون مأموریت).
+
+    ساعت مأموریت جداگانه و خودکار در گزارش می‌آید؛ بنابراین کاربر نباید
+    آن را دوباره روی پروژه‌ها تخصیص بدهد.
+    """
+    row = attendance.get(date)
+    if not row:
+        return Decimal('0.00')
+    return _hours_from_seconds(row.get('work_seconds'))
+
+
+def errand_hours_for(attendance, date):
+    """ساعت مأموریت مؤثرِ تأییدشده — خودکار و فقط‌خواندنی."""
+    row = attendance.get(date)
+    if not row:
+        return Decimal('0.00')
+    return _hours_from_seconds(row.get('errand_seconds'))
+
+
 def month_matrix(user, year, month, projects=None):
-    """دادهٔ ماتریس پروژه × روز برای نمایش و ویرایش."""
+    """دادهٔ ماتریس پروژه × روز برای نمایش و ویرایش.
+
+    برای هر روز:
+      worked            کل ساعت کار سیستم (حضور + ریموت + شرکتی)
+      allocatable       ساعت قابل تخصیص به پروژه‌ها (حضور + ریموت)
+      errand            ساعت مأموریت شرکتی (خودکار، فقط‌خواندنی)
+      manual_allocated  جمع تخصیص دستی (پروژه‌ها + سایر)
+      allocated         manual + errand
+      remaining         worked - allocated
+    """
     start, end, _count = month_bounds(year, month)
     days = month_days(year, month)
     attendance = attendance_map(user, year, month)
+    split = errand_split_map(user, year, month, attendance)
 
     logs = (
         WorkLog.objects
@@ -134,23 +213,46 @@ def month_matrix(user, year, month, projects=None):
         other_total += value
         other_cells.append({'day': d['day'], 'value': value})
 
+    errand_cells = []
+    errand_total = Decimal('0')
+    for d in days:
+        company_seconds = split.get(d['date'], (0, 0))[1]
+        value = _hours_from_seconds(company_seconds)
+        errand_total += value
+        errand_cells.append({'day': d['day'], 'value': value})
+
     day_rows = []
     total_worked = Decimal('0')
+    total_allocatable = Decimal('0')
+    total_errand = Decimal('0')
+    total_manual = Decimal('0')
     total_allocated = Decimal('0')
     for day in days:
-        worked = worked_hours_for(attendance, day['date'])
-        allocated = sum(
+        physical = allocatable_hours_for(attendance, day['date'])
+        remote = _hours_from_seconds(split.get(day['date'], (0, 0))[0])
+        company = _hours_from_seconds(split.get(day['date'], (0, 0))[1])
+        allocatable = physical + remote
+        errand = company
+        worked = physical + remote + company
+        manual = sum(
             (row['cells'][day['day'] - 1]['value'] for row in project_rows),
             Decimal('0'),
         ) + other_cells[day['day'] - 1]['value']
+        allocated = manual + errand
         total_worked += worked
+        total_allocatable += allocatable
+        total_errand += errand
+        total_manual += manual
         total_allocated += allocated
         day_rows.append({
             **day,
             'worked': worked,
+            'allocatable': allocatable,
+            'errand': errand,
+            'manual_allocated': manual,
             'allocated': allocated,
             'remaining': worked - allocated,
-            'over': allocated > worked + TOLERANCE,
+            'over': manual > allocatable + TOLERANCE,
         })
 
     return {
@@ -159,7 +261,12 @@ def month_matrix(user, year, month, projects=None):
         'other_cells': other_cells,
         'other_title': other_title,
         'other_total': other_total,
+        'errand_cells': errand_cells,
+        'errand_total': errand_total,
         'total_worked': total_worked,
+        'total_allocatable': total_allocatable,
+        'total_errand': total_errand,
+        'total_manual': total_manual,
         'total_allocated': total_allocated,
         'total_remaining': total_worked - total_allocated,
     }
@@ -198,6 +305,7 @@ def save_allocations(user, year, month, projects, data):
     start, end, _count = month_bounds(year, month)
     days = month_days(year, month)
     attendance = attendance_map(user, year, month)
+    split = errand_split_map(user, year, month, attendance)
     projects = list(projects)
     other_title = (data.get('other_title') or '').strip()[:120]
 
@@ -207,7 +315,8 @@ def save_allocations(user, year, month, projects, data):
     for day in days:
         values = {}
         day_total = Decimal('0')
-        worked = worked_hours_for(attendance, day['date'])
+        # حضور فیزیکی + مأموریت ریموت قابل تخصیص است؛ مأموریت شرکتی خودکار.
+        allowed = allowed_hours_for(attendance, split, day['date'])
 
         for project in projects:
             raw = data.get('p%d_%d' % (project.id, day['day']))
@@ -225,15 +334,17 @@ def save_allocations(user, year, month, projects, data):
         values['other'] = other_value
         day_total += other_value
 
-        if worked == 0 and day_total > 0:
+        if allowed == 0 and day_total > 0:
             errors.append(
-                '%s: ساعت کار سیستمی ثبت نشده است؛ امکان تخصیص وجود ندارد.'
+                '%s: ساعت کار قابل تخصیص (بدون مأموریت) ثبت نشده است؛ '
+                'امکان تخصیص وجود ندارد.'
                 % day['jalali']
             )
-        elif day_total > worked + TOLERANCE:
+        elif day_total > allowed + TOLERANCE:
             errors.append(
-                '%s: جمع تخصیص (%s) از ساعت کار سیستم (%s) بیشتر است.'
-                % (day['jalali'], day_total, worked)
+                '%s: جمع تخصیص (%s) از ساعت کار قابل تخصیص بدون مأموریت '
+                '(%s) بیشتر است.'
+                % (day['jalali'], day_total, allowed)
             )
         if other_value > 0 and not other_title:
             errors.append(
@@ -291,6 +402,9 @@ def report_data(user, year, month):
         .select_related('project')
     )
 
+    attendance = attendance_map(user, year, month)
+    split = errand_split_map(user, year, month, attendance)
+
     groups = {}
     for log in logs:
         jd = jdatetime.date.fromgregorian(date=log.date)
@@ -310,17 +424,43 @@ def report_data(user, year, month):
             group['values'].get(day, Decimal('0')) + log.hours
         )
 
-    rows = []
+    project_rows = []
+    other_rows = []
     for group in sorted(groups.values(), key=lambda item: item['order']):
         values = [
             group['values'].get(day, Decimal('0'))
             for day in range(1, 32)
         ]
-        rows.append({
+        row = {
             'title': group['title'],
             'values': values,
             'total': sum(values, Decimal('0')),
-        })
+        }
+        if group['order'][0] == 0:
+            project_rows.append(row)
+        else:
+            other_rows.append(row)
+
+    # ردیف مأموریتِ شرکتی تأییدشده — خودکار و غیرقابل ویرایش.
+    errand_values = []
+    for day in range(1, 32):
+        if day <= days_in_month:
+            date = jdatetime.date(year, month, day).togregorian()
+            company_seconds = split.get(date, (0, 0))[1]
+            value = _hours_from_seconds(company_seconds)
+        else:
+            value = Decimal('0')
+        errand_values.append(value)
+    errand_total = sum(errand_values, Decimal('0'))
+
+    rows = list(project_rows)
+    rows.append({
+        'title': 'مأموریت شرکتی (تأییدشده)',
+        'values': errand_values,
+        'total': errand_total,
+        'auto': True,
+    })
+    rows.extend(other_rows)
 
     total_by_day = []
     for day in range(1, 32):
@@ -338,6 +478,7 @@ def report_data(user, year, month):
         'rows': rows,
         'total_by_day': total_by_day,
         'grand_total': grand_total,
+        'errand_total': errand_total,
         'report_date': jdatetime.date.fromgregorian(
             date=timezone.localdate(),
         ).strftime('%Y/%m/%d'),
@@ -407,19 +548,31 @@ def overlay_matrix(matrix, projects, data):
     matrix['other_total'] = other_total
 
     total_worked = Decimal('0')
+    total_allocatable = Decimal('0')
+    total_errand = Decimal('0')
+    total_manual = Decimal('0')
     total_allocated = Decimal('0')
     for index, day in enumerate(matrix['days']):
-        allocated = sum(
+        manual = sum(
             (row['cells'][index]['value'] for row in matrix['projects']),
             Decimal('0'),
         ) + matrix['other_cells'][index]['value']
+        errand = day.get('errand', Decimal('0'))
+        allocated = manual + errand
+        day['manual_allocated'] = manual
         day['allocated'] = allocated
         day['remaining'] = day['worked'] - allocated
-        day['over'] = allocated > day['worked'] + TOLERANCE
+        day['over'] = manual > day.get('allocatable', Decimal('0')) + TOLERANCE
         total_worked += day['worked']
+        total_allocatable += day.get('allocatable', Decimal('0'))
+        total_errand += errand
+        total_manual += manual
         total_allocated += allocated
 
     matrix['total_worked'] = total_worked
+    matrix['total_allocatable'] = total_allocatable
+    matrix['total_errand'] = total_errand
+    matrix['total_manual'] = total_manual
     matrix['total_allocated'] = total_allocated
     matrix['total_remaining'] = total_worked - total_allocated
     return matrix

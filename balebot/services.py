@@ -301,14 +301,16 @@ def create_errand(user, payload):
     data = {
         'start': payload.get('start', ''),
         'end': payload.get('end', ''),
+        'work_mode': payload.get('work_mode', 'remote'),
         'reason': payload.get('reason', ''),
         'destination': payload.get('destination', ''),
         'contact': payload.get('contact', ''),
     }
     form = ErrandForm(data=data, user=user)
     if not form.is_valid():
-        for _field, errors in form.errors.items():
-            return None, errors[0]
+        for field, errors in form.errors.items():
+            label = form.fields[field].label if field in form.fields else field
+            return None, '%s: %s' % (label, errors[0])
         return None, 'اطلاعات واردشده معتبر نیست.'
 
     errand = form.save(commit=False)
@@ -575,6 +577,7 @@ def errand_payload(errand, **overrides):
     payload = {
         'start': to_jalali_string(errand.start_time),
         'end': to_jalali_string(errand.end_time),
+        'work_mode': errand.work_mode,
         'reason': errand.reason or '',
         'destination': errand.destination or '',
         'contact': errand.contact or '',

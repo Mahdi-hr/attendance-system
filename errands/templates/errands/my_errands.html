@@ -416,6 +416,24 @@
                         <!-- بازهٔ زمانی - شبیه بخش گزارشات -->
                         <div class="mb-3">
                             <label class="form-label">
+                                <i class="fas fa-house-laptop me-1" style="color:var(--primary)"></i>
+                                نوع مأموریت
+                            </label>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                {% for radio in form.work_mode %}
+                                <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--glass-border);border-radius:12px;background:var(--form-bg);cursor:pointer;font-size:.85rem;">
+                                    {{ radio.tag }}
+                                    <span>{{ radio.choice_label }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% for e in form.work_mode.errors %}
+                            <div class="invalid-feedback d-block">{{ e }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
                                 <i class="fas fa-clock me-1" style="color:var(--primary)"></i>
                                 بازهٔ مأموریت
                             </label>
@@ -463,14 +481,6 @@
                                     <i class="fas fa-calendar"></i>ماه جاری
                                 </button>
                             </div>
-                            <div class="form-hint mt-2">
-                                <i class="fas fa-info-circle"></i>
-                                <span>
-                                    اگر مأموریت از نیمه‌شب گذشت (مثلاً ۱۷ دیروز تا ۰۴ امروز)
-                                    هر دو تاریخ را درست وارد کنید؛ مدت به‌درستی تقسیم می‌شود.
-                                    حداکثر {{ backdate_limit|fa }} روز به عقب قابل ثبت است.
-                                </span>
-                            </div>
                         </div>
 
                         <!-- دلیل -->
@@ -501,12 +511,6 @@
                                 </label>
                                 {{ form.contact }}
                             </div>
-                        </div>
-
-                        <div class="form-hint mb-3">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>پس از ثبت، وضعیت «در انتظار بررسی» می‌گیرد و تا تأیید مدیر
-                            روی ساعت کار شما اثری ندارد.</span>
                         </div>
 
                         <button type="submit" class="btn btn-gradient w-100">

@@ -632,15 +632,38 @@ def _password_confirm(account, message, text, client):
 # ============================================================
 
 def _errand_start(account, client):
-    account.state = 'errand:start'
+    account.state = 'errand:mode'
     account.state_data = {'draft': {}}
     account.save()
     _send(
         account,
-        '📝 ثبت مأموریت\n\n'
+        '📝 ثبت مأموریت\n\nنوع مأموریت را انتخاب کنید:',
+        inline([
+            [btn('🏠 ریموت', 'err:mode:remote')],
+            [btn('🏢 شرکتی', 'err:mode:company')],
+            [btn('❌ لغو', 'menu:main')],
+        ]),
+        client=client,
+    )
+
+
+def _errand_mode(account, mode, client):
+    if mode not in ('remote', 'company'):
+        return _errand_start(account, client)
+
+    draft = dict((account.state_data or {}).get('draft') or {})
+    draft['work_mode'] = mode
+    account.state_data = {'draft': draft}
+    account.state = 'errand:start'
+    account.save()
+
+    label = 'ریموت' if mode == 'remote' else 'شرکتی'
+    _send(
+        account,
+        '✅ نوع مأموریت: %s\n\n'
         'تاریخ و ساعت شروع را به این شکل بفرستید:\n'
         '«۱۴۰۵/۰۸/۰۲ ۰۹:۰۰»\n\n'
-        'یا یکی از دکمه‌های زیر را بزنید:',
+        'یا یکی از دکمه‌های زیر را بزنید:' % label,
         inline([
             [btn('🕘 امروز ۰۹:۰۰', 'err:preset:today9'),
              btn('⏰ همین حالا', 'err:preset:now')],
@@ -757,6 +780,7 @@ def _submit_errand(account, client):
     payload = {
         'start': services.to_jalali_string(start),
         'end': services.to_jalali_string(end),
+        'work_mode': draft.get('work_mode', 'remote'),
         'reason': draft.get('reason', ''),
         'destination': draft.get('destination', ''),
         'contact': draft.get('contact', ''),
@@ -778,11 +802,12 @@ def _submit_errand(account, client):
 
     _send(
         account,
-        '✅ درخواست مأموریت ثبت شد و در انتظار تأیید مدیر است.\n\n'
+        '✅ درخواست مأموریتِ %s ثبت شد و در انتظار تأیید مدیر است.\n\n'
         '🕒 %s → %s\n'
         '📝 %s\n'
         '🚗 %s'
         % (
+            'ریموت' if errand.is_remote else 'شرکتی',
             services.dt_label(errand.start_time),
             services.fa_digits(services.clock(errand.end_time)),
             errand.reason,
@@ -796,12 +821,14 @@ def _submit_errand(account, client):
         client,
         '🆕 درخواست مأموریت جدید\n\n'
         '👤 %s\n'
+        '🏷️ نوع: %s\n'
         '🕒 %s → %s\n'
         '📝 %s\n'
         '🚗 %s\n\n'
         'برای بررسی: «در انتظار تأیید» را بزنید.'
         % (
             services.user_label(account.django_user),
+            'ریموت' if errand.is_remote else 'شرکتی',
             services.dt_label(errand.start_time),
             services.fa_digits(services.clock(errand.end_time)),
             errand.reason,
@@ -844,9 +871,10 @@ def _errand_list(account, client, page=1):
             ])
         _send(
             account,
-            '%s\n🕒 %s → %s\n📝 %s\n🚗 %s'
+            '%s\n🏷️ %s\n🕒 %s → %s\n📝 %s\n🚗 %s'
             % (
                 services.errand_status_badge(errand),
+                'ریموت' if errand.is_remote else 'شرکتی',
                 services.dt_label(errand.start_time),
                 services.fa_digits(services.clock(errand.end_time)),
                 errand.reason,
@@ -1083,9 +1111,10 @@ def _admin_pending(account, client, page=1):
     for errand in errands:
         _send(
             account,
-            '👤 %s\n🕒 %s → %s\n📝 %s\n🚗 %s'
+            '👤 %s\n🏷️ نوع: %s\n🕒 %s → %s\n📝 %s\n🚗 %s'
             % (
                 services.user_label(errand.user),
+                'ریموت' if errand.is_remote else 'شرکتی',
                 services.dt_label(errand.start_time),
                 services.fa_digits(services.clock(errand.end_time)),
                 errand.reason,
@@ -2115,6 +2144,9 @@ def _handle_state(account, message, text, client):
     if not account.is_linked:
         return _ask_login(account, client)
 
+    if state == 'errand:mode':
+        return _errand_start(account, client)
+
     if state == 'errand:start':
         value, error = services.parse_jalali_datetime(text)
         if error:
@@ -2352,6 +2384,8 @@ def _handle_action(account, data, client, edit_id=None):
         return _errand_list(account, client, 1)
     if data.startswith('err:mine:'):
         return _errand_list(account, client, _page_arg(data))
+    if data.startswith('err:mode:'):
+        return _errand_mode(account, data.split(':', 2)[2], client)
     if data.startswith('err:preset:'):
         which = data.split(':', 2)[2]
         if account.state == 'errand:start':

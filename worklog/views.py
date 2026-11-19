@@ -62,6 +62,23 @@ def _admin_guard(request):
     return None
 
 
+MOBILE_UA_TOKENS = (
+    'mobile', 'android', 'iphone', 'ipod', 'ipad',
+    'opera mini', 'iemobile', 'windows phone',
+)
+
+
+def _is_mobile(request):
+    """تشخیص موبایل؛ با ?view=mobile / ?view=desktop قابل اجبار است."""
+    view = request.GET.get('view')
+    if view == 'mobile':
+        return True
+    if view == 'desktop':
+        return False
+    ua = (request.META.get('HTTP_USER_AGENT') or '').lower()
+    return any(token in ua for token in MOBILE_UA_TOKENS)
+
+
 # ============================================================
 # کارمند
 # ============================================================
@@ -116,6 +133,15 @@ def my_worklog(request):
             str(day['day']): float(day['worked'])
             for day in matrix['days']
         },
+        'allocatable_json': {
+            str(day['day']): float(day['allocatable'])
+            for day in matrix['days']
+        },
+        'errand_json': {
+            str(day['day']): float(day['errand'])
+            for day in matrix['days']
+        },
+        'is_mobile': _is_mobile(request),
     })
 
 
@@ -232,6 +258,7 @@ def admin_detail(request, user_id):
         'month_label': services.month_label(year, month),
         'month_names': months,
         'years': years,
+        'is_mobile': _is_mobile(request),
     })
 
 

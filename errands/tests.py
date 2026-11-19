@@ -320,7 +320,7 @@ class ErrandFormTests(TestCase):
         self.today = timezone.localdate()
 
     def make_form(self, start, end, **extra):
-        data = {'start': start, 'end': end,
+        data = {'start': start, 'end': end, 'work_mode': 'remote',
                 'reason': extra.pop('reason', 'مراجعه به بانک')}
         data.update(extra)
         return ErrandForm(data=data, user=self.user)
@@ -409,6 +409,26 @@ class ErrandFormTests(TestCase):
 #  ویوهای کارمند — صفحهٔ /errands/
 # ============================================================
 
+    def test_work_mode_is_required(self):
+        form = self.make_form(
+            jal_text(self.today, 8, 0), jal_text(self.today, 16, 0),
+            work_mode='',
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('work_mode', form.errors)
+
+    def test_company_mode_is_saved(self):
+        form = self.make_form(
+            jal_text(self.today, 8, 0), jal_text(self.today, 16, 0),
+            work_mode='company',
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        obj = form.save(commit=False)
+        obj.user = self.user
+        obj.save()
+        self.assertEqual(obj.work_mode, 'company')
+
+
 class EmployeeErrandViewTests(TestCase):
 
     def setUp(self):
@@ -424,6 +444,7 @@ class EmployeeErrandViewTests(TestCase):
         data = {
             'start': jal_text(self.today, 8, 0),
             'end': jal_text(self.today, 16, 0),
+            'work_mode': 'remote',
             'reason': 'مراجعه به بانک',
             'destination': 'بانک ملت',
             'contact': '',
@@ -691,6 +712,7 @@ class AdminReviewViewTests(TestCase):
         r = self.client.post(reverse('errands-edit', args=[e.pk]), {
             'start': jal_text(tomorrow, 10, 0),
             'end': jal_text(tomorrow, 15, 30),
+            'work_mode': 'remote',
             'reason': 'بازه اصلاح شد',
         })
         self.assertRedirects(r, self.url)
@@ -705,6 +727,7 @@ class AdminReviewViewTests(TestCase):
         r = self.client.post(reverse('errands-edit', args=[e.pk]), {
             'start': jal_text(timezone.localdate(), 16, 0),
             'end': jal_text(timezone.localdate(), 8, 0),
+            'work_mode': 'remote',
             'reason': 'اشتباه',
         })
         self.assertEqual(r.status_code, 200)

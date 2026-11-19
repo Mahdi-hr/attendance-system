@@ -26,6 +26,7 @@ FONT_WHITE = Font(name='Tahoma', size=12, bold=True, color='FFFFFF')
 HEADER_FILL = PatternFill('solid', fgColor='D9E2F3')
 TOTAL_FILL = PatternFill('solid', fgColor='EDEDED')
 TITLE_FILL = PatternFill('solid', fgColor='1F4E78')
+AUTO_FILL = PatternFill('solid', fgColor='FFF2CC')
 
 
 def _set(cell, value=None, font=FONT, fill=None, align=CENTER,
@@ -141,28 +142,34 @@ def build_worklog_xlsx(user, year, month):
     for index in range(row_count):
         row_number = start_row + index
         source = data['rows'][index] if index < len(data['rows']) else None
+        auto = bool(source and source.get('auto'))
+        row_fill = AUTO_FILL if auto else None
+        row_font = FONT_BOLD if auto else FONT
 
-        _set(ws.cell(row=row_number, column=1), index + 1)
+        _set(ws.cell(row=row_number, column=1), index + 1,
+             font=row_font, fill=row_fill)
         _set(
             ws.cell(row=row_number, column=2),
             source['title'] if source else '', align=RIGHT,
+            font=row_font, fill=row_fill,
         )
 
         for day in range(1, DAYS + 1):
             cell = ws.cell(row=row_number, column=2 + day)
             value = source['values'][day - 1] if source else None
             if value and value > 0:
-                _set(cell, float(value), number_format='0.00')
+                _set(cell, float(value), font=row_font,
+                     fill=row_fill, number_format='0.00')
             else:
-                _set(cell, None)
+                _set(cell, None, font=row_font, fill=row_fill)
 
         total_value = source['total'] if source else None
         total_cell = ws.cell(row=row_number, column=TOTAL_COL)
         if total_value and total_value > 0:
             _set(total_cell, float(total_value), font=FONT_BOLD,
-                 number_format='0.00')
+                 fill=row_fill, number_format='0.00')
         else:
-            _set(total_cell, None, font=FONT_BOLD)
+            _set(total_cell, None, font=FONT_BOLD, fill=row_fill)
 
         # مرز کل ردیف
         for col in range(1, TOTAL_COL + 1):

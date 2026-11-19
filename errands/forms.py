@@ -35,10 +35,16 @@ class ErrandForm(forms.ModelForm):
             'data-field': 'end',
         }),
     )
+    work_mode = forms.ChoiceField(
+        label='نوع مأموریت',
+        choices=[],
+        widget=forms.RadioSelect(attrs={'class': 'errand-mode-radio'}),
+        required=True,
+    )
 
     class Meta:
         model = Errand
-        fields = ['start', 'end', 'reason', 'destination', 'contact']
+        fields = ['start', 'end', 'work_mode', 'reason', 'destination', 'contact']
         widgets = {
             'reason': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -60,6 +66,20 @@ class ErrandForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['start'].required = True
         self.fields['end'].required = True
+        self.fields['work_mode'].choices = list(Errand.MODE_CHOICES)
+        if self.instance and self.instance.pk:
+            self.fields['work_mode'].initial = self.instance.work_mode
+        else:
+            # برای مأموریت جدید، کاربر باید صریحاً ریموت یا شرکتی را انتخاب کند.
+            self.fields['work_mode'].initial = ''
+
+    def clean_work_mode(self):
+        value = self.cleaned_data.get('work_mode')
+        if value not in (Errand.MODE_REMOTE, Errand.MODE_COMPANY):
+            raise forms.ValidationError(
+                'نوع مأموریت (ریموت یا شرکتی) را انتخاب کنید.'
+            )
+        return value
 
     def _earliest_allowed(self):
         today = timezone.localdate()

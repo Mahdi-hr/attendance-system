@@ -11,7 +11,9 @@ from django.utils import timezone
 from openpyxl import load_workbook
 
 from users.models import Time
+from errands.models import Errand
 from . import services
+from .excel import build_worklog_xlsx
 from .models import Project, WorkLog, WorkLogMonth
 
 User = get_user_model()
@@ -130,11 +132,131 @@ class ServiceTests(WorklogTestBase):
             self._data(**{self.kp1: '5', self.kp2: '2', 'other_1': '1', 'other_title': 'پشتیبانی'}),
         )
         data = services.report_data(self.emp, self.year, self.month)
-        self.assertEqual(len(data['rows']), 3)
+        self.assertEqual(len(data['rows']), 4)
         self.assertEqual(data['rows'][0]['title'], 'zabbix')
+        self.assertTrue(data['rows'][2]['auto'])
+        self.assertEqual(data['rows'][2]['title'], 'مأموریت شرکتی (تأییدشده)')
         self.assertEqual(data['rows'][0]['values'][0], Decimal('5.00'))
         self.assertEqual(data['grand_total'], Decimal('8.00'))
         self.assertEqual(data['total_by_day'][0], Decimal('8.00'))
+
+
+class ErrandWorklogTests(WorklogTestBase):
+    """مأموریت تأییدشده خودکار در گزارش می‌آید و کاربر دخالتی ندارد."""
+
+    def _add_errand(self, status, work_mode=Errand.MODE_REMOTE,
+                    start_hour=17, end_hour=19):
+        tz = timezone.get_current_timezone()
+        return Errand.objects.create(
+            user=self.emp,
+            start_time=timezone.make_aware(
+                dt.datetime.combine(self.day, dt.time(start_hour, 0)), tz,
+            ),
+            end_time=timezone.make_aware(
+                dt.datetime.combine(self.day, dt.time(end_hour, 0)), tz,
+            ),
+            reason='مأموریت تست',
+            status=status,
+            work_mode=work_mode,
+        )
+
+    def test_approved_errand_is_automatic(self):
+        self._add_errand(Errand.STATUS_APPROVED, Errand.MODE_COMPANY)
+
+        matrix = services.month_matrix(
+            self.emp, self.year, self.month, [self.p1],
+        )
+        day = next(d for d in matrix['days'] if d['day'] == 1)
+        self.assertEqual(day['worked'], Decimal('10.00'))
+        self.assertEqual(day['allocatable'], Decimal('8.00'))
+        self.assertEqual(day['errand'], Decimal('2.00'))
+        self.assertEqual(matrix['errand_total'], Decimal('2.00'))
+
+        # کاربر فقط ۸ ساعت حضور فیزیکی را می‌تواند بین پروژه‌ها تقسیم کند.
+        ok, errors = services.save_allocations(
+            self.emp, self.year, self.month, [self.p1],
+            self._data(**{self.kp1: '8'}),
+        )
+        self.assertTrue(ok, errors)
+        totals = services.month_totals(self.emp, self.year, self.month)
+        self.assertEqual(totals['worked'], Decimal('10.00'))
+        self.assertEqual(totals['allocated'], Decimal('10.00'))
+        self.assertEqual(totals['remaining'], Decimal('0.00'))
+
+        # ۹ ساعت پروژه بیش از حضور فیزیکی است و باید رد شود.
+        ok, errors = services.save_allocations(
+            self.emp, self.year, self.month, [self.p1],
+            self._data(**{self.kp1: '9'}),
+        )
+        self.assertFalse(ok)
+        self.assertTrue(any('قابل تخصیص' in e for e in errors))
+
+        data = services.report_data(self.emp, self.year, self.month)
+        auto = next(row for row in data['rows'] if row.get('auto'))
+        self.assertEqual(auto['values'][0], Decimal('2.00'))
+        self.assertEqual(data['grand_total'], Decimal('10.00'))
+
+    def test_remote_errand_is_allocatable(self):
+        self._add_errand(Errand.STATUS_APPROVED, Errand.MODE_REMOTE)
+        matrix = services.month_matrix(
+            self.emp, self.year, self.month, [self.p1],
+        )
+        day = next(d for d in matrix['days'] if d['day'] == 1)
+        self.assertEqual(day['worked'], Decimal('10.00'))
+        self.assertEqual(day['allocatable'], Decimal('10.00'))
+        self.assertEqual(day['errand'], Decimal('0.00'))
+        self.assertEqual(matrix['errand_total'], Decimal('0.00'))
+
+        ok, errors = services.save_allocations(
+            self.emp, self.year, self.month, [self.p1],
+            self._data(**{self.kp1: '10'}),
+        )
+        self.assertTrue(ok, errors)
+        totals = services.month_totals(self.emp, self.year, self.month)
+        self.assertEqual(totals['worked'], Decimal('10.00'))
+        self.assertEqual(totals['allocated'], Decimal('10.00'))
+        self.assertEqual(totals['remaining'], Decimal('0.00'))
+
+        data = services.report_data(self.emp, self.year, self.month)
+        auto = next(row for row in data['rows'] if row.get('auto'))
+        self.assertEqual(auto['total'], Decimal('0.00'))
+
+    def test_pending_errand_is_ignored(self):
+        self._add_errand(Errand.STATUS_PENDING)
+        matrix = services.month_matrix(
+            self.emp, self.year, self.month, [self.p1],
+        )
+        day = next(d for d in matrix['days'] if d['day'] == 1)
+        self.assertEqual(day['errand'], Decimal('0.00'))
+        self.assertEqual(day['worked'], Decimal('8.00'))
+
+        data = services.report_data(self.emp, self.year, self.month)
+        auto = next(row for row in data['rows'] if row.get('auto'))
+        self.assertEqual(auto['total'], Decimal('0.00'))
+
+    def test_excel_contains_automatic_errand_row(self):
+        self._add_errand(Errand.STATUS_APPROVED, Errand.MODE_COMPANY)
+        services.save_allocations(
+            self.emp, self.year, self.month, [self.p1],
+            self._data(**{self.kp1: '8'}),
+        )
+        content, _filename = build_worklog_xlsx(
+            self.emp, self.year, self.month,
+        )
+        wb = load_workbook(BytesIO(content))
+        ws = wb.active
+
+        auto_row = None
+        total_row = None
+        for row in range(6, ws.max_row + 1):
+            if ws.cell(row=row, column=2).value == 'مأموریت شرکتی (تأییدشده)':
+                auto_row = row
+            if ws.cell(row=row, column=1).value == 'جمع':
+                total_row = row
+        self.assertIsNotNone(auto_row)
+        self.assertIsNotNone(total_row)
+        self.assertEqual(ws.cell(row=auto_row, column=3).value, 2.0)
+        self.assertEqual(ws.cell(row=total_row, column=34).value, 10.0)
 
 
 class ViewTests(WorklogTestBase):
@@ -145,6 +267,27 @@ class ViewTests(WorklogTestBase):
         }), follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(WorkLog.objects.filter(user=self.emp).count(), 3)
+
+    def test_mobile_view_uses_day_cards(self):
+        self.client.force_login(self.emp)
+        self.client.post('/worklog/', self._data(**{self.kp1: '5'}), follow=True)
+
+        response = self.client.get(
+            '/worklog/?year=%d&month=%d&view=mobile'
+            % (self.year, self.month),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'wl-m-card')
+        self.assertNotContains(response, '<table class="wl-table')
+        self.assertContains(response, 'name="%s"' % self.kp1)
+
+    def test_mobile_ua_gets_mobile_view(self):
+        self.client.force_login(self.emp)
+        response = self.client.get(
+            '/worklog/?year=%d&month=%d' % (self.year, self.month),
+            HTTP_USER_AGENT='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+        )
+        self.assertContains(response, 'wl-m-card')
 
     def test_employee_cannot_open_admin_pages(self):
         self.client.force_login(self.emp)
@@ -212,6 +355,14 @@ class ViewTests(WorklogTestBase):
         self.assertEqual(response.status_code, 200)
         # در نمای مدیر هیچ input ثبت ساعتی نباید باشد.
         self.assertNotContains(response, 'name="p%d_1"' % self.p1.pk)
+
+        mobile = self.client.get(
+            '/worklog/admin/%d/?year=%d&month=%d&view=mobile'
+            % (self.emp.pk, self.year, self.month),
+        )
+        self.assertEqual(mobile.status_code, 200)
+        self.assertContains(mobile, 'wl-m-card')
+        self.assertNotContains(mobile, 'name="p%d_1"' % self.p1.pk)
 
     def test_project_crud_admin_only(self):
         self.client.force_login(self.emp)

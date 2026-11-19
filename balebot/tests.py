@@ -263,6 +263,7 @@ class EmployeeFeatureTests(BotTestBase):
     def test_create_errand_flow(self):
         self.login('emp')
         self.click('err:new')
+        self.click('err:mode:remote')
         self.send(jalali_today(9))
         self.send(jalali_today(12))
         self.send('مراجعه به بانک')
@@ -276,6 +277,7 @@ class EmployeeFeatureTests(BotTestBase):
     def test_errand_end_before_start_is_rejected(self):
         self.login('emp')
         self.click('err:new')
+        self.click('err:mode:remote')
         self.send(jalali_today(12))
         self.send(jalali_today(9))
         self.assertIn('بعد از شروع', self.bot.last_text)
@@ -300,6 +302,7 @@ class EmployeeFeatureTests(BotTestBase):
 
         self.login('emp')
         self.click('err:new')
+        self.click('err:mode:remote')
         self.send(jalali_today(10))
         self.send(jalali_today(11))
         self.send('مأموریت جدید')
@@ -820,6 +823,7 @@ class EditErrandTests(BotTestBase):
         self._pending_errand(reason='بانک')
         self.login('emp')
         self.click('err:new')
+        self.click('err:mode:remote')
         self.send(jalali_today(9))
         self.send(jalali_today(12))
         self.click('err:tpl:reason:0')

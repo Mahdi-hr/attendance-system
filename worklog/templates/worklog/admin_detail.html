@@ -20,6 +20,14 @@
                class="btn btn-gradient">
                 <i class="fas fa-file-excel me-1"></i>خروجی اکسل
             </a>
+            <a href="?year={{ year }}&month={{ month }}&view={% if is_mobile %}desktop{% else %}mobile{% endif %}"
+               class="btn btn-outline-glass">
+                {% if is_mobile %}
+                <i class="fas fa-desktop me-1"></i>نمای دسکتاپ
+                {% else %}
+                <i class="fas fa-mobile-screen-button me-1"></i>نمای موبایل
+                {% endif %}
+            </a>
             <a href="{% url 'worklog:admin-list' %}?year={{ year }}&month={{ month }}"
                class="btn btn-outline-glass">
                 <i class="fas fa-arrow-right me-1"></i>بازگشت
@@ -44,7 +52,11 @@
             <strong>{{ matrix.total_worked|floatformat:2|fa }}</strong>
         </div>
         <div class="wl-stat">
-            <span>جمع تخصیص</span>
+            <span>مأموریت شرکتی (خودکار)</span>
+            <strong>{{ matrix.total_errand|floatformat:2|fa }}</strong>
+        </div>
+        <div class="wl-stat">
+            <span>جمع تخصیص (پروژه + مأموریت شرکتی)</span>
             <strong>{{ matrix.total_allocated|floatformat:2|fa }}</strong>
         </div>
         <div class="wl-stat {% if matrix.total_remaining < 0 %}danger{% endif %}">
@@ -54,7 +66,11 @@
     </div>
 
     {% if matrix.projects %}
-    {% include 'worklog/_matrix.html' with editable=False %}
+        {% if is_mobile %}
+        {% include 'worklog/_mobile_matrix.html' with editable=False %}
+        {% else %}
+        {% include 'worklog/_matrix.html' with editable=False %}
+        {% endif %}
     {% else %}
     <div class="wl-empty">برای این کاربر در این ماه پروژه‌ای ثبت نشده است.</div>
     {% endif %}

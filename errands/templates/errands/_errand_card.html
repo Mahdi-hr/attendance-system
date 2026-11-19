@@ -27,6 +27,13 @@
             {% else %}<i class="fas fa-ban"></i>{% endif %}
             {{ e.get_status_display }}
         </span>
+        <span class="chip">
+            {% if e.is_remote %}
+            <i class="fas fa-house-laptop"></i>ریموت
+            {% else %}
+            <i class="fas fa-building"></i>شرکتی
+            {% endif %}
+        </span>
     </div>
 
     <div class="er-chips mb-3">

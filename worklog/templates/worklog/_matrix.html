@@ -35,6 +35,19 @@
             </tr>
             {% endfor %}
 
+            <tr class="wl-errand-row">
+                <td class="wl-sticky wl-title-col">
+                    <i class="fas fa-route me-1"></i>مأموریت شرکتی (تأییدشده)
+                    <span class="wl-auto-badge">خودکار</span>
+                </td>
+                {% for cell in matrix.errand_cells %}
+                <td>
+                    {% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}
+                </td>
+                {% endfor %}
+                <td class="wl-row-total">{{ matrix.errand_total|floatformat:2|fa }}</td>
+            </tr>
+
             <tr class="wl-other-row">
                 <td class="wl-sticky wl-title-col">
                     {% if editable %}
@@ -65,16 +78,16 @@
         </tbody>
         <tfoot>
             <tr class="wl-worked-row">
-                <td class="wl-sticky wl-title-col">ساعت کار سیستم</td>
+                <td class="wl-sticky wl-title-col">ساعت کار سیستم (حضور + مأموریت)</td>
                 {% for day in matrix.days %}
                 <td>{{ day.worked|floatformat:2|fa }}</td>
                 {% endfor %}
                 <td class="wl-row-total">{{ matrix.total_worked|floatformat:2|fa }}</td>
             </tr>
-            <tr class="wl-alloc-row">
-                <td class="wl-sticky wl-title-col">جمع تخصیص</td>
+            <tr class="wl-total-row">
+                <td class="wl-sticky wl-title-col">جمع کل (پروژه + مأموریت شرکتی)</td>
                 {% for day in matrix.days %}
-                <td class="wl-day-alloc {% if day.over %}over{% endif %}" data-day="{{ day.day }}">
+                <td class="wl-day-alloc" data-day="{{ day.day }}">
                     {{ day.allocated|floatformat:2|fa }}
                 </td>
                 {% endfor %}
