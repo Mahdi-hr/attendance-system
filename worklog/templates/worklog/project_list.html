@@ -1,0 +1,80 @@
+{% extends 'base/base.html' %}
+{% load jalali_filters %}
+
+{% block title %}مدیریت پروژه‌ها{% endblock %}
+
+{% block extra_css %}{% include 'worklog/_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="wl-page">
+    <div class="wl-hero">
+        <div>
+            <h1><i class="fas fa-gear me-2" style="color:var(--primary)"></i>مدیریت پروژه‌ها</h1>
+            <p>پروژه‌هایی که کارمندان می‌توانند ساعت کارشان را روی آن‌ها ثبت کنند.</p>
+        </div>
+        <div class="wl-actions">
+            <a href="{% url 'worklog:project-add' %}" class="btn btn-gradient">
+                <i class="fas fa-plus me-1"></i>پروژه جدید
+            </a>
+            <a href="{% url 'worklog:admin-list' %}" class="btn btn-outline-glass">
+                <i class="fas fa-chart-column me-1"></i>گزارش کارمندان
+            </a>
+        </div>
+    </div>
+
+    {% if projects %}
+    <div class="wl-table-wrap">
+        <table class="wl-table">
+            <thead>
+                <tr>
+                    <th>ترتیب</th>
+                    <th>نام پروژه</th>
+                    <th>کد</th>
+                    <th>توضیح</th>
+                    <th>وضعیت</th>
+                    <th>تعداد ثبت</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <tr>
+                    <td class="wl-num">{{ project.sort_order|fa }}</td>
+                    <td class="wl-title-col">{{ project.name }}</td>
+                    <td><code dir="ltr">{{ project.code|default:'—' }}</code></td>
+                    <td>{{ project.description|default:'—' }}</td>
+                    <td>
+                        {% if project.is_active %}
+                        <span class="wl-status submitted">فعال</span>
+                        {% else %}
+                        <span class="wl-status none">غیرفعال</span>
+                        {% endif %}
+                    </td>
+                    <td class="wl-num">{{ project.worklog_count|fa }}</td>
+                    <td class="wl-actions-cell">
+                        <a href="{% url 'worklog:project-edit' project.pk %}"
+                           class="btn btn-sm btn-outline-glass">
+                            <i class="fas fa-pen me-1"></i>ویرایش
+                        </a>
+                        <form method="post" action="{% url 'worklog:project-toggle' project.pk %}"
+                              style="display:inline-block">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm {% if project.is_active %}btn-outline-danger{% else %}btn-success{% endif %}"
+                                    onclick="return confirm('وضعیت این پروژه تغییر کند؟')">
+                                {% if project.is_active %}غیرفعال{% else %}فعال{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="wl-empty">
+        هنوز پروژه‌ای تعریف نشده است.
+        <a href="{% url 'worklog:project-add' %}">اولین پروژه را اضافه کنید</a>.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

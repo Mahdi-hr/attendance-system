@@ -1,0 +1,82 @@
+{% extends 'base/base.html' %}
+{% load jalali_filters %}
+
+{% block title %}گزارش کارکرد کارمندان{% endblock %}
+
+{% block extra_css %}{% include 'worklog/_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="wl-page">
+    <div class="wl-hero">
+        <div>
+            <h1><i class="fas fa-users me-2" style="color:var(--primary)"></i>گزارش کارکرد کارمندان</h1>
+            <p>وضعیت ثبت کارکرد ماهانهٔ همهٔ کارمندان و خروجی اکسل هر نفر.</p>
+        </div>
+        <div class="wl-actions">
+            <a href="{% url 'worklog:my' %}?year={{ year }}&month={{ month }}" class="btn btn-outline-glass">
+                <i class="fas fa-user me-1"></i>کارکرد من
+            </a>
+            <a href="{% url 'worklog:projects' %}" class="btn btn-gradient">
+                <i class="fas fa-gear me-1"></i>مدیریت پروژه‌ها
+            </a>
+        </div>
+    </div>
+
+    <div class="wl-panel">
+        {% include 'worklog/_month_selector.html' %}
+        <span class="wl-status none">{{ month_label }}</span>
+    </div>
+
+    {% if rows %}
+    <div class="wl-table-wrap">
+        <table class="wl-table">
+            <thead>
+                <tr>
+                    <th>کارمند</th>
+                    <th>نام کاربری</th>
+                    <th>وضعیت ماه</th>
+                    <th>ساعت کار سیستم</th>
+                    <th>جمع تخصیص</th>
+                    <th>باقی‌مانده</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td class="wl-title-col">{{ row.display_name }}</td>
+                    <td><code dir="ltr">{{ row.user.username }}</code></td>
+                    <td>
+                        {% if row.month_state and row.month_state.is_submitted %}
+                        <span class="wl-status submitted">ثبت نهایی</span>
+                        {% elif row.month_state %}
+                        <span class="wl-status draft">پیش‌نویس</span>
+                        {% else %}
+                        <span class="wl-status none">ثبت‌نشده</span>
+                        {% endif %}
+                    </td>
+                    <td class="wl-num">{{ row.totals.worked|floatformat:2|fa }}</td>
+                    <td class="wl-num">{{ row.totals.allocated|floatformat:2|fa }}</td>
+                    <td class="wl-num {% if row.totals.remaining < 0 %}text-danger{% endif %}">
+                        {{ row.totals.remaining|floatformat:2|fa }}
+                    </td>
+                    <td class="wl-actions-cell">
+                        <a href="{% url 'worklog:admin-detail' row.user.pk %}?year={{ year }}&month={{ month }}"
+                           class="btn btn-sm btn-outline-glass">
+                            <i class="fas fa-eye me-1"></i>مشاهده
+                        </a>
+                        <a href="{% url 'worklog:admin-export' row.user.pk %}?year={{ year }}&month={{ month }}"
+                           class="btn btn-sm btn-gradient">
+                            <i class="fas fa-file-excel me-1"></i>اکسل
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="wl-empty">کارمند فعالی وجود ندارد.</div>
+    {% endif %}
+</div>
+{% endblock %}

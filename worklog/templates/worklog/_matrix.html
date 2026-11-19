@@ -1,0 +1,94 @@
+{% load jalali_filters %}
+<div class="wl-table-wrap">
+    <table class="wl-table wl-matrix">
+        <thead>
+            <tr>
+                <th class="wl-sticky wl-title-col">عنوان فعالیت</th>
+                {% for day in matrix.days %}
+                <th class="{% if day.is_friday %}is-friday{% endif %}">
+                    <span class="wl-day">{{ day.day|fa }}</span>
+                    <span class="wl-weekday">{{ day.weekday }}</span>
+                </th>
+                {% endfor %}
+                <th class="wl-total-col">جمع</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in matrix.projects %}
+            <tr>
+                <td class="wl-sticky wl-title-col">{{ row.project.name }}</td>
+                {% for cell in row.cells %}
+                <td>
+                    {% if editable %}
+                    <input type="number"
+                           name="p{{ row.project.id }}_{{ cell.day }}"
+                           value="{% if cell.value %}{{ cell.value|floatformat:2 }}{% endif %}"
+                           step="0.01" min="0" max="24"
+                           class="wl-input" data-day="{{ cell.day }}"
+                           inputmode="decimal" aria-label="{{ row.project.name }} روز {{ cell.day }}">
+                    {% else %}
+                    <span class="wl-val">{% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+                <td class="wl-row-total">{{ row.total|floatformat:2|fa }}</td>
+            </tr>
+            {% endfor %}
+
+            <tr class="wl-other-row">
+                <td class="wl-sticky wl-title-col">
+                    {% if editable %}
+                    <input type="text" name="other_title"
+                           value="{{ matrix.other_title }}"
+                           placeholder="➕ سایر (عنوان فعالیت)"
+                           class="wl-other-title"
+                           aria-label="عنوان فعالیت سایر">
+                    {% else %}
+                    {{ matrix.other_title|default:'سایر' }}
+                    {% endif %}
+                </td>
+                {% for cell in matrix.other_cells %}
+                <td>
+                    {% if editable %}
+                    <input type="number" name="other_{{ cell.day }}"
+                           value="{% if cell.value %}{{ cell.value|floatformat:2 }}{% endif %}"
+                           step="0.01" min="0" max="24"
+                           class="wl-input wl-other-input" data-day="{{ cell.day }}"
+                           inputmode="decimal" aria-label="سایر روز {{ cell.day }}">
+                    {% else %}
+                    <span class="wl-val">{% if cell.value %}{{ cell.value|floatformat:2|fa }}{% else %}—{% endif %}</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+                <td class="wl-row-total">{{ matrix.other_total|floatformat:2|fa }}</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr class="wl-worked-row">
+                <td class="wl-sticky wl-title-col">ساعت کار سیستم</td>
+                {% for day in matrix.days %}
+                <td>{{ day.worked|floatformat:2|fa }}</td>
+                {% endfor %}
+                <td class="wl-row-total">{{ matrix.total_worked|floatformat:2|fa }}</td>
+            </tr>
+            <tr class="wl-alloc-row">
+                <td class="wl-sticky wl-title-col">جمع تخصیص</td>
+                {% for day in matrix.days %}
+                <td class="wl-day-alloc {% if day.over %}over{% endif %}" data-day="{{ day.day }}">
+                    {{ day.allocated|floatformat:2|fa }}
+                </td>
+                {% endfor %}
+                <td class="wl-row-total">{{ matrix.total_allocated|floatformat:2|fa }}</td>
+            </tr>
+            <tr class="wl-remain-row">
+                <td class="wl-sticky wl-title-col">باقی‌مانده</td>
+                {% for day in matrix.days %}
+                <td class="wl-day-remain {% if day.remaining < 0 %}over{% endif %}" data-day="{{ day.day }}">
+                    {{ day.remaining|floatformat:2|fa }}
+                </td>
+                {% endfor %}
+                <td class="wl-row-total">{{ matrix.total_remaining|floatformat:2|fa }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>

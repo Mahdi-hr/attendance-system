@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'recognition.apps.RecognitionConfig',
     'errands.apps.ErrandsConfig',
     'balebot.apps.BalebotConfig',
+    'worklog.apps.WorklogConfig',
 
     'crispy_forms',
     'crispy_bootstrap4',

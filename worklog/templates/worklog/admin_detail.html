@@ -1,0 +1,62 @@
+{% extends 'base/base.html' %}
+{% load jalali_filters %}
+
+{% block title %}کارکرد {{ display_name }}{% endblock %}
+
+{% block extra_css %}{% include 'worklog/_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="wl-page">
+    <div class="wl-hero">
+        <div>
+            <h1><i class="fas fa-user-clock me-2" style="color:var(--primary)"></i>کارکرد {{ display_name }}</h1>
+            <p>
+                <code dir="ltr">{{ target_user.username }}</code> —
+                {{ month_label }} — این صفحه فقط‌خواندنی است.
+            </p>
+        </div>
+        <div class="wl-actions">
+            <a href="{% url 'worklog:admin-export' target_user.pk %}?year={{ year }}&month={{ month }}"
+               class="btn btn-gradient">
+                <i class="fas fa-file-excel me-1"></i>خروجی اکسل
+            </a>
+            <a href="{% url 'worklog:admin-list' %}?year={{ year }}&month={{ month }}"
+               class="btn btn-outline-glass">
+                <i class="fas fa-arrow-right me-1"></i>بازگشت
+            </a>
+        </div>
+    </div>
+
+    <div class="wl-panel">
+        {% include 'worklog/_month_selector.html' %}
+        {% if month_state and month_state.is_submitted %}
+        <span class="wl-status submitted"><i class="fas fa-lock"></i>ثبت نهایی شده</span>
+        {% elif month_state %}
+        <span class="wl-status draft"><i class="fas fa-pen"></i>پیش‌نویس</span>
+        {% else %}
+        <span class="wl-status none">ثبت‌نشده</span>
+        {% endif %}
+    </div>
+
+    <div class="wl-stats">
+        <div class="wl-stat">
+            <span>ساعت کار سیستم</span>
+            <strong>{{ matrix.total_worked|floatformat:2|fa }}</strong>
+        </div>
+        <div class="wl-stat">
+            <span>جمع تخصیص</span>
+            <strong>{{ matrix.total_allocated|floatformat:2|fa }}</strong>
+        </div>
+        <div class="wl-stat {% if matrix.total_remaining < 0 %}danger{% endif %}">
+            <span>باقی‌مانده</span>
+            <strong>{{ matrix.total_remaining|floatformat:2|fa }}</strong>
+        </div>
+    </div>
+
+    {% if matrix.projects %}
+    {% include 'worklog/_matrix.html' with editable=False %}
+    {% else %}
+    <div class="wl-empty">برای این کاربر در این ماه پروژه‌ای ثبت نشده است.</div>
+    {% endif %}
+</div>
+{% endblock %}

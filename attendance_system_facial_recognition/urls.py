@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from django.contrib.auth import views as auth_views
 from recognition import views as recog_views
 from users import views as users_views
@@ -25,6 +25,7 @@ from balebot.webhook import bale_webhook
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('balebot/webhook/<str:secret>/', bale_webhook, name='balebot-webhook'),
+    path('worklog/', include('worklog.urls')),
     path('', recog_views.home, name='home'),
     path('dashboard/', recog_views.dashboard, name='dashboard'),
     path('train/', recog_views.train, name='train'),

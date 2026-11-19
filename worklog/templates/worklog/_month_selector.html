@@ -1,0 +1,18 @@
+{% load jalali_filters %}
+<form method="get" class="wl-month-form">
+    <label for="wl-month">ماه</label>
+    <select name="month" id="wl-month">
+        {% for num, name in month_names %}
+        <option value="{{ num }}" {% if num == month %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="wl-year">سال</label>
+    <select name="year" id="wl-year">
+        {% for y in years %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y|fa }}</option>
+        {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-gradient">نمایش</button>
+</form>
