@@ -10,7 +10,7 @@ from django.test import TestCase
 from django.utils import timezone
 from openpyxl import load_workbook
 
-from users.models import Time
+from users.models import Time, UserProfile
 from errands.models import Errand
 from . import services
 from .excel import build_worklog_xlsx
@@ -340,6 +340,47 @@ class ViewTests(WorklogTestBase):
     def test_employee_cannot_open_admin_pages(self):
         self.client.force_login(self.emp)
         response = self.client.get('/worklog/admin/')
+        self.assertEqual(response.status_code, 302)
+
+    def test_admin_mode_redirects_employee_worklog_to_admin_list(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            '/worklog/?year=%d&month=%d' % (self.year, self.month),
+        )
+        self.assertRedirects(
+            response,
+            '/worklog/admin/?year=%d&month=%d' % (self.year, self.month),
+        )
+
+    def test_both_user_in_admin_mode_redirects_to_admin_list(self):
+        both = User.objects.create_user('both', password='Secret12345')
+        UserProfile.objects.update_or_create(
+            user=both, defaults={'role': UserProfile.ROLE_BOTH},
+        )
+        self.client.force_login(both)
+
+        # در حالت کاربر، صفحهٔ کارکرد شخصی مجاز است.
+        response = self.client.get('/worklog/')
+        self.assertEqual(response.status_code, 200)
+
+        session = self.client.session
+        session['admin_mode'] = True
+        session.save()
+        response = self.client.get(
+            '/worklog/?year=%d&month=%d' % (self.year, self.month),
+        )
+        self.assertRedirects(
+            response,
+            '/worklog/admin/?year=%d&month=%d' % (self.year, self.month),
+        )
+
+    def test_admin_mode_blocks_personal_export_and_submit(self):
+        self.client.force_login(self.admin)
+        response = self.client.get('/worklog/export/')
+        self.assertEqual(response.status_code, 302)
+        response = self.client.post('/worklog/submit/', {
+            'year': self.year, 'month': self.month,
+        })
         self.assertEqual(response.status_code, 302)
 
     def test_submit_locks_month_and_prevents_edits(self):

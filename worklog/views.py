@@ -62,6 +62,14 @@ def _admin_guard(request):
     return None
 
 
+def _employee_guard(request):
+    """در حالت ادمین، صفحات کارمند جایی ندارند؛ به گزارش مدیر برو."""
+    if not can_access_admin(request):
+        return None
+    year, month = _parse_month(request)
+    return redirect(_month_url('worklog:admin-list', year, month))
+
+
 MOBILE_UA_TOKENS = (
     'mobile', 'android', 'iphone', 'ipod', 'ipad',
     'opera mini', 'iemobile', 'windows phone',
@@ -85,6 +93,9 @@ def _is_mobile(request):
 
 @login_required
 def my_worklog(request):
+    guard = _employee_guard(request)
+    if guard:
+        return guard
     year, month = _parse_month(request)
     month_state, _created = WorkLogMonth.objects.get_or_create(
         user=request.user, year=year, month=month,
@@ -148,6 +159,9 @@ def my_worklog(request):
 @login_required
 @require_POST
 def submit_month(request):
+    guard = _employee_guard(request)
+    if guard:
+        return guard
     year, month = _parse_month(request)
     projects = services.projects_for_month(request.user, year, month)
 
@@ -190,6 +204,9 @@ def submit_month(request):
 @login_required
 @require_POST
 def reopen_month(request):
+    guard = _employee_guard(request)
+    if guard:
+        return guard
     year, month = _parse_month(request)
     month_state = WorkLogMonth.objects.filter(
         user=request.user, year=year, month=month,
@@ -204,6 +221,9 @@ def reopen_month(request):
 
 @login_required
 def my_export(request):
+    guard = _employee_guard(request)
+    if guard:
+        return guard
     year, month = _parse_month(request)
     content, filename = build_worklog_xlsx(request.user, year, month)
     response = HttpResponse(content, content_type=XLSX_CONTENT_TYPE)

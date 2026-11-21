@@ -592,14 +592,18 @@
 
     <!-- Worklog / project hours -->
     <div class="col-md-6 col-lg-3">
-        <a href="{% url 'worklog:my' %}" class="action-card worklog position-relative">
+        <a href="{% if can_access_admin %}{% url 'worklog:admin-list' %}{% else %}{% url 'worklog:my' %}{% endif %}" class="action-card worklog position-relative">
             <div class="ac-icon">
                 <i class="fas fa-diagram-project"></i>
             </div>
-            <h5>کارکرد پروژه‌ها</h5>
+            <h5>{% if can_access_admin %}گزارش کارکرد کارمندان{% else %}کارکرد پروژه‌ها{% endif %}</h5>
             <span class="ac-badge success"
                   style="background:rgba(34,211,238,0.12);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(34,211,238,0.25);">
+                {% if can_access_admin %}
+                <i class="fas fa-users"></i>مشاهده و خروجی
+                {% else %}
                 <i class="fas fa-clock"></i>ثبت ساعت پروژه
+                {% endif %}
             </span>
         </a>
     </div>
