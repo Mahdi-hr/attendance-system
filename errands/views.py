@@ -188,10 +188,14 @@ def destination_list(request):
     destinations = ErrandDestination.objects.all().order_by(
         'sort_order', 'name',
     )
+    active_count = destinations.filter(is_active=True).count()
+    total_count = destinations.count()
     return render(request, 'errands/destinations.html', {
         'form': form,
         'destinations': destinations,
-        'active_count': destinations.filter(is_active=True).count(),
+        'active_count': active_count,
+        'inactive_count': total_count - active_count,
+        'total_count': total_count,
     })
 
 
