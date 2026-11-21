@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from users.roles import can_access_admin
 
 from . import services
+from .admin_excel import build_admin_projects_xlsx
 from .excel import build_worklog_xlsx
 from .forms import ProjectForm
 from .models import Project, WorkLog, WorkLogMonth
@@ -251,6 +252,19 @@ def admin_list(request):
         'month_names': months,
         'years': years,
     })
+
+
+@login_required
+def admin_projects_export(request):
+    """اکسل جمع ساعت همهٔ کارمندان روی پروژه‌ها (ماه + روند سالانه)."""
+    guard = _admin_guard(request)
+    if guard:
+        return guard
+    year, month = _parse_month(request)
+    content, filename = build_admin_projects_xlsx(year, month)
+    response = HttpResponse(content, content_type=XLSX_CONTENT_TYPE)
+    response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+    return response
 
 
 @login_required

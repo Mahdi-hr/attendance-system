@@ -275,7 +275,7 @@ class EmployeeFeatureTests(BotTestBase):
         self.assertIn('ثبت شد', self.bot.last_text)
 
     def test_company_errand_requires_and_uses_destination(self):
-        ErrandDestination.objects.create(name='بانک ملت')
+        destination = ErrandDestination.objects.create(name='بانک ملت')
         self.login('emp')
         self.click('err:new')
         self.click('err:mode:company')
@@ -288,7 +288,7 @@ class EmployeeFeatureTests(BotTestBase):
         self.click('err:skip:destination')
         self.assertIn('الزامی', self.bot.last_text)
 
-        self.click('err:tpl:destination:0')
+        self.click('err:dest:%d' % destination.pk)
         self.click('err:skip:contact')
 
         errand = Errand.objects.get(user=self.emp, reason='مراجعه به بانک')

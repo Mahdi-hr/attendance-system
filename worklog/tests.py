@@ -13,6 +13,7 @@ from openpyxl import load_workbook
 from users.models import Time, UserProfile
 from errands.models import Errand
 from . import services
+from .admin_excel import build_admin_projects_xlsx
 from .excel import build_worklog_xlsx
 from .models import Project, WorkLog, WorkLogMonth
 
@@ -302,6 +303,108 @@ class ErrandWorklogTests(WorklogTestBase):
         self.assertEqual(ws.cell(row=bank_row, column=3).value, 2.0)
         self.assertEqual(ws.cell(row=court_row, column=3).value, 1.0)
         self.assertEqual(ws.cell(row=total_row, column=34).value, 11.0)
+
+
+class AdminProjectExportTests(WorklogTestBase):
+    """اکسل جمعی پروژه‌ها برای ادمین."""
+
+    def setUp(self):
+        super().setUp()
+        self.emp2 = User.objects.create_user(
+            'emp2', password='Secret12345',
+            first_name='کارمند', last_name='دوم',
+        )
+        WorkLog.objects.create(
+            user=self.emp, date=self.day, project=self.p1,
+            hours=Decimal('5.00'),
+        )
+        WorkLog.objects.create(
+            user=self.emp, date=self.day, project=self.p2,
+            hours=Decimal('2.00'),
+        )
+        WorkLog.objects.create(
+            user=self.emp, date=self.day, project=None,
+            other_title='پشتیبانی', hours=Decimal('1.00'),
+        )
+        WorkLog.objects.create(
+            user=self.emp2, date=self.day, project=self.p1,
+            hours=Decimal('3.00'),
+        )
+        WorkLog.objects.create(
+            user=self.emp2, date=self.day, project=self.p2,
+            hours=Decimal('1.00'),
+        )
+
+    def test_summary_totals_per_project_and_user(self):
+        data = services.admin_project_summary(self.year, self.month)
+        self.assertEqual(len(data['users']), 2)
+        rows = {row['name']: row for row in data['projects']}
+        self.assertEqual(rows['zabbix']['total'], Decimal('8.00'))
+        self.assertEqual(rows['attendance']['total'], Decimal('3.00'))
+        self.assertEqual(rows['سایر']['total'], Decimal('1.00'))
+        self.assertEqual(data['grand_total'], Decimal('12.00'))
+        self.assertEqual(data['total_by_user'][self.emp.pk], Decimal('8.00'))
+        self.assertEqual(data['total_by_user'][self.emp2.pk], Decimal('4.00'))
+
+    def test_workbook_has_month_and_year_sheets(self):
+        content, filename = build_admin_projects_xlsx(
+            self.year, self.month,
+        )
+        self.assertIn('worklog-projects', filename)
+        wb = load_workbook(BytesIO(content))
+        self.assertEqual(
+            wb.sheetnames, ['جمع پروژه‌ها', 'روند سالانه'],
+        )
+
+        ws = wb['جمع پروژه‌ها']
+        headers = {}
+        for col in range(1, ws.max_column + 1):
+            value = ws.cell(row=4, column=col).value
+            if value:
+                headers[value] = col
+        self.assertIn('پروژه', headers)
+        self.assertIn('جمع کل', headers)
+
+        zabbix_row = None
+        for row in range(5, ws.max_row + 1):
+            if ws.cell(row=row, column=2).value == 'zabbix':
+                zabbix_row = row
+                break
+        self.assertIsNotNone(zabbix_row)
+        self.assertEqual(
+            ws.cell(row=zabbix_row, column=headers['جمع کل']).value,
+            8.0,
+        )
+
+        year_ws = wb['روند سالانه']
+        zabbix_year_row = None
+        for row in range(5, year_ws.max_row + 1):
+            if year_ws.cell(row=row, column=2).value == 'zabbix':
+                zabbix_year_row = row
+                break
+        self.assertIsNotNone(zabbix_year_row)
+        self.assertEqual(
+            year_ws.cell(
+                row=zabbix_year_row, column=2 + self.month,
+            ).value,
+            8.0,
+        )
+
+    def test_admin_export_view_and_permissions(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            '/worklog/admin/projects-export/?year=%d&month=%d'
+            % (self.year, self.month),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('spreadsheetml', response['Content-Type'])
+
+        self.client.force_login(self.emp)
+        response = self.client.get(
+            '/worklog/admin/projects-export/?year=%d&month=%d'
+            % (self.year, self.month),
+        )
+        self.assertEqual(response.status_code, 302)
 
 
 class ViewTests(WorklogTestBase):

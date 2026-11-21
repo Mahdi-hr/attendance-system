@@ -572,17 +572,16 @@ def recent_destinations(user, limit=4):
     return seen
 
 
-def destination_options(user, limit=10):
-    """مقصدهای فعال (مدیریت ادمین) + مقصدهای اخیر همان کاربر."""
-    names = list(
+def active_destinations():
+    """مقصدهای فعالی که ادمین در پنل تعریف کرده است."""
+    return (
         ErrandDestination.objects.filter(is_active=True)
         .order_by('sort_order', 'name')
-        .values_list('name', flat=True)
     )
-    for dest in recent_destinations(user, limit=limit):
-        if dest not in names:
-            names.append(dest)
-    return names[:limit]
+
+
+def active_destination_names():
+    return list(active_destinations().values_list('name', flat=True))
 
 
 def errand_payload(errand, **overrides):

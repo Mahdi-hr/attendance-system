@@ -318,6 +318,7 @@ class ErrandFormTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('ali', password='x')
         self.today = timezone.localdate()
+        ErrandDestination.objects.get_or_create(name='بانک ملت')
 
     def make_form(self, start, end, **extra):
         data = {'start': start, 'end': end, 'work_mode': 'remote',
@@ -475,6 +476,14 @@ class ErrandFormTests(TestCase):
         )
         self.assertTrue(form.is_valid(), form.errors)
 
+    def test_company_destination_must_be_in_admin_list(self):
+        form = self.make_form(
+            jal_text(self.today, 8, 0), jal_text(self.today, 16, 0),
+            work_mode='company', destination='مقصد ناموجود',
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('destination', form.errors)
+
 
 class EmployeeErrandViewTests(TestCase):
 
@@ -482,6 +491,7 @@ class EmployeeErrandViewTests(TestCase):
         self.employee = User.objects.create_user('ali', password='x')
         self.admin = User.objects.create_superuser('boss', 'b@b.com', 'x')
         self.today = timezone.localdate()
+        ErrandDestination.objects.get_or_create(name='بانک ملت')
         self.url = reverse('errands-my')
 
     def login(self, user):
@@ -513,8 +523,7 @@ class EmployeeErrandViewTests(TestCase):
             self.assertContains(r, 'data-errand-preset="%s"' % preset)
         self.assertContains(r, 'ثبت مأموریت جدید')
 
-    def test_active_destination_appears_in_datalist(self):
-        ErrandDestination.objects.create(name='بانک ملت')
+    def test_active_destination_appears_in_select(self):
         self.login(self.employee)
         r = self.client.get(self.url)
         self.assertContains(r, '<option value="بانک ملت">')

@@ -503,11 +503,12 @@
                                     مقصد
                                 </label>
                                 {{ form.destination }}
-                                <datalist id="errand-destinations">
-                                    {% for destination in destination_options %}
-                                    <option value="{{ destination }}"></option>
-                                    {% endfor %}
-                                </datalist>
+                                <div class="form-text mt-1" style="font-size:.74rem;">
+                                    برای مأموریت شرکتی، انتخاب مقصد از لیست الزامی است.
+                                </div>
+                                {% for e in form.destination.errors %}
+                                <div class="invalid-feedback d-block">{{ e }}</div>
+                                {% endfor %}
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label" for="{{ form.contact.id_for_label }}">

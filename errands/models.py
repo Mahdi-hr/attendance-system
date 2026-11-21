@@ -209,7 +209,7 @@ class Errand(models.Model):
             and not (self.destination or '').strip()
         ):
             raise ValidationError({
-                'destination': 'برای مأموریت شرکتی، انتخاب یا نوشتن مقصد الزامی است.',
+                'destination': 'برای مأموریت شرکتی، انتخاب مقصد از لیست الزامی است.',
             })
 
     # ---------- محاسبات کمکی ----------

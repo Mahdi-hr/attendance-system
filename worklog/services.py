@@ -646,3 +646,133 @@ def overlay_matrix(matrix, projects, data):
     matrix['total_allocated'] = total_allocated
     matrix['total_remaining'] = total_worked - total_allocated
     return matrix
+
+
+# ============================================================
+# گزارش جمعی پروژه‌ها برای ادمین
+# ============================================================
+
+def admin_project_summary(year, month):
+    """جمع ساعت هر پروژه به تفکیک کارمند در یک ماه.
+
+    خروجی برای اکسل «جمع پروژه‌ها»:
+      users        فهرست کارمندانی که در این ماه کارکرد دارند
+      projects     ردیف‌های پروژه با total و by_user
+      total_by_user جمع هر کارمند
+      grand_total  جمع کل ماه
+    """
+    start, end, _count = month_bounds(year, month)
+    logs = (
+        WorkLog.objects
+        .filter(date__gte=start, date__lte=end)
+        .select_related('project', 'user')
+    )
+
+    users_by_id = {}
+    project_user = defaultdict(lambda: defaultdict(Decimal))
+    other_user = defaultdict(Decimal)
+
+    for log in logs:
+        users_by_id[log.user_id] = log.user
+        if log.project_id:
+            project_user[log.project_id][log.user_id] += log.hours
+        else:
+            other_user[log.user_id] += log.hours
+
+    users = sorted(
+        users_by_id.values(),
+        key=lambda user: (user_display(user), user.username),
+    )
+
+    projects = (
+        Project.objects
+        .filter(pk__in=set(project_user))
+        .order_by('sort_order', 'name')
+    )
+    rows = []
+    for project in projects:
+        by_user = project_user.get(project.pk, {})
+        rows.append({
+            'name': project.name,
+            'by_user': by_user,
+            'total': sum(by_user.values(), Decimal('0')),
+        })
+
+    if other_user:
+        rows.append({
+            'name': 'سایر',
+            'by_user': other_user,
+            'total': sum(other_user.values(), Decimal('0')),
+        })
+
+    total_by_user = {
+        user.pk: sum(
+            (row['by_user'].get(user.pk, Decimal('0')) for row in rows),
+            Decimal('0'),
+        )
+        for user in users
+    }
+    grand_total = sum((row['total'] for row in rows), Decimal('0'))
+
+    return {
+        'year': year,
+        'month': month,
+        'month_label': month_label(year, month),
+        'users': users,
+        'projects': rows,
+        'total_by_user': total_by_user,
+        'grand_total': grand_total,
+    }
+
+
+def admin_project_year(year):
+    """جمع ساعت هر پروژه در ۱۲ ماه یک سال شمسی (همهٔ کارمندان)."""
+    start = jdatetime.date(year, 1, 1).togregorian()
+    _start, end, _count = month_bounds(year, 12)
+    logs = (
+        WorkLog.objects
+        .filter(date__gte=start, date__lte=end)
+        .select_related('project')
+    )
+
+    monthly = defaultdict(lambda: [Decimal('0')] * 12)
+    other_values = [Decimal('0')] * 12
+
+    for log in logs:
+        month_index = jdatetime.date.fromgregorian(date=log.date).month - 1
+        if log.project_id:
+            monthly[log.project_id][month_index] += log.hours
+        else:
+            other_values[month_index] += log.hours
+
+    projects = (
+        Project.objects
+        .filter(pk__in=set(monthly))
+        .order_by('sort_order', 'name')
+    )
+    rows = []
+    for project in projects:
+        values = monthly.get(project.pk, [Decimal('0')] * 12)
+        rows.append({
+            'name': project.name,
+            'values': values,
+            'total': sum(values, Decimal('0')),
+        })
+
+    if any(other_values):
+        rows.append({
+            'name': 'سایر',
+            'values': other_values,
+            'total': sum(other_values, Decimal('0')),
+        })
+
+    return {
+        'year': year,
+        'months': MONTHS_FA,
+        'projects': rows,
+        'total_by_month': [
+            sum((row['values'][index] for row in rows), Decimal('0'))
+            for index in range(12)
+        ],
+        'grand_total': sum((row['total'] for row in rows), Decimal('0')),
+    }

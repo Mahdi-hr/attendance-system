@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from recognition.forms import JalaliDatePickerField, JalaliDateTimePickerField, JalaliDateTimePickerInput
 
-from .models import Errand, ErrandSettings
+from .models import Errand, ErrandDestination, ErrandSettings
 
 
 class ErrandForm(forms.ModelForm):
@@ -37,6 +37,12 @@ class ErrandForm(forms.ModelForm):
         widget=forms.RadioSelect(attrs={'class': 'errand-mode-radio'}),
         required=True,
     )
+    destination = forms.ChoiceField(
+        label='مقصد',
+        choices=[],
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
 
     class Meta:
         model = Errand
@@ -46,12 +52,6 @@ class ErrandForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3,
                 'placeholder': 'مثلاً: مراجعه به بانک برای کارتابل تسهیلات',
-            }),
-            'destination': forms.TextInput(attrs={
-                'class': 'form-control',
-                'list': 'errand-destinations',
-                'autocomplete': 'off',
-                'placeholder': 'انتخاب از لیست یا نوشتن مقصد جدید',
             }),
             'contact': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -70,6 +70,22 @@ class ErrandForm(forms.ModelForm):
         else:
             # برای مأموریت جدید، کاربر باید صریحاً ریموت یا شرکتی را انتخاب کند.
             self.fields['work_mode'].initial = ''
+
+        # مقصد فقط از لیست تعریف‌شده توسط ادمین انتخاب می‌شود.
+        names = list(
+            ErrandDestination.objects.filter(is_active=True)
+            .order_by('sort_order', 'name')
+            .values_list('name', flat=True)
+        )
+        choices = [('', '— انتخاب مقصد —')]
+        choices.extend((name, name) for name in names)
+        current = ''
+        if self.instance and self.instance.pk:
+            current = (self.instance.destination or '').strip()
+        if current and current not in names:
+            # مقصد قدیمی که ادمین بعداً غیرفعال/حذف کرده است.
+            choices.append((current, current))
+        self.fields['destination'].choices = choices
 
     def clean_work_mode(self):
         value = self.cleaned_data.get('work_mode')
