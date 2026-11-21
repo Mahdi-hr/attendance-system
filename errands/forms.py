@@ -178,6 +178,33 @@ class ErrandForm(forms.ModelForm):
         return cleaned
 
 
+class ErrandDestinationForm(forms.ModelForm):
+    """افزودن/ویرایش مقصد مأموریت توسط ادمین سایت."""
+
+    class Meta:
+        model = ErrandDestination
+        fields = ['name', 'is_active', 'sort_order']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثلاً: بانک ملت، شعبهٔ مرکزی',
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'sort_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+            }),
+        }
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            raise forms.ValidationError('نام مقصد نمیتواند خالی باشد.')
+        return name
+
+
 class ErrandReviewForm(forms.Form):
     """فرم تأیید/رد توسط ادمین."""
 

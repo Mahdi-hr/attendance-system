@@ -563,6 +563,7 @@ class ViewTests(WorklogTestBase):
         response = self.client.get('/worklog/admin/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'کارمند تست')
+        self.assertContains(response, '/manage/errands/destinations/')
 
         response = self.client.get(
             '/worklog/admin/%d/?year=%d&month=%d'

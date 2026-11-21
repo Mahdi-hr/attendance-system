@@ -21,7 +21,7 @@ from errands.services import (
     subtract_intervals,
     total_seconds,
 )
-from users.models import Time
+from users.models import Time, UserProfile
 from recognition.reports import daily_rows, format_hours, range_summary
 
 
@@ -939,6 +939,79 @@ class MyErrandsSectionsTests(TestCase):
         self.assertEqual(len(r.context['done_page']), 3)
         self.assertEqual(r.context['pending_page'].paginator.count, 4)
         self.assertEqual(r.context['done_page'].paginator.count, 3)
+
+
+class DestinationManagementTests(TestCase):
+    """مدیریت مقصدهای مأموریت توسط ادمین سایت (بدون نیاز به جنگو)."""
+
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(
+            'boss', 'boss@example.com', 'x',
+        )
+        self.site_admin = User.objects.create_user('manager', password='x')
+        UserProfile.objects.update_or_create(
+            user=self.site_admin,
+            defaults={'role': UserProfile.ROLE_ADMIN},
+        )
+        self.employee = User.objects.create_user('emp', password='x')
+        self.url = reverse('errands-destinations')
+
+    def test_login_required_and_employee_denied(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.client.force_login(self.employee)
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_site_admin_can_add_destination(self):
+        self.client.force_login(self.site_admin)
+        response = self.client.post(self.url, {
+            'name': 'بانک ملت',
+            'sort_order': '2',
+            'is_active': 'on',
+        })
+        self.assertRedirects(response, self.url)
+        self.assertTrue(
+            ErrandDestination.objects.filter(name='بانک ملت').exists()
+        )
+
+    def test_duplicate_destination_is_rejected(self):
+        ErrandDestination.objects.create(name='بانک ملت')
+        self.client.force_login(self.site_admin)
+        response = self.client.post(self.url, {
+            'name': 'بانک ملت',
+            'sort_order': '0',
+            'is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            ErrandDestination.objects.filter(name='بانک ملت').count(), 1,
+        )
+
+    def test_site_admin_can_edit_and_toggle(self):
+        destination = ErrandDestination.objects.create(name='بانک ملت')
+        self.client.force_login(self.site_admin)
+
+        response = self.client.post(
+            reverse('errands-destination-edit', args=[destination.pk]),
+            {'name': 'بانک ملی', 'sort_order': '5', 'is_active': 'on'},
+        )
+        self.assertRedirects(response, self.url)
+        destination.refresh_from_db()
+        self.assertEqual(destination.name, 'بانک ملی')
+        self.assertEqual(destination.sort_order, 5)
+
+        response = self.client.post(
+            reverse('errands-destination-toggle', args=[destination.pk]),
+        )
+        self.assertRedirects(response, self.url)
+        destination.refresh_from_db()
+        self.assertFalse(destination.is_active)
+
+    def test_list_shows_existing_destinations(self):
+        ErrandDestination.objects.create(name='دادگاه')
+        self.client.force_login(self.site_admin)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'دادگاه')
+        self.assertContains(response, 'افزودن مقصد')
 
 
 class ErrandAdminTests(TestCase):

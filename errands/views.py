@@ -27,8 +27,14 @@ from recognition.views import XLSX_CONTENT_TYPE, report_query_params
 from users.roles import can_access_admin
 
 from . import services
-from .forms import ErrandAdminEditForm, ErrandFilterForm, ErrandForm, ErrandReviewForm
-from .models import Errand, ErrandSettings
+from .forms import (
+    ErrandAdminEditForm,
+    ErrandDestinationForm,
+    ErrandFilterForm,
+    ErrandForm,
+    ErrandReviewForm,
+)
+from .models import Errand, ErrandDestination, ErrandSettings
 
 PER_PAGE = 25
 MY_PER_PAGE = 3  # «مأموریت‌های من»: حداکثر ۳ درخواست اخیر در هر صفحه از هر بخش
@@ -163,6 +169,67 @@ def cancel_errand(request, pk):
 # ============================================================
 #  ۲) ادمین — صف بررسی
 # ============================================================
+
+@login_required
+def destination_list(request):
+    """مدیریت مقصدهای مأموریت شرکتی (برای ادمین‌های سایت)."""
+    if not can_access_admin(request):
+        return redirect('not-authorised')
+
+    if request.method == 'POST':
+        form = ErrandDestinationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'مقصد جدید اضافه شد.')
+            return redirect('errands-destinations')
+    else:
+        form = ErrandDestinationForm()
+
+    destinations = ErrandDestination.objects.all().order_by(
+        'sort_order', 'name',
+    )
+    return render(request, 'errands/destinations.html', {
+        'form': form,
+        'destinations': destinations,
+        'active_count': destinations.filter(is_active=True).count(),
+    })
+
+
+@login_required
+def destination_edit(request, pk):
+    """ویرایش نام/ترتیب/فعال‌بودن یک مقصد."""
+    if not can_access_admin(request):
+        return redirect('not-authorised')
+
+    destination = get_object_or_404(ErrandDestination, pk=pk)
+    form = ErrandDestinationForm(request.POST or None, instance=destination)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'مقصد به‌روزرسانی شد.')
+        return redirect('errands-destinations')
+
+    return render(request, 'errands/destination_edit.html', {
+        'form': form,
+        'destination': destination,
+    })
+
+
+@login_required
+@require_POST
+def destination_toggle(request, pk):
+    """فعال/غیرفعال کردن مقصد بدون حذف سابقه."""
+    if not can_access_admin(request):
+        return redirect('not-authorised')
+
+    destination = get_object_or_404(ErrandDestination, pk=pk)
+    destination.is_active = not destination.is_active
+    destination.save(update_fields=['is_active'])
+    if destination.is_active:
+        messages.success(request, 'مقصد فعال شد.')
+    else:
+        messages.warning(request, 'مقصد غیرفعال شد.')
+    return redirect('errands-destinations')
+
 
 @login_required
 def admin_review(request):

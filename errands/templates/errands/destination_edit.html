@@ -1,0 +1,56 @@
+{% extends 'base/base.html' %}
+
+{% block title %}ویرایش مقصد{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 640px;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="page-title mb-1">
+                <i class="fas fa-pen-to-square me-2" style="color:var(--primary)"></i>
+                ویرایش مقصد
+            </h1>
+            <p class="page-subtitle mb-0">{{ destination.name }}</p>
+        </div>
+        <a href="{% url 'errands-destinations' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-1"></i>بازگشت
+        </a>
+    </div>
+
+    <div class="card border-0" style="background:var(--glass);border:1px solid var(--glass-border)!important;border-radius:18px;">
+        <div class="card-body p-4">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.name.id_for_label }}">نام مقصد</label>
+                    {{ form.name }}
+                    {% for error in form.name.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.sort_order.id_for_label }}">ترتیب نمایش</label>
+                    {{ form.sort_order }}
+                    {% for error in form.sort_order.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="form-check mb-4">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        فعال باشد
+                    </label>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="fas fa-save me-1"></i>ذخیره تغییرات
+                    </button>
+                    <a href="{% url 'errands-destinations' %}" class="btn btn-outline-secondary">
+                        انصراف
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

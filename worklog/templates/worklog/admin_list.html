@@ -13,6 +13,9 @@
             <p>وضعیت ثبت کارکرد ماهانهٔ همهٔ کارمندان و خروجی اکسل هر نفر.</p>
         </div>
         <div class="wl-actions">
+            <a href="{% url 'errands-destinations' %}" class="btn btn-outline-glass">
+                <i class="fas fa-map-location-dot me-1"></i>مقصدهای مأموریت
+            </a>
             <a href="{% url 'worklog:admin-projects-export' %}?year={{ year }}&month={{ month }}"
                class="btn btn-outline-glass">
                 <i class="fas fa-chart-bar me-1"></i>اکسل جمع پروژه‌ها

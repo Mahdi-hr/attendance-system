@@ -1,0 +1,141 @@
+{% extends 'base/base.html' %}
+{% load jalali_filters %}
+
+{% block title %}مقصدهای مأموریت{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 1100px;">
+
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1">
+                <i class="fas fa-map-location-dot me-2" style="color:var(--primary)"></i>
+                مقصدهای مأموریت
+            </h1>
+            <p class="page-subtitle mb-0">
+                مقصدهای مأموریت شرکتی را اینجا تعریف کنید؛ کارمندان فقط
+                همین موارد را در فرم و ربات خواهند دید.
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'errands-admin' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-1"></i>بررسی مأموریت‌ها
+            </a>
+            <a href="{% url 'worklog:admin-list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-diagram-project me-1"></i>گزارش کارکرد
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 h-100" style="background:var(--glass);border:1px solid var(--glass-border)!important;border-radius:18px;">
+                <div class="card-body p-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-plus-circle me-1" style="color:var(--primary)"></i>
+                        افزودن مقصد
+                    </h5>
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.name.id_for_label }}">
+                                نام مقصد
+                            </label>
+                            {{ form.name }}
+                            {% for error in form.name.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.sort_order.id_for_label }}">
+                                ترتیب نمایش
+                            </label>
+                            {{ form.sort_order }}
+                            {% for error in form.sort_order.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-check mb-3">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                فعال باشد
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-gradient w-100">
+                            <i class="fas fa-save me-1"></i>ذخیره مقصد
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-8">
+            <div class="card border-0" style="background:var(--glass);border:1px solid var(--glass-border)!important;border-radius:18px;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-1" style="color:var(--primary)"></i>
+                            لیست مقصدها
+                        </h5>
+                        <span class="badge" style="background:rgba(var(--primary-rgb),.12);color:var(--primary);">
+                            {{ active_count|fa }} فعال از {{ destinations|length|fa }}
+                        </span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>نام مقصد</th>
+                                    <th class="text-center">وضعیت</th>
+                                    <th class="text-center">ترتیب</th>
+                                    <th class="text-center">تاریخ ایجاد</th>
+                                    <th class="text-center">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for destination in destinations %}
+                                <tr {% if not destination.is_active %}style="opacity:.55;"{% endif %}>
+                                    <td style="font-weight:600;">{{ destination.name }}</td>
+                                    <td class="text-center">
+                                        {% if destination.is_active %}
+                                        <span class="badge" style="background:rgba(16,185,129,.14);color:#10b981;">فعال</span>
+                                        {% else %}
+                                        <span class="badge" style="background:rgba(148,163,184,.15);color:var(--text-secondary);">غیرفعال</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ destination.sort_order|fa }}</td>
+                                    <td class="text-center" style="font-size:.8rem;">{{ destination.created_at|to_jalali }}</td>
+                                    <td class="text-center" style="white-space:nowrap;">
+                                        <a href="{% url 'errands-destination-edit' destination.pk %}"
+                                           class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                        <form method="post"
+                                              action="{% url 'errands-destination-toggle' destination.pk %}"
+                                              class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="btn btn-sm {% if destination.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}"
+                                                    title="{% if destination.is_active %}غیرفعال کردن{% else %}فعال کردن{% endif %}">
+                                                <i class="fas {% if destination.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4" style="color:var(--text-secondary);">
+                                        هنوز مقصدی تعریف نشده است؛ از فرم کنار اضافه کنید.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

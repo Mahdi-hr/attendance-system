@@ -71,6 +71,12 @@ urlpatterns = [
     path('errands/<int:pk>/cancel/', errands_views.cancel_errand, name='errands-cancel'),
     # ---- مأموریت (ادمین) ----
     path('manage/errands/', errands_views.admin_review, name='errands-admin'),
+    path('manage/errands/destinations/', errands_views.destination_list,
+         name='errands-destinations'),
+    path('manage/errands/destinations/<int:pk>/edit/',
+         errands_views.destination_edit, name='errands-destination-edit'),
+    path('manage/errands/destinations/<int:pk>/toggle/',
+         errands_views.destination_toggle, name='errands-destination-toggle'),
     path('manage/errands/review/<int:pk>/', errands_views.review_errand, name='errands-review'),
     path('manage/errands/bulk/', errands_views.bulk_review, name='errands-bulk'),
     path('manage/errands/<int:pk>/edit/', errands_views.admin_edit, name='errands-edit'),
