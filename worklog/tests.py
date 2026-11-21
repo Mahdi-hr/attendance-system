@@ -204,6 +204,30 @@ class ErrandWorklogTests(WorklogTestBase):
         self.assertEqual(auto['values'][0], Decimal('2.00'))
         self.assertEqual(data['grand_total'], Decimal('10.00'))
 
+    def test_company_errand_overnight_keeps_destination_on_both_days(self):
+        tz = timezone.get_current_timezone()
+        next_day = self.day + dt.timedelta(days=1)
+        Errand.objects.create(
+            user=self.emp,
+            start_time=timezone.make_aware(
+                dt.datetime.combine(self.day, dt.time(22, 0)), tz,
+            ),
+            end_time=timezone.make_aware(
+                dt.datetime.combine(next_day, dt.time(2, 0)), tz,
+            ),
+            reason='مأموریت شبانه',
+            status=Errand.STATUS_APPROVED,
+            work_mode=Errand.MODE_COMPANY,
+            destination='دادگاه',
+        )
+
+        data = services.report_data(self.emp, self.year, self.month)
+        auto = next(row for row in data['rows'] if row.get('auto'))
+        self.assertEqual(auto['title'], 'مأموریت شرکتی — دادگاه')
+        self.assertEqual(auto['values'][0], Decimal('2.00'))
+        self.assertEqual(auto['values'][1], Decimal('2.00'))
+        self.assertEqual(auto['total'], Decimal('4.00'))
+
     def test_remote_errand_is_allocatable(self):
         self._add_errand(Errand.STATUS_APPROVED, Errand.MODE_REMOTE)
         matrix = services.month_matrix(
