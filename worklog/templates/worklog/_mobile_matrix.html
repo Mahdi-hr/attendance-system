@@ -30,17 +30,30 @@
             {% for cell in row.cells %}
             {% if cell.day == day.day and cell.value %}
             <div class="wl-m-project" data-project-row="{{ row.project.id }}">
-                <label>{{ row.project.name }}</label>
+                <div class="wl-m-project-main">
+                    <label>{{ row.project.name }}</label>
+                    {% if editable %}
+                    <input type="number"
+                           name="p{{ row.project.id }}_{{ cell.day }}"
+                           value="{{ cell.value|floatformat:2 }}"
+                           step="0.01" min="0" max="24"
+                           class="wl-input" data-day="{{ cell.day }}"
+                           inputmode="decimal"
+                           aria-label="{{ row.project.name }} روز {{ cell.day }}">
+                    {% else %}
+                    <span class="wl-val">{{ cell.value|floatformat:2|fa }}</span>
+                    {% endif %}
+                </div>
                 {% if editable %}
-                <input type="number"
-                       name="p{{ row.project.id }}_{{ cell.day }}"
-                       value="{{ cell.value|floatformat:2 }}"
-                       step="0.01" min="0" max="24"
-                       class="wl-input" data-day="{{ cell.day }}"
-                       inputmode="decimal"
-                       aria-label="{{ row.project.name }} روز {{ cell.day }}">
-                {% else %}
-                <span class="wl-val">{{ cell.value|floatformat:2|fa }}</span>
+                <input type="text"
+                       name="note_p{{ row.project.id }}_{{ cell.day }}"
+                       value="{{ cell.note }}"
+                       maxlength="300"
+                       class="wl-note-input"
+                       placeholder="توضیح کوتاه (اختیاری)"
+                       aria-label="توضیح {{ row.project.name }} روز {{ cell.day }}">
+                {% elif cell.note %}
+                <div class="wl-note-text">{{ cell.note }}</div>
                 {% endif %}
             </div>
             {% endif %}
@@ -50,16 +63,29 @@
         {% for cell in matrix.other_cells %}
         {% if cell.day == day.day and cell.value %}
         <div class="wl-m-project wl-m-other-row">
-            <label>سایر{% if matrix.other_title %} — {{ matrix.other_title }}{% endif %}</label>
+            <div class="wl-m-project-main">
+                <label>سایر{% if matrix.other_title %} — {{ matrix.other_title }}{% endif %}</label>
+                {% if editable %}
+                <input type="number" name="other_{{ cell.day }}"
+                       value="{{ cell.value|floatformat:2 }}"
+                       step="0.01" min="0" max="24"
+                       class="wl-input wl-other-input" data-day="{{ cell.day }}"
+                       inputmode="decimal"
+                       aria-label="سایر روز {{ cell.day }}">
+                {% else %}
+                <span class="wl-val">{{ cell.value|floatformat:2|fa }}</span>
+                {% endif %}
+            </div>
             {% if editable %}
-            <input type="number" name="other_{{ cell.day }}"
-                   value="{{ cell.value|floatformat:2 }}"
-                   step="0.01" min="0" max="24"
-                   class="wl-input wl-other-input" data-day="{{ cell.day }}"
-                   inputmode="decimal"
-                   aria-label="سایر روز {{ cell.day }}">
-            {% else %}
-            <span class="wl-val">{{ cell.value|floatformat:2|fa }}</span>
+            <input type="text"
+                   name="note_other_{{ cell.day }}"
+                   value="{{ cell.note }}"
+                   maxlength="300"
+                   class="wl-note-input"
+                   placeholder="توضیح کوتاه (اختیاری)"
+                   aria-label="توضیح سایر روز {{ cell.day }}">
+            {% elif cell.note %}
+            <div class="wl-note-text">{{ cell.note }}</div>
             {% endif %}
         </div>
         {% endif %}

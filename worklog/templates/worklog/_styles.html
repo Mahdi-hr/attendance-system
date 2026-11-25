@@ -215,9 +215,13 @@
     }
     .wl-m-projects { display: flex; flex-direction: column; }
     .wl-m-project {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: .75rem; padding: .42rem 0;
+        display: flex; flex-direction: column; align-items: stretch;
+        gap: .3rem; padding: .45rem 0;
         border-bottom: 1px dashed var(--glass-border);
+    }
+    .wl-m-project-main {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: .75rem;
     }
     .wl-m-project:last-child { border-bottom: 0; }
     .wl-m-project label {
@@ -225,7 +229,23 @@
         flex: 1; min-width: 0; overflow-wrap: anywhere;
     }
     .wl-m-project .wl-input { width: 84px; padding: 6px 4px; font-size: .82rem; }
+    .wl-note-input {
+        width: 100%; padding: .38rem .55rem;
+        font-size: .72rem; font-family: inherit;
+        color: var(--text-primary); background: var(--form-bg);
+        border: 1px dashed var(--glass-border); border-radius: 8px;
+    }
+    .wl-note-input::placeholder { color: var(--text-muted); }
+    .wl-note-input:focus {
+        outline: none; border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), .12);
+    }
+    .wl-note-text {
+        font-size: .72rem; color: var(--text-secondary);
+        line-height: 1.7; padding: .1rem .1rem 0;
+    }
     .wl-m-company-row {
+        flex-direction: row; align-items: center; justify-content: space-between;
         color: #b45309; font-weight: 700;
         background: rgba(245,158,11,.1); border-radius: 10px;
         padding: .5rem .55rem; margin-top: .3rem; border-bottom: 0;

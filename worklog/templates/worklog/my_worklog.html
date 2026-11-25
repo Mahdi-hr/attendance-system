@@ -183,6 +183,28 @@
         margin-top: 1rem;
     }
     .wl-hint { color: var(--text-secondary); font-size: .76rem; }
+    .wl-autosave-status {
+        display: inline-flex; align-items: center; gap: .4rem;
+        padding: .32rem .7rem; border-radius: 999px;
+        font-size: .74rem; font-weight: 600;
+        color: var(--text-secondary);
+        background: rgba(148,163,184,.08);
+        border: 1px solid var(--glass-border);
+        transition: color .25s, border-color .25s, background .25s;
+        margin-inline-start: auto;
+    }
+    .wl-autosave-status.saving {
+        color: #f59e0b; border-color: rgba(245,158,11,.35);
+        background: rgba(245,158,11,.09);
+    }
+    .wl-autosave-status.saved {
+        color: #10b981; border-color: rgba(16,185,129,.35);
+        background: rgba(16,185,129,.09);
+    }
+    .wl-autosave-status.error {
+        color: var(--danger); border-color: rgba(239,68,68,.4);
+        background: rgba(239,68,68,.09);
+    }
 
     .wl-empty {
         background: var(--glass); border: 1px dashed var(--glass-border);
@@ -223,9 +245,13 @@
     }
     .wl-m-projects { display: flex; flex-direction: column; }
     .wl-m-project {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: .75rem; padding: .42rem 0;
+        display: flex; flex-direction: column; align-items: stretch;
+        gap: .3rem; padding: .45rem 0;
         border-bottom: 1px dashed var(--glass-border);
+    }
+    .wl-m-project-main {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: .75rem;
     }
     .wl-m-project:last-child { border-bottom: 0; }
     .wl-m-project label {
@@ -233,7 +259,23 @@
         flex: 1; min-width: 0; overflow-wrap: anywhere;
     }
     .wl-m-project .wl-input { width: 84px; padding: 6px 4px; font-size: .82rem; }
+    .wl-note-input {
+        width: 100%; padding: .38rem .55rem;
+        font-size: .72rem; font-family: inherit;
+        color: var(--text-primary); background: var(--form-bg);
+        border: 1px dashed var(--glass-border); border-radius: 8px;
+    }
+    .wl-note-input::placeholder { color: var(--text-muted); }
+    .wl-note-input:focus {
+        outline: none; border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), .12);
+    }
+    .wl-note-text {
+        font-size: .72rem; color: var(--text-secondary);
+        line-height: 1.7; padding: .1rem .1rem 0;
+    }
     .wl-m-company-row {
+        flex-direction: row; align-items: center; justify-content: space-between;
         color: #b45309; font-weight: 700;
         background: rgba(245,158,11,.1); border-radius: 10px;
         padding: .5rem .55rem; margin-top: .3rem; border-bottom: 0;
@@ -305,14 +347,6 @@
                class="btn btn-gradient">
                 <i class="fas fa-file-excel me-1"></i>خروجی اکسل
             </a>
-            <a href="?year={{ year }}&month={{ month }}&view={% if is_mobile %}desktop{% else %}mobile{% endif %}"
-               class="btn btn-outline-glass">
-                {% if is_mobile %}
-                <i class="fas fa-desktop me-1"></i>نمای دسکتاپ
-                {% else %}
-                <i class="fas fa-mobile-screen-button me-1"></i>نمای موبایل
-                {% endif %}
-            </a>
             {% if is_admin %}
             <a href="{% url 'worklog:admin-list' %}?year={{ year }}&month={{ month }}"
                class="btn btn-outline-glass">
@@ -379,22 +413,18 @@
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
         <input type="hidden" name="month" value="{{ month }}">
-        {% if is_mobile %}
         {% include 'worklog/_mobile_matrix.html' %}
-        {% else %}
-        {% include 'worklog/_matrix.html' %}
-        {% endif %}
 
         {% if editable %}
         <div class="wl-submitbar">
-            <button type="submit" class="btn btn-gradient">
-                <i class="fas fa-floppy-disk me-1"></i>ذخیره پیش‌نویس
-            </button>
             <button type="submit" formaction="{% url 'worklog:submit' %}"
                     class="btn btn-success"
                     onclick="return confirm('بعد از ثبت نهایی، ویرایش قفل می‌شود. مطمئن هستید؟')">
                 <i class="fas fa-check me-1"></i>ثبت نهایی ماه
             </button>
+            <span id="wlAutosaveStatus" class="wl-autosave-status">
+                <i class="fas fa-cloud"></i>ذخیره خودکار فعال است
+            </span>
             <span class="wl-hint">
                 جمع ساعت هر روز نمی‌تواند از ساعت کار مجاز روز بیشتر شود.
             </span>
@@ -433,6 +463,86 @@
     var allocatable = JSON.parse(allocatableEl.textContent);
     var errand = JSON.parse(errandEl.textContent);
     var form = document.getElementById('wlForm');
+    var statusEl = document.getElementById('wlAutosaveStatus');
+    var canAutosave = !!statusEl;
+    var saveTimer = null;
+    var saving = false;
+    var queued = false;
+
+    function setSaveStatus(state, text) {
+        if (!statusEl) return;
+        var icons = {
+            idle: 'fa-cloud',
+            saving: 'fa-circle-notch fa-spin',
+            saved: 'fa-circle-check',
+            error: 'fa-triangle-exclamation'
+        };
+        statusEl.className = 'wl-autosave-status' + (state ? ' ' + state : '');
+        statusEl.innerHTML = '<i class="fas ' + (icons[state] || icons.idle) + '"></i>';
+        statusEl.appendChild(document.createTextNode(text));
+    }
+
+    function saveFormData() {
+        var data = new FormData(form);
+        data.append('autosave', '1');
+        return data;
+    }
+
+    function scheduleSave() {
+        if (!canAutosave || !form) return;
+        clearTimeout(saveTimer);
+        setSaveStatus('idle', 'در انتظار ذخیره…');
+        saveTimer = setTimeout(saveNow, 700);
+    }
+
+    function saveNow() {
+        if (!canAutosave || !form) return;
+        if (saving) { queued = true; return; }
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        saving = true;
+        setSaveStatus('saving', 'در حال ذخیره…');
+        fetch(window.location.href, {
+            method: 'POST',
+            body: saveFormData(),
+            credentials: 'same-origin',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function (response) {
+            return response.text().then(function (text) {
+                var data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = {ok: false, errors: ['پاسخ سرور نامعتبر بود.']};
+                }
+                if (!response.ok || !data.ok) throw data;
+                return data;
+            });
+        }).then(function () {
+            setSaveStatus('saved', 'ذخیره شد');
+        }).catch(function (error) {
+            var message = (error && error.errors && error.errors[0])
+                ? error.errors[0]
+                : 'خطا در ذخیره خودکار';
+            setSaveStatus('error', message);
+        }).finally(function () {
+            saving = false;
+            if (queued) {
+                queued = false;
+                scheduleSave();
+            }
+        });
+    }
+
+    function flushSave() {
+        if (!canAutosave || !form || !saveTimer) return;
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon(window.location.href, saveFormData());
+        }
+    }
+    window.addEventListener('pagehide', flushSave);
 
     function fa(value) {
         return String(value).replace(/[0-9]/g, function (d) {
@@ -498,9 +608,13 @@
         el.addEventListener('input', function () {
             recalcDay(this.dataset.day);
             recalcTotals();
+            scheduleSave();
         });
     }
     document.querySelectorAll('.wl-input').forEach(bindInput);
+    document.querySelectorAll('.wl-note-input, #wl-other-title').forEach(function (el) {
+        el.addEventListener('input', scheduleSave);
+    });
 
     // نمای موبایل: فقط پروژه‌های دارای ساعت نمایش داده می‌شوند؛
     // افزودن پروژهٔ جدید با یک انتخابگر کوچک انجام می‌شود.
@@ -548,8 +662,23 @@
             input.setAttribute('aria-label', option.textContent + ' روز ' + day);
             bindInput(input);
 
-            row.appendChild(label);
-            row.appendChild(input);
+            var main = document.createElement('div');
+            main.className = 'wl-m-project-main';
+            main.appendChild(label);
+            main.appendChild(input);
+            row.appendChild(main);
+
+            var note = document.createElement('input');
+            note.type = 'text';
+            note.maxLength = 300;
+            note.className = 'wl-note-input';
+            note.placeholder = 'توضیح کوتاه (اختیاری)';
+            note.name = (kind === 'other')
+                ? 'note_other_' + day
+                : 'note_p' + option.value + '_' + day;
+            note.setAttribute('aria-label', 'توضیح ' + option.textContent + ' روز ' + day);
+            note.addEventListener('input', scheduleSave);
+            row.appendChild(note);
 
             var companyRow = card.querySelector('.wl-m-company-row');
             if (companyRow) list.insertBefore(row, companyRow);
@@ -561,12 +690,15 @@
             else select.selectedIndex = 0;
             recalcDay(day);
             recalcTotals();
+            scheduleSave();
             input.focus();
         });
     });
 
     if (form) {
         form.addEventListener('submit', function (event) {
+            clearTimeout(saveTimer);
+            saveTimer = null;
             var overDays = [];
             Object.keys(allocatable).forEach(function (day) {
                 if (daySum(day) > (Number(allocatable[day]) || 0) + 0.01) {

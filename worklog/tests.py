@@ -102,6 +102,32 @@ class ServiceTests(WorklogTestBase):
         self.assertEqual(logs.get(project=self.p2).hours, Decimal('2.00'))
         self.assertEqual(logs.get(project__isnull=True).other_title, 'پشتیبانی')
 
+    def test_notes_are_saved_and_loaded(self):
+        note_key = 'note_p%d_1' % self.p1.pk
+        ok, errors = services.save_allocations(
+            self.emp, self.year, self.month, [self.p1, self.p2],
+            self._data(**{
+                self.kp1: '5', note_key: 'کار روی استقرار',
+                'other_1': '1', 'other_title': 'پشتیبانی',
+                'note_other_1': 'پاسخ به تیکت‌ها',
+            }),
+        )
+        self.assertTrue(ok, errors)
+        log = WorkLog.objects.get(
+            user=self.emp, date=self.day, project=self.p1,
+        )
+        self.assertEqual(log.note, 'کار روی استقرار')
+
+        matrix = services.month_matrix(
+            self.emp, self.year, self.month, [self.p1, self.p2],
+        )
+        zabbix = next(
+            row for row in matrix['projects']
+            if row['project'].pk == self.p1.pk
+        )
+        self.assertEqual(zabbix['cells'][0]['note'], 'کار روی استقرار')
+        self.assertEqual(matrix['other_cells'][0]['note'], 'پاسخ به تیکت‌ها')
+
     def test_over_limit_is_rejected(self):
         ok, errors = services.save_allocations(
             self.emp, self.year, self.month, [self.p1],
@@ -452,9 +478,36 @@ class ViewTests(WorklogTestBase):
         self.assertContains(response, 'wl-m-card')
         self.assertNotContains(response, '<table class="wl-table')
         self.assertContains(response, 'name="%s"' % self.kp1)
+        self.assertContains(
+            response, 'name="note_p%d_1"' % self.p1.pk,
+        )
         # فقط پروژه‌های دارای ساعت نمایش داده می‌شوند، نه همهٔ پروژه‌ها.
         self.assertNotContains(response, 'name="%s"' % 'p%d_1' % self.p2.pk)
         self.assertContains(response, 'class="wl-m-add"')
+
+    def test_desktop_also_gets_card_view(self):
+        self.client.force_login(self.emp)
+        response = self.client.get(
+            '/worklog/?year=%d&month=%d&view=desktop'
+            % (self.year, self.month),
+        )
+        self.assertContains(response, 'wl-m-card')
+        self.assertNotContains(response, '<table class="wl-table')
+
+    def test_autosave_returns_json_and_persists_notes(self):
+        self.client.force_login(self.emp)
+        note_key = 'note_p%d_1' % self.p1.pk
+        response = self.client.post('/worklog/', self._data(**{
+            'autosave': '1',
+            self.kp1: '5',
+            note_key: 'توضیح خودکار',
+        }))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        log = WorkLog.objects.get(
+            user=self.emp, date=self.day, project=self.p1,
+        )
+        self.assertEqual(log.note, 'توضیح خودکار')
 
     def test_mobile_ua_gets_mobile_view(self):
         self.client.force_login(self.emp)

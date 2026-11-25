@@ -3,7 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -103,22 +103,36 @@ def my_worklog(request):
         defaults={'status': WorkLogMonth.STATUS_DRAFT},
     )
     projects = services.projects_for_month(request.user, year, month)
+    is_autosave = (
+        request.method == 'POST'
+        and request.POST.get('autosave') == '1'
+    )
 
     if request.method == 'POST':
         if month_state.is_submitted:
-            messages.error(
-                request,
+            message = (
                 'این ماه ثبت نهایی شده است و قابل ویرایش نیست. '
-                'برای اصلاح، ابتدا «بازگشت به ویرایش» را بزنید.',
+                'برای اصلاح، ابتدا «بازگشت به ویرایش» را بزنید.'
             )
+            if is_autosave:
+                return JsonResponse(
+                    {'ok': False, 'errors': [message]}, status=400,
+                )
+            messages.error(request, message)
             return redirect(_month_url('worklog:my', year, month))
 
         ok, errors = services.save_allocations(
             request.user, year, month, projects, request.POST,
         )
         if ok:
+            if is_autosave:
+                return JsonResponse({'ok': True})
             messages.success(request, 'کارکرد این ماه با موفقیت ذخیره شد.')
             return redirect(_month_url('worklog:my', year, month))
+        if is_autosave:
+            return JsonResponse(
+                {'ok': False, 'errors': errors}, status=400,
+            )
         for error in errors:
             messages.error(request, error)
         matrix = services.month_matrix(

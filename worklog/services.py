@@ -229,9 +229,13 @@ def month_matrix(user, year, month, projects=None):
     other_title = ''
     for log in logs:
         if log.project_id:
-            by_project[(log.project_id, log.date)] = log.hours
+            by_project[(log.project_id, log.date)] = {
+                'hours': log.hours, 'note': log.note or '',
+            }
         else:
-            other[log.date] = log.hours
+            other[log.date] = {
+                'hours': log.hours, 'note': log.note or '',
+            }
             if log.other_title:
                 other_title = log.other_title
 
@@ -245,9 +249,14 @@ def month_matrix(user, year, month, projects=None):
         cells = []
         total = Decimal('0')
         for d in days:
-            value = by_project.get((project.id, d['date']), Decimal('0'))
+            entry = by_project.get((project.id, d['date']))
+            value = entry['hours'] if entry else Decimal('0')
             total += value
-            cells.append({'day': d['day'], 'value': value})
+            cells.append({
+                'day': d['day'],
+                'value': value,
+                'note': entry['note'] if entry else '',
+            })
         project_rows.append({
             'project': project,
             'cells': cells,
@@ -257,9 +266,14 @@ def month_matrix(user, year, month, projects=None):
     other_cells = []
     other_total = Decimal('0')
     for d in days:
-        value = other.get(d['date'], Decimal('0'))
+        entry = other.get(d['date'])
+        value = entry['hours'] if entry else Decimal('0')
         other_total += value
-        other_cells.append({'day': d['day'], 'value': value})
+        other_cells.append({
+            'day': d['day'],
+            'value': value,
+            'note': entry['note'] if entry else '',
+        })
 
     errand_cells = []
     errand_total = Decimal('0')
@@ -361,9 +375,11 @@ def save_allocations(user, year, month, projects, data):
 
     errors = []
     parsed = {}
+    notes = {}
 
     for day in days:
         values = {}
+        day_notes = {}
         day_total = Decimal('0')
         # حضور فیزیکی + مأموریت ریموت قابل تخصیص است؛ مأموریت شرکتی خودکار.
         allowed = allowed_hours_for(attendance, split, day['date'])
@@ -375,6 +391,9 @@ def save_allocations(user, year, month, projects, data):
                 errors.append('%s — %s: %s' % (project.name, day['jalali'], error))
                 value = Decimal('0')
             values[project.id] = value
+            day_notes[project.id] = (
+                data.get('note_p%d_%d' % (project.id, day['day'])) or ''
+            ).strip()[:300]
             day_total += value
 
         other_value, error = parse_hours(data.get('other_%d' % day['day']))
@@ -382,6 +401,9 @@ def save_allocations(user, year, month, projects, data):
             errors.append('سایر — %s: %s' % (day['jalali'], error))
             other_value = Decimal('0')
         values['other'] = other_value
+        day_notes['other'] = (
+            data.get('note_other_%d' % day['day']) or ''
+        ).strip()[:300]
         day_total += other_value
 
         if allowed == 0 and day_total > 0:
@@ -402,6 +424,7 @@ def save_allocations(user, year, month, projects, data):
                 % day['jalali']
             )
         parsed[day['date']] = values
+        notes[day['date']] = day_notes
 
     if errors:
         return False, errors
@@ -417,12 +440,14 @@ def save_allocations(user, year, month, projects, data):
                 if value > 0:
                     objects.append(WorkLog(
                         user=user, date=date, project=project, hours=value,
+                        note=notes.get(date, {}).get(project.id, ''),
                     ))
             other_value = values.get('other', Decimal('0'))
             if other_value > 0:
                 objects.append(WorkLog(
                     user=user, date=date, project=None,
                     other_title=other_title, hours=other_value,
+                    note=notes.get(date, {}).get('other', ''),
                 ))
         if objects:
             WorkLog.objects.bulk_create(objects)
@@ -604,6 +629,9 @@ def overlay_matrix(matrix, projects, data):
             if value is None:
                 value = Decimal('0')
             cell['value'] = value
+            cell['note'] = (
+                data.get('note_p%d_%d' % (row['project'].id, cell['day'])) or ''
+            ).strip()[:300]
             total += value
         row['total'] = total
 
@@ -614,6 +642,9 @@ def overlay_matrix(matrix, projects, data):
         if value is None:
             value = Decimal('0')
         cell['value'] = value
+        cell['note'] = (
+            data.get('note_other_%d' % cell['day']) or ''
+        ).strip()[:300]
         other_total += value
     matrix['other_total'] = other_total
 
