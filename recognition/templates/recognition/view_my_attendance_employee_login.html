@@ -747,8 +747,7 @@
                     <small>بازه مورد نظر را انتخاب کنید یا از میانبرهای آماده استفاده کنید</small>
                 </div>
             </div>
-            <form method="POST" autocomplete="off" class="position-relative" style="z-index:1;">
-                {% csrf_token %}
+            <form method="GET" autocomplete="off" class="position-relative" style="z-index:1;">
                 <div class="row g-3 align-items-end">
                     <div class="col-12 col-md-4">
                         <label class="form-label">
@@ -841,35 +840,6 @@
 {% if rows %}
 
 <!-- ============================================================
-     WEEKLY SUMMARY
-     ============================================================ -->
-{% if weekly %}
-<div class="row justify-content-center mb-4">
-    <div class="col-12 col-lg-10">
-        <div class="summary-card weekly">
-            <div class="summary-head">
-                <span class="sh-icon"><i class="fas fa-calendar-week"></i></span>
-                <h5>خلاصه هفتگی</h5>
-            </div>
-            <div class="summary-list">
-                {% for w in weekly %}
-                <div class="summary-row">
-                    <div class="sr-label">
-                        <span class="sr-dot"></span>{{ w.label }}
-                    </div>
-                    <div class="sr-days">
-                        <i class="fas fa-calendar-check"></i>{{ w.days|fa }} روز
-                    </div>
-                    <div class="sr-hours">{{ w.hours_text }}</div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- ============================================================
      MONTHLY SUMMARY
      ============================================================ -->
 {% if monthly %}
@@ -908,11 +878,14 @@
                 <span class="sh-icon" style="background:linear-gradient(135deg,#c084fc,#22d3ee);">
                     <i class="fas fa-chart-simple"></i>
                 </span>
-                <h5>ساعات حضور روزانه (نسبت به روز کاری ۸ ساعته)</h5>
+                <h5>
+                    ساعات حضور روزانه (نسبت به روز کاری ۸ ساعته)
+                    <small class="text-muted" style="font-size:.68rem;font-weight:500;">۷ روز آخر</small>
+                </h5>
             </div>
             <div class="card-body" style="padding:1.25rem 1.4rem;">
                 <div class="chart-wrap">
-                    {% for item in rows %}
+                    {% for item in chart_rows %}
                         {% if item.present %}
                         <div class="chart-row" title="{{ item.date|to_jalali_full }} — {{ item.work_text }}">
                             <div class="chart-date">

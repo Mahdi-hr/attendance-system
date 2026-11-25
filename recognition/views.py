@@ -793,11 +793,22 @@ def view_my_attendance_employee_login(request):
 		else:
 			messages.error(request, 'فیلتر تاریخ نامعتبر است.')
 
-	rows = daily_rows([request.user], date_from, date_to)
-	days_present, total_seconds, _ = range_summary(rows)
-	total_text = format_hours(total_seconds)
-	avg_text = format_hours(total_seconds // days_present) if days_present else '-'
-	max_day_text = format_hours(max(r['work_seconds'] for r in rows)) if rows else '-'
+	if date_from or date_to:
+		rows = daily_rows([request.user], date_from, date_to)
+		days_present, total_seconds, _ = range_summary(rows)
+		total_text = format_hours(total_seconds)
+		avg_text = format_hours(total_seconds // days_present) if days_present else '-'
+		max_day_text = format_hours(max(r['work_seconds'] for r in rows)) if rows else '-'
+		# فقط ۷ روز آخرِ دارای حضور برای نمودار روزانه
+		chart_rows = [r for r in rows if r.get('present')][-7:]
+	else:
+		# تا وقتی بازه انتخاب نشده، گزارش همهٔ تاریخ‌ها نمایش داده نشود.
+		rows = []
+		days_present = 0
+		total_text = None
+		avg_text = '-'
+		max_day_text = '-'
+		chart_rows = []
 
 	paginator = Paginator(rows, PER_PAGE)
 	page_obj = paginator.get_page(request.GET.get('page'))
@@ -805,13 +816,13 @@ def view_my_attendance_employee_login(request):
 	return render(request, 'recognition/view_my_attendance_employee_login.html', {
 		'form': form,
 		'rows': rows,
+		'chart_rows': chart_rows,
 		'page_obj': page_obj,
 		'filter_qs': report_query_params(request),
 		'days_present': days_present,
 		'total_text': total_text,
 		'avg_text': avg_text,
 		'max_day_text': max_day_text,
-		'weekly': weekly_summary(rows),
 		'monthly': monthly_summary(rows),
 		'total_rows': len(rows),
 	})
