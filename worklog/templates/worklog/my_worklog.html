@@ -259,6 +259,15 @@
         flex: 1; min-width: 0; overflow-wrap: anywhere;
     }
     .wl-m-project .wl-input { width: 84px; padding: 6px 4px; font-size: .82rem; }
+    .wl-input.is-locked, .wl-note-input.is-locked {
+        border-color: transparent !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        cursor: default;
+    }
+    .wl-input.is-locked { padding-inline: 2px; }
+    .wl-note-input.is-locked { padding-inline: 1px; }
+    .wl-note-input.is-locked::placeholder { color: transparent; }
     .wl-m-project-controls {
         display: flex; align-items: center; gap: .3rem;
         flex-shrink: 0;
@@ -651,8 +660,6 @@
 
     function bindInput(el) {
         el.addEventListener('input', function () {
-            var row = this.closest('.wl-m-project');
-            if (row) row.classList.remove('is-cleared');
             recalcDay(this.dataset.day);
             recalcTotals();
             scheduleSave();
@@ -660,11 +667,11 @@
     }
     document.querySelectorAll('.wl-input').forEach(bindInput);
     document.querySelectorAll('.wl-note-input, #wl-other-title').forEach(function (el) {
-        el.addEventListener('input', function () {
-            var row = this.closest('.wl-m-project');
-            if (row) row.classList.remove('is-cleared');
-            scheduleSave();
-        });
+        el.addEventListener('input', scheduleSave);
+    });
+    // توضیح خالیِ قفل‌شده فضای بی‌مورد نگیرد.
+    document.querySelectorAll('.wl-note-input.is-locked').forEach(function (note) {
+        if (!note.value) note.style.display = 'none';
     });
 
     // نمای موبایل: فقط پروژه‌های دارای ساعت نمایش داده می‌شوند؛
@@ -707,20 +714,20 @@
             input.min = '0';
             input.max = '24';
             input.inputMode = 'decimal';
-            input.className = 'wl-input' + (kind === 'other' ? ' wl-other-input' : '');
+            input.className = 'wl-input is-locked' + (kind === 'other' ? ' wl-other-input' : '');
             input.name = (kind === 'other')
                 ? 'other_' + day
                 : 'p' + option.value + '_' + day;
             input.dataset.day = day;
             input.value = hours.value.trim();
+            input.readOnly = true;
             input.setAttribute('aria-label', option.textContent + ' روز ' + day);
             bindInput(input);
 
             var controls = document.createElement('div');
             controls.className = 'wl-m-project-controls';
             controls.appendChild(input);
-            controls.appendChild(makeRowAction('edit', 'fa-pen', 'ویرایش سریع'));
-            controls.appendChild(makeRowAction('clear', 'fa-eraser', 'پاک کردن ساعت و توضیح'));
+            controls.appendChild(makeRowAction('edit', 'fa-pen', 'ویرایش'));
             controls.appendChild(makeRowAction('delete', 'fa-trash', 'حذف این ردیف', true));
 
             var main = document.createElement('div');
@@ -732,14 +739,16 @@
             var note = document.createElement('input');
             note.type = 'text';
             note.maxLength = 300;
-            note.className = 'wl-note-input';
+            note.className = 'wl-note-input is-locked';
             note.placeholder = 'توضیح کوتاه (اختیاری)';
             note.name = (kind === 'other')
                 ? 'note_other_' + day
                 : 'note_p' + option.value + '_' + day;
             note.value = addNote ? addNote.value.trim() : '';
+            note.readOnly = true;
             note.setAttribute('aria-label', 'توضیح ' + option.textContent + ' روز ' + day);
             note.addEventListener('input', scheduleSave);
+            if (!note.value) note.style.display = 'none';
             row.appendChild(note);
 
             var companyRow = card.querySelector('.wl-m-company-row');
@@ -754,7 +763,8 @@
             recalcDay(day);
             recalcTotals();
             scheduleSave();
-            input.focus();
+            var editButton = row.querySelector('[data-action="edit"]');
+            if (editButton) editButton.focus();
         });
     });
 
@@ -769,10 +779,28 @@
             var action = button.dataset.action;
 
             if (action === 'edit') {
-                var hoursInput = row.querySelector('.wl-input');
-                if (hoursInput) {
-                    hoursInput.focus();
-                    hoursInput.select();
+                var editing = !row.classList.contains('is-editing');
+                row.classList.toggle('is-editing', editing);
+                row.querySelectorAll('.wl-input, .wl-note-input').forEach(function (field) {
+                    field.readOnly = !editing;
+                    field.classList.toggle('is-locked', !editing);
+                });
+                var noteField = row.querySelector('.wl-note-input');
+                if (noteField) {
+                    noteField.style.display =
+                        (!editing && !noteField.value) ? 'none' : '';
+                }
+                var icon = button.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas ' + (editing ? 'fa-check' : 'fa-pen');
+                }
+                button.title = editing ? 'پایان ویرایش' : 'ویرایش';
+                if (editing) {
+                    var hoursInput = row.querySelector('.wl-input');
+                    if (hoursInput) {
+                        hoursInput.focus();
+                        hoursInput.select();
+                    }
                 }
                 return;
             }
@@ -803,12 +831,6 @@
                     select.selectedIndex = 0;
                 }
                 row.remove();
-            } else if (action === 'clear') {
-                var hours = row.querySelector('.wl-input');
-                var note = row.querySelector('.wl-note-input');
-                if (hours) hours.value = '';
-                if (note) note.value = '';
-                row.classList.add('is-cleared');
             }
             if (day) {
                 recalcDay(day);

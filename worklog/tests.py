@@ -486,8 +486,9 @@ class ViewTests(WorklogTestBase):
         self.assertContains(response, 'class="wl-m-add"')
         self.assertContains(response, 'class="wl-m-add-note"')
         self.assertContains(response, 'data-action="edit"')
-        self.assertContains(response, 'data-action="clear"')
+        self.assertNotContains(response, 'data-action="clear"')
         self.assertContains(response, 'data-action="delete"')
+        self.assertContains(response, 'readonly')
 
     def test_desktop_also_gets_card_view(self):
         self.client.force_login(self.emp)
