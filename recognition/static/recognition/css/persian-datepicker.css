@@ -149,16 +149,6 @@
 }
 .pdp-day.pdp-selected.pdp-today { box-shadow: 0 6px 16px -6px var(--primary, #818cf8), inset 0 0 0 1.5px rgba(255,255,255,0.7); }
 
-.pdp-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--glass-border, rgba(148,163,184,0.18));
-}
-.pdp-footer button { flex: 1; font-size: 0.8rem; }
-
 /* -------- Time Picker -------- */
 .pdp-time {
     display: flex;
@@ -249,40 +239,6 @@
     font-weight: 800;
     font-size: 1.3rem;
     line-height: 1;
-}
-
-.pdp-quick-times {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.pdp-quick-btn {
-    padding: 5px 12px;
-    border-radius: 20px;
-    background: rgba(var(--primary-rgb, 129,140,248), 0.1);
-    border: 1px solid var(--glass-border, rgba(148,163,184,0.2));
-    color: var(--primary, #818cf8);
-    font-size: 0.74rem;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-.pdp-quick-btn:hover {
-    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
-    border-color: transparent;
-    color: #fff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -4px var(--primary, #818cf8);
-}
-.pdp-quick-btn.pdp-quick-active {
-    background: linear-gradient(135deg, var(--primary, #818cf8), var(--accent, #22d3ee));
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 4px 12px -4px var(--primary, #818cf8);
 }
 
 /* -------- Month / Year views -------- */

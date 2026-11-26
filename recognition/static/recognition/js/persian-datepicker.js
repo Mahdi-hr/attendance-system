@@ -330,10 +330,6 @@
         if (this.enableTime) {
             html += this._renderTimeSection();
         }
-        html += '<div class="pdp-footer">' +
-            '<button type="button" data-action="today"><i class="fas fa-bullseye"></i>امروز</button>' +
-            '<button type="button" data-action="clear"><i class="fas fa-eraser"></i>پاک کردن</button>' +
-            '</div>';
 
         this.container.innerHTML = html;
         this.bindEvents();
@@ -350,30 +346,13 @@
             minOpts += '<option value="' + m + '"' + (m === this.selectedMinute ? ' selected' : '') + '>' + toPersianNum(pad) + '</option>';
         }
 
-        var quickTimes = [
-            { h: 8, m: 0, label: '۸ صبح' },
-            { h: 9, m: 0, label: '۹ صبح' },
-            { h: 12, m: 0, label: '۱۲ ظهر' },
-            { h: 14, m: 0, label: '۱۴ عصر' },
-            { h: 17, m: 0, label: '۱۷ عصر' },
-            { h: 20, m: 0, label: '۲۰ شب' },
-            { h: 23, m: 59, label: '۲۳:۵۹' }
-        ];
-        var quickHtml = '';
-        for (var q = 0; q < quickTimes.length; q++) {
-            var qt = quickTimes[q];
-            var active = (qt.h === this.selectedHour && qt.m === this.selectedMinute) ? ' pdp-quick-active' : '';
-            quickHtml += '<button type="button" class="pdp-quick-btn' + active + '" data-qh="' + qt.h + '" data-qm="' + qt.m + '">' + qt.label + '</button>';
-        }
-
         return '<div class="pdp-time">' +
             '<div class="pdp-time-title"><i class="fas fa-clock"></i>ساعت</div>' +
             '<div class="pdp-time-row">' +
-                '<div class="pdp-time-wheel"><select data-field="hour" aria-label="ساعت">' + hourOpts + '</select></div>' +
-                '<span class="pdp-dot">:</span>' +
                 '<div class="pdp-time-wheel"><select data-field="minute" aria-label="دقیقه">' + minOpts + '</select></div>' +
+                '<span class="pdp-dot">:</span>' +
+                '<div class="pdp-time-wheel"><select data-field="hour" aria-label="ساعت">' + hourOpts + '</select></div>' +
             '</div>' +
-            '<div class="pdp-quick-times">' + quickHtml + '</div>' +
             '</div>';
     };
 
@@ -455,33 +434,7 @@
                 } else if (action === 'show-years') {
                     self.view = 'years';
                     self.render();
-                } else if (action === 'today') {
-                    var today = getTodayJalali();
-                    var n = new Date();
-                    self.selectedHour = n.getHours();
-                    self.selectedMinute = n.getMinutes();
-                    self.selectDate(today.year, today.month, today.day);
-                } else if (action === 'clear') {
-                    self.input.value = '';
-                    if (self.hiddenInput) self.hiddenInput.value = '';
-                    self.selectedYear = self.selectedMonth = self.selectedDay = null;
-                    self.hide();
-                    self._dispatchChange();
                 }
-                return;
-            }
-
-            var qBtn = target.closest('.pdp-quick-btn');
-            if (qBtn && qBtn.getAttribute('data-qh') !== null) {
-                self.selectedHour = parseInt(qBtn.getAttribute('data-qh'), 10);
-                self.selectedMinute = parseInt(qBtn.getAttribute('data-qm'), 10);
-                if (self.selectedDay !== null) {
-                    self._syncHidden(self.selectedYear, self.selectedMonth, self.selectedDay);
-                    self.input.value = self._isoJalaliDisplay();
-                    self._dispatchChange();
-                }
-                // بازرندر کامل تا حالت انتخاب‌شدهٔ دکمه‌ها هم به‌روز شود
-                self.render();
                 return;
             }
 

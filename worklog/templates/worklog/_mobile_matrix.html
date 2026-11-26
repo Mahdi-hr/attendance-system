@@ -123,7 +123,8 @@
     </div>
 
     {% if editable %}
-    <div class="wl-m-add" data-day="{{ day.day }}">
+    <div class="wl-m-add" data-day="{{ day.day }}"
+         {% if day.remaining <= 0 %}style="display:none"{% endif %}>
         <select class="wl-m-add-select" aria-label="افزودن پروژه به روز {{ day.day }}">
             <option value="">+ افزودن پروژه</option>
             {% for row in matrix.projects %}
@@ -146,7 +147,12 @@
                step="0.01" min="0" max="24"
                inputmode="decimal" placeholder="ساعت"
                aria-label="ساعت پروژهٔ جدید روز {{ day.day }}">
-        <button type="button" class="wl-m-add-btn">افزودن</button>
+        <button type="button" class="wl-m-add-btn">ثبت</button>
+    </div>
+    <div class="wl-m-limit" data-day="{{ day.day }}"
+         {% if day.remaining > 0 %}hidden{% endif %}>
+        <i class="fas fa-circle-check"></i>
+        ساعت این روز کامل ثبت شده است.
     </div>
     {% endif %}
 
