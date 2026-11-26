@@ -259,6 +259,29 @@
         flex: 1; min-width: 0; overflow-wrap: anywhere;
     }
     .wl-m-project .wl-input { width: 84px; padding: 6px 4px; font-size: .82rem; }
+    .wl-m-project-controls {
+        display: flex; align-items: center; gap: .3rem;
+        flex-shrink: 0;
+    }
+    .wl-row-action {
+        width: 28px; height: 28px; padding: 0;
+        display: inline-grid; place-items: center;
+        border-radius: 8px; cursor: pointer;
+        border: 1px solid var(--glass-border);
+        background: var(--glass); color: var(--text-secondary);
+        font-size: .68rem;
+        transition: transform .2s, color .2s, border-color .2s, background .2s;
+    }
+    .wl-row-action:hover {
+        transform: translateY(-1px);
+        color: var(--primary); border-color: var(--primary);
+        background: rgba(var(--primary-rgb), .1);
+    }
+    .wl-row-action.danger:hover {
+        color: var(--danger); border-color: var(--danger);
+        background: rgba(239,68,68,.1);
+    }
+    .wl-m-project.is-cleared { opacity: .55; }
     .wl-note-input {
         width: 100%; padding: .38rem .55rem;
         font-size: .72rem; font-family: inherit;
@@ -291,17 +314,26 @@
     }
     .wl-m-foot strong.over { color: var(--danger); }
     .wl-m-add {
-        display: flex; align-items: center; gap: .4rem;
+        display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
         margin-top: .55rem; padding-top: .55rem;
         border-top: 1px dashed var(--glass-border);
     }
     .wl-m-add-select {
-        flex: 1; min-width: 0;
+        flex: 1 1 150px; min-width: 0;
         background: var(--form-bg); color: var(--text-primary);
         border: 1px dashed var(--glass-border); border-radius: 10px;
         padding: .45rem .55rem; font-size: .8rem; font-family: inherit;
     }
     .wl-m-add-select:focus { outline: none; border-color: var(--primary); }
+    .wl-m-add-note {
+        flex: 2 1 180px; min-width: 0;
+        padding: .42rem .55rem;
+        background: var(--form-bg); color: var(--text-primary);
+        border: 1px solid var(--glass-border); border-radius: 10px;
+        font-size: .76rem; font-family: inherit;
+    }
+    .wl-m-add-note::placeholder { color: var(--text-muted); }
+    .wl-m-add-note:focus { outline: none; border-color: var(--primary); }
     .wl-m-add-hours {
         width: 62px; padding: .42rem .35rem; text-align: center;
         background: var(--form-bg); color: var(--text-primary);
@@ -604,8 +636,23 @@
         }
     }
 
+    function makeRowAction(action, icon, title, danger) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'wl-row-action' + (danger ? ' danger' : '');
+        button.dataset.action = action;
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        var glyph = document.createElement('i');
+        glyph.className = 'fas ' + icon;
+        button.appendChild(glyph);
+        return button;
+    }
+
     function bindInput(el) {
         el.addEventListener('input', function () {
+            var row = this.closest('.wl-m-project');
+            if (row) row.classList.remove('is-cleared');
             recalcDay(this.dataset.day);
             recalcTotals();
             scheduleSave();
@@ -613,7 +660,11 @@
     }
     document.querySelectorAll('.wl-input').forEach(bindInput);
     document.querySelectorAll('.wl-note-input, #wl-other-title').forEach(function (el) {
-        el.addEventListener('input', scheduleSave);
+        el.addEventListener('input', function () {
+            var row = this.closest('.wl-m-project');
+            if (row) row.classList.remove('is-cleared');
+            scheduleSave();
+        });
     });
 
     // نمای موبایل: فقط پروژه‌های دارای ساعت نمایش داده می‌شوند؛
@@ -621,6 +672,7 @@
     document.querySelectorAll('.wl-m-add').forEach(function (wrap) {
         var select = wrap.querySelector('.wl-m-add-select');
         var hours = wrap.querySelector('.wl-m-add-hours');
+        var addNote = wrap.querySelector('.wl-m-add-note');
         var button = wrap.querySelector('.wl-m-add-btn');
         if (!select || !hours || !button) return;
 
@@ -643,6 +695,8 @@
             var kind = option.dataset.kind;
             var row = document.createElement('div');
             row.className = 'wl-m-project';
+            row.dataset.kind = kind;
+            if (kind !== 'other') row.dataset.projectRow = option.value;
 
             var label = document.createElement('label');
             label.textContent = option.textContent;
@@ -662,10 +716,17 @@
             input.setAttribute('aria-label', option.textContent + ' روز ' + day);
             bindInput(input);
 
+            var controls = document.createElement('div');
+            controls.className = 'wl-m-project-controls';
+            controls.appendChild(input);
+            controls.appendChild(makeRowAction('edit', 'fa-pen', 'ویرایش سریع'));
+            controls.appendChild(makeRowAction('clear', 'fa-eraser', 'پاک کردن ساعت و توضیح'));
+            controls.appendChild(makeRowAction('delete', 'fa-trash', 'حذف این ردیف', true));
+
             var main = document.createElement('div');
             main.className = 'wl-m-project-main';
             main.appendChild(label);
-            main.appendChild(input);
+            main.appendChild(controls);
             row.appendChild(main);
 
             var note = document.createElement('input');
@@ -676,6 +737,7 @@
             note.name = (kind === 'other')
                 ? 'note_other_' + day
                 : 'note_p' + option.value + '_' + day;
+            note.value = addNote ? addNote.value.trim() : '';
             note.setAttribute('aria-label', 'توضیح ' + option.textContent + ' روز ' + day);
             note.addEventListener('input', scheduleSave);
             row.appendChild(note);
@@ -686,6 +748,7 @@
 
             option.remove();
             hours.value = '';
+            if (addNote) addNote.value = '';
             if (select.options.length <= 1) wrap.style.display = 'none';
             else select.selectedIndex = 0;
             recalcDay(day);
@@ -696,6 +759,64 @@
     });
 
     if (form) {
+        form.addEventListener('click', function (event) {
+            var button = event.target.closest('.wl-row-action');
+            if (!button) return;
+            var row = button.closest('.wl-m-project');
+            if (!row) return;
+            var card = row.closest('.wl-m-card');
+            var day = card ? card.dataset.day : '';
+            var action = button.dataset.action;
+
+            if (action === 'edit') {
+                var hoursInput = row.querySelector('.wl-input');
+                if (hoursInput) {
+                    hoursInput.focus();
+                    hoursInput.select();
+                }
+                return;
+            }
+            if (action === 'delete') {
+                if (!window.confirm('این ردیف حذف شود؟')) return;
+                var addWrap = card ? card.querySelector('.wl-m-add') : null;
+                var select = addWrap ? addWrap.querySelector('.wl-m-add-select') : null;
+                var isOther = row.classList.contains('wl-m-other-row');
+                var optionValue = isOther ? 'other' : row.dataset.projectRow;
+                if (select && optionValue) {
+                    var exists = Array.prototype.some.call(
+                        select.options,
+                        function (item) { return item.value === optionValue; }
+                    );
+                    if (!exists) {
+                        var restored = document.createElement('option');
+                        restored.value = optionValue;
+                        restored.dataset.kind = isOther ? 'other' : 'project';
+                        if (isOther) {
+                            restored.textContent = 'سایر';
+                        } else {
+                            var nameEl = row.querySelector('label');
+                            restored.textContent = nameEl ? nameEl.textContent.trim() : 'پروژه';
+                        }
+                        select.appendChild(restored);
+                    }
+                    addWrap.style.display = '';
+                    select.selectedIndex = 0;
+                }
+                row.remove();
+            } else if (action === 'clear') {
+                var hours = row.querySelector('.wl-input');
+                var note = row.querySelector('.wl-note-input');
+                if (hours) hours.value = '';
+                if (note) note.value = '';
+                row.classList.add('is-cleared');
+            }
+            if (day) {
+                recalcDay(day);
+                recalcTotals();
+            }
+            scheduleSave();
+        });
+
         form.addEventListener('submit', function (event) {
             clearTimeout(saveTimer);
             saveTimer = null;

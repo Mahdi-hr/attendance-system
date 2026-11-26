@@ -229,6 +229,29 @@
         flex: 1; min-width: 0; overflow-wrap: anywhere;
     }
     .wl-m-project .wl-input { width: 84px; padding: 6px 4px; font-size: .82rem; }
+    .wl-m-project-controls {
+        display: flex; align-items: center; gap: .3rem;
+        flex-shrink: 0;
+    }
+    .wl-row-action {
+        width: 28px; height: 28px; padding: 0;
+        display: inline-grid; place-items: center;
+        border-radius: 8px; cursor: pointer;
+        border: 1px solid var(--glass-border);
+        background: var(--glass); color: var(--text-secondary);
+        font-size: .68rem;
+        transition: transform .2s, color .2s, border-color .2s, background .2s;
+    }
+    .wl-row-action:hover {
+        transform: translateY(-1px);
+        color: var(--primary); border-color: var(--primary);
+        background: rgba(var(--primary-rgb), .1);
+    }
+    .wl-row-action.danger:hover {
+        color: var(--danger); border-color: var(--danger);
+        background: rgba(239,68,68,.1);
+    }
+    .wl-m-project.is-cleared { opacity: .55; }
     .wl-note-input {
         width: 100%; padding: .38rem .55rem;
         font-size: .72rem; font-family: inherit;
@@ -261,17 +284,26 @@
     }
     .wl-m-foot strong.over { color: var(--danger); }
     .wl-m-add {
-        display: flex; align-items: center; gap: .4rem;
+        display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
         margin-top: .55rem; padding-top: .55rem;
         border-top: 1px dashed var(--glass-border);
     }
     .wl-m-add-select {
-        flex: 1; min-width: 0;
+        flex: 1 1 150px; min-width: 0;
         background: var(--form-bg); color: var(--text-primary);
         border: 1px dashed var(--glass-border); border-radius: 10px;
         padding: .45rem .55rem; font-size: .8rem; font-family: inherit;
     }
     .wl-m-add-select:focus { outline: none; border-color: var(--primary); }
+    .wl-m-add-note {
+        flex: 2 1 180px; min-width: 0;
+        padding: .42rem .55rem;
+        background: var(--form-bg); color: var(--text-primary);
+        border: 1px solid var(--glass-border); border-radius: 10px;
+        font-size: .76rem; font-family: inherit;
+    }
+    .wl-m-add-note::placeholder { color: var(--text-muted); }
+    .wl-m-add-note:focus { outline: none; border-color: var(--primary); }
     .wl-m-add-hours {
         width: 62px; padding: .42rem .35rem; text-align: center;
         background: var(--form-bg); color: var(--text-primary);

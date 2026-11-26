@@ -484,6 +484,10 @@ class ViewTests(WorklogTestBase):
         # فقط پروژه‌های دارای ساعت نمایش داده می‌شوند، نه همهٔ پروژه‌ها.
         self.assertNotContains(response, 'name="%s"' % 'p%d_1' % self.p2.pk)
         self.assertContains(response, 'class="wl-m-add"')
+        self.assertContains(response, 'class="wl-m-add-note"')
+        self.assertContains(response, 'data-action="edit"')
+        self.assertContains(response, 'data-action="clear"')
+        self.assertContains(response, 'data-action="delete"')
 
     def test_desktop_also_gets_card_view(self):
         self.client.force_login(self.emp)
